@@ -5,16 +5,16 @@ const API_URL = "http://ver3.yacinelive.com";
 const KEY = "c!xZj+N9&G@Ev@vw";
 
 function decrypt(enc: string, key: string): string {
-  const decoded = atob(enc.trim());
+  const bin = atob(enc.trim());
   let out = "";
-  for (let i = 0; i < decoded.length; i++) {
-    out += String.fromCharCode(decoded.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  for (let i = 0; i < bin.length; i++) {
+    out += String.fromCharCode(bin.charCodeAt(i) ^ key.charCodeAt(i % key.length));
   }
   return out;
 }
 
 async function req<T = unknown>(path: string): Promise<T> {
-  const r = await fetch(API_URL + path, { headers: { "User-Agent": "okhttp/4.9.0" } });
+  const r = await fetch(API_URL + path);
   const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
   const text = await r.text();
   const json = decrypt(text, KEY + timestamp);
@@ -24,42 +24,49 @@ async function req<T = unknown>(path: string): Promise<T> {
 export interface Category {
   id: number;
   name: string;
-  image?: string;
+  logo: string;
+  child_count: number;
 }
 
 export interface Channel {
   id: number;
   name: string;
-  image?: string;
-  category_id?: number;
+  logo: string;
+  is_hide: number;
+  priority: number;
 }
 
-export interface ChannelDetail {
-  id?: number;
-  name?: string;
-  image?: string;
-  link?: string;
-  link2?: string;
-  link3?: string;
-  link4?: string;
+export interface StreamLink {
+  name: string;
+  url: string;
+  url_type: number;
+  user_agent: string;
+  referer: string;
+  headers: Record<string, string>;
+  drm: unknown;
 }
 
 export const getCategories = createServerFn({ method: "GET" }).handler(async () => {
-  const data = await req<Category[] | { categories: Category[] }>("/api/categories");
-  return Array.isArray(data) ? data : (data.categories ?? []);
+  const res = await req<{ data: Category[] }>("/api/categories");
+  return res.data ?? [];
 });
 
 export const getCategoryChannels = createServerFn({ method: "GET" })
   .inputValidator(z.object({ categoryId: z.number().int() }))
   .handler(async ({ data }) => {
-    const res = await req<Channel[] | { channels: Channel[] }>(
-      `/api/categories/${data.categoryId}/channels`,
-    );
-    return Array.isArray(res) ? res : (res.channels ?? []);
+    const res = await req<{ data: Channel[] }>(`/api/categories/${data.categoryId}/channels`);
+    return res.data ?? [];
   });
 
 export const getChannel = createServerFn({ method: "GET" })
   .inputValidator(z.object({ channelId: z.number().int() }))
   .handler(async ({ data }) => {
-    return await req<ChannelDetail>(`/api/channel/${data.channelId}`);
+    const res = await req<{ data: StreamLink[] }>(`/api/channel/${data.channelId}`);
+    // Strip user-agent (browser sets its own); keep only referer for proxy
+    return (res.data ?? []).map((s) => ({
+      name: s.name,
+      url: s.url,
+      referer: s.referer ?? "",
+      user_agent: s.user_agent ?? "",
+    }));
   });
