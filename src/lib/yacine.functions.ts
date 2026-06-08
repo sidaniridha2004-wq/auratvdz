@@ -58,6 +58,13 @@ export const getCategoryChannels = createServerFn({ method: "GET" })
     return res.data ?? [];
   });
 
+export const getSubCategories = createServerFn({ method: "GET" })
+  .inputValidator(z.object({ categoryId: z.number().int() }))
+  .handler(async ({ data }) => {
+    const res = await req<{ data: Category[] }>(`/api/categories/${data.categoryId}`);
+    return res.data ?? [];
+  });
+
 export const getChannel = createServerFn({ method: "GET" })
   .inputValidator(z.object({ channelId: z.number().int() }))
   .handler(async ({ data }) => {

@@ -10,7 +10,7 @@ export function SiteHeader() {
             <Tv className="h-5 w-5" />
           </div>
           <div className="leading-tight">
-            <div className="font-display text-lg font-bold tracking-tight">YacineTV</div>
+            <div className="font-display text-lg font-bold tracking-tight">AuraTV</div>
             <div className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
               Live · HD · Free
             </div>
@@ -25,14 +25,6 @@ export function SiteHeader() {
           >
             Home
           </Link>
-          <a
-            href="https://github.com/aimadnet/yacinetv-api"
-            target="_blank"
-            rel="noreferrer"
-            className="rounded-md px-3 py-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
-          >
-            API
-          </a>
         </nav>
       </div>
     </header>

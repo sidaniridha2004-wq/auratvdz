@@ -77,13 +77,13 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "YacineTV — Live Sports & TV Streaming" },
+      { title: "AuraTV — Live Sports & TV Streaming" },
       {
         name: "description",
         content:
           "Watch live sports, entertainment and news channels in HD. beIN SPORTS, MBC, France TV and more.",
       },
-      { property: "og:title", content: "YacineTV — Live Sports & TV Streaming" },
+      { property: "og:title", content: "AuraTV — Live Sports & TV Streaming" },
       { property: "og:description", content: "Watch live sports and TV channels in HD." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
