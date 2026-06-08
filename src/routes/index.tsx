@@ -1,16 +1,18 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
-import { Search, Radio, ChevronRight } from "lucide-react";
-import { getCategories, getCategoryChannels } from "@/lib/yacine.functions";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Radio, ChevronRight, ArrowLeft } from "lucide-react";
+import {
+  getCategories,
+  getCategoryChannels,
+  getSubCategories,
+} from "@/lib/yacine.functions";
 import { SiteHeader } from "@/components/SiteHeader";
 
 export const Route = createFileRoute("/")({
   component: Home,
-  errorComponent: ({ error, reset }) => (
-    <ErrorView message={error.message} reset={reset} />
-  ),
+  errorComponent: ({ error, reset }) => <ErrorView message={error.message} reset={reset} />,
 });
 
 function ErrorView({ message, reset }: { message: string; reset: () => void }) {
@@ -42,16 +44,36 @@ function Home() {
   });
 
   const [selected, setSelected] = useState<number | null>(null);
+  const [selectedSub, setSelectedSub] = useState<number | null>(null);
   const [q, setQ] = useState("");
 
-  // auto-select first category
-  const activeId = selected ?? categories?.[0]?.id ?? null;
+  const activeTopId = selected ?? categories?.[0]?.id ?? null;
+  const activeTop = categories?.find((c) => c.id === activeTopId);
+  const hasChildren = (activeTop?.child_count ?? 0) > 0;
+
+  // Reset sub when switching parent
+  useEffect(() => {
+    setSelectedSub(null);
+  }, [activeTopId]);
+
+  const fetchSubs = useServerFn(getSubCategories);
+  const { data: subs, isLoading: subsLoading } = useQuery({
+    queryKey: ["subs", activeTopId],
+    queryFn: () => fetchSubs({ data: { categoryId: activeTopId! } }),
+    enabled: hasChildren && activeTopId != null,
+    staleTime: 5 * 60_000,
+  });
+
+  // Active category for channels: a chosen sub, or first sub if parent has children, else parent itself
+  const effectiveCategoryId = hasChildren
+    ? (selectedSub ?? subs?.[0]?.id ?? null)
+    : activeTopId;
 
   const fetchChannels = useServerFn(getCategoryChannels);
   const { data: channels, isLoading: chLoading } = useQuery({
-    queryKey: ["channels", activeId],
-    queryFn: () => fetchChannels({ data: { categoryId: activeId! } }),
-    enabled: activeId != null,
+    queryKey: ["channels", effectiveCategoryId],
+    queryFn: () => fetchChannels({ data: { categoryId: effectiveCategoryId! } }),
+    enabled: effectiveCategoryId != null,
     staleTime: 60_000,
   });
 
@@ -63,7 +85,10 @@ function Home() {
     return visible.filter((c) => c.name.toLowerCase().includes(needle));
   }, [channels, q]);
 
-  const activeCategory = categories?.find((c) => c.id === activeId);
+  const activeSub = subs?.find((s) => s.id === effectiveCategoryId);
+  const sectionTitle = hasChildren
+    ? `${activeTop?.name} — ${activeSub?.name ?? "…"}`
+    : activeTop?.name ?? "Channels";
 
   return (
     <div className="min-h-screen bg-hero">
@@ -83,8 +108,8 @@ function Home() {
             One screen.
           </h1>
           <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-            Browse hundreds of live sports, entertainment and news channels —
-            beIN SPORTS, MBC, France TV and more, in HD.
+            Browse hundreds of live sports, entertainment and news channels — beIN SPORTS,
+            MBC, France TV and more, in HD.
           </p>
         </div>
       </section>
@@ -107,7 +132,7 @@ function Home() {
               </div>
             )}
             {categories?.map((cat) => {
-              const active = cat.id === activeId;
+              const active = cat.id === activeTopId;
               return (
                 <button
                   key={cat.id}
@@ -119,18 +144,59 @@ function Home() {
                   }`}
                 >
                   {cat.name}
+                  {cat.child_count > 0 && (
+                    <span
+                      className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
+                        active ? "bg-primary-foreground/20" : "bg-secondary"
+                      }`}
+                    >
+                      {cat.child_count}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
         </div>
+
+        {/* Sub-categories */}
+        {hasChildren && (
+          <div className="mt-3 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="flex items-center gap-2 pb-2">
+              <ArrowLeft className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="mr-1 text-xs uppercase tracking-widest text-muted-foreground">
+                Quality
+              </span>
+              {subsLoading &&
+                Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-8 w-28 animate-pulse rounded-full bg-secondary" />
+                ))}
+              {subs?.map((s) => {
+                const active = s.id === effectiveCategoryId;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setSelectedSub(s.id)}
+                    className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                      active
+                        ? "bg-foreground text-background"
+                        : "border border-border bg-card/40 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </section>
 
       {/* Channels grid */}
       <section className="mx-auto max-w-7xl px-4 pb-24 sm:px-6">
         <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
           <div>
-            <h2 className="text-2xl font-bold">{activeCategory?.name ?? "Channels"}</h2>
+            <h2 className="text-2xl font-bold">{sectionTitle}</h2>
             <p className="text-sm text-muted-foreground">
               {filtered.length} channel{filtered.length === 1 ? "" : "s"} available
             </p>
@@ -166,6 +232,7 @@ function Home() {
               key={ch.id}
               to="/watch/$channelId"
               params={{ channelId: String(ch.id) }}
+              search={{ name: ch.name, logo: ch.logo }}
               className="group relative flex aspect-video flex-col justify-between overflow-hidden rounded-xl bg-card-gradient p-3 shadow-card transition hover:-translate-y-0.5 hover:shadow-glow"
             >
               <div className="flex items-start justify-between">
@@ -197,16 +264,7 @@ function Home() {
       </section>
 
       <footer className="border-t border-border/60 py-8 text-center text-xs text-muted-foreground">
-        Powered by the unofficial{" "}
-        <a
-          href="https://github.com/aimadnet/yacinetv-api"
-          target="_blank"
-          rel="noreferrer"
-          className="text-primary hover:underline"
-        >
-          yacinetv-api
-        </a>
-        .
+        AuraTV · live streaming
       </footer>
     </div>
   );

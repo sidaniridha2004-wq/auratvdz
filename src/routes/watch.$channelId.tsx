@@ -1,13 +1,20 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { ArrowLeft, Radio } from "lucide-react";
+import { z } from "zod";
 import { getChannel } from "@/lib/yacine.functions";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HlsPlayer } from "@/components/HlsPlayer";
 
+const watchSearchSchema = z.object({
+  name: z.string().optional(),
+  logo: z.string().optional(),
+});
+
 export const Route = createFileRoute("/watch/$channelId")({
+  validateSearch: watchSearchSchema,
   component: Watch,
   errorComponent: ({ error, reset }) => {
     const router = useRouter();
@@ -48,6 +55,7 @@ function buildProxyUrl(url: string, referer: string, ua: string) {
 
 function Watch() {
   const { channelId } = Route.useParams();
+  const { name, logo } = Route.useSearch();
   const id = Number(channelId);
   if (!Number.isFinite(id)) throw notFound();
 
@@ -56,6 +64,7 @@ function Watch() {
     queryKey: ["channel", id],
     queryFn: () => fetchChannel({ data: { channelId: id } }),
     staleTime: 30_000,
+    retry: 2,
   });
 
   const [activeIdx, setActiveIdx] = useState(0);
@@ -63,6 +72,11 @@ function Watch() {
 
   const active = streams?.[activeIdx];
   const proxied = active ? buildProxyUrl(active.url, active.referer, active.user_agent) : "";
+
+  const tryNextQuality = useCallback(() => {
+    if (!streams || streams.length <= 1) return;
+    setActiveIdx((i) => (i + 1) % streams.length);
+  }, [streams]);
 
   return (
     <div className="min-h-screen bg-hero">
@@ -76,14 +90,22 @@ function Watch() {
         </Link>
 
         <div className="mt-4 flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card text-primary shadow-card">
-            <Radio className="h-6 w-6" />
-          </div>
+          {logo ? (
+            <img
+              src={logo}
+              alt={name ?? "channel"}
+              className="h-12 w-12 rounded-xl bg-card object-contain p-1.5 shadow-card"
+            />
+          ) : (
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card text-primary shadow-card">
+              <Radio className="h-6 w-6" />
+            </div>
+          )}
           <div>
             <div className="text-xs uppercase tracking-widest text-destructive">
               <span className="live-dot mr-1.5" /> Live now
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">Channel #{id}</h1>
+            <h1 className="text-2xl font-bold sm:text-3xl">{name ?? `Channel #${id}`}</h1>
           </div>
         </div>
 
@@ -93,7 +115,12 @@ function Watch() {
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
             </div>
           ) : (
-            <HlsPlayer key={`${id}-${activeIdx}`} src={proxied} />
+            <HlsPlayer
+              key={`${id}-${activeIdx}`}
+              src={proxied}
+              rawUrl={active.url}
+              onFallback={streams && streams.length > 1 ? tryNextQuality : undefined}
+            />
           )}
         </div>
 
