@@ -69,11 +69,40 @@ export const getChannel = createServerFn({ method: "GET" })
   .inputValidator(z.object({ channelId: z.number().int() }))
   .handler(async ({ data }) => {
     const res = await req<{ data: StreamLink[] }>(`/api/channel/${data.channelId}`);
-    // Strip user-agent (browser sets its own); keep only referer for proxy
     return (res.data ?? []).map((s) => ({
       name: s.name,
       url: s.url,
       referer: s.referer ?? "",
       user_agent: s.user_agent ?? "",
     }));
+  });
+
+// Probes a stream URL upstream with the required headers and reports whether
+// it is reachable (HTTP 2xx and looks like an HLS playlist).
+export const probeStream = createServerFn({ method: "GET" })
+  .inputValidator(
+    z.object({
+      url: z.string().url(),
+      referer: z.string().optional().default(""),
+      userAgent: z.string().optional().default(""),
+    }),
+  )
+  .handler(async ({ data }) => {
+    const headers: Record<string, string> = {};
+    if (data.referer) headers["referer"] = data.referer;
+    if (data.userAgent) headers["user-agent"] = data.userAgent;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    try {
+      const r = await fetch(data.url, { headers, signal: controller.signal, redirect: "follow" });
+      if (!r.ok) return { ok: false, status: r.status };
+      // Peek a small chunk and check it looks like an m3u8 playlist
+      const text = (await r.text()).slice(0, 200);
+      const looksLikeHls = text.includes("#EXTM3U");
+      return { ok: looksLikeHls, status: r.status };
+    } catch {
+      return { ok: false, status: 0 };
+    } finally {
+      clearTimeout(timer);
+    }
   });
