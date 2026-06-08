@@ -42,7 +42,6 @@ export interface ChannelDetail {
   link2?: string;
   link3?: string;
   link4?: string;
-  [k: string]: unknown;
 }
 
 export const getCategories = createServerFn({ method: "GET" }).handler(async () => {
