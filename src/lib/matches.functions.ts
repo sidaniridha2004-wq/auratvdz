@@ -60,24 +60,30 @@ function parseStatus(label: string, dateClass: string): Match["status"] {
 }
 
 function parseMatches(html: string): Match[] {
-  const containerRe =
-    /<div\s+class=['"]match-container([^'"]*)['"][^>]*>([\s\S]*?)<\/div>\s*<\/div>/g;
-  // The closing pattern above is loose; use a smarter approach: split by occurrences of match-container
+  // Split by start of each match container so each chunk holds one match.
   const parts = html.split(/<div\s+class=['"]match-container/);
   const matches: Match[] = [];
   for (let i = 1; i < parts.length; i++) {
-    // Re-attach prefix so attrs parse, then take until the next match-container starts.
-    const block = "class='match-container" + parts[i];
-    const teamBlocks = [...block.matchAll(
-      /<div\s+class=['"](right-team|left-team)[^'"]*['"][^>]*>([\s\S]*?)<\/div>\s*<\/div>/g,
-    )];
-    if (teamBlocks.length < 2) continue;
-    const home = teamBlocks[0][2];
-    const away = teamBlocks[1][2];
-    const homeTeam = stripTags(home.match(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    const awayTeam = stripTags(away.match(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    const homeLogo = pickImg(home);
-    const awayLogo = pickImg(away);
+    // Limit the block to just before the next match-container (already guaranteed by split),
+    // but also cap at the end of the matches list container if present.
+    const raw = parts[i];
+    const endIdx = raw.search(/<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/);
+    const block = endIdx > 0 ? raw.slice(0, endIdx) : raw;
+
+    // class string is at the very beginning, like:  comming-soon'>  or  end">
+    const classStr = block.match(/^\s*([^'">]*)/)?.[1] ?? "";
+
+    // Team logos & names appear in order: right-team first, then left-team.
+    const teamLogos = [...block.matchAll(/<div\s+class=['"]team-logo[^'"]*['"][^>]*>([\s\S]*?)<\/div>/g)].map(
+      (m) => pickImg(m[1]),
+    );
+    const teamNames = [...block.matchAll(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/g)].map((m) =>
+      stripTags(m[1]),
+    );
+    const homeTeam = teamNames[0] ?? "";
+    const awayTeam = teamNames[1] ?? "";
+    const homeLogo = teamLogos[0] ?? "";
+    const awayLogo = teamLogos[1] ?? "";
 
     const time = stripTags(
       block.match(/<div\s+class=['"]match-time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
@@ -87,9 +93,9 @@ function parseMatches(html: string): Match[] {
     const dateClass = dateMatch?.[1] ?? "";
     const statusLabel = stripTags(dateMatch?.[2] ?? "");
 
-    const infoItems = [...block.matchAll(
-      /<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g,
-    )].map((m) => stripTags(m[1]));
+    const infoItems = [...block.matchAll(/<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((m) =>
+      stripTags(m[1]),
+    );
     const [channel = "", commentator = "", competition = ""] = infoItems;
 
     const url = block.match(/<a[^>]+href=['"]([^'"]+\/matches\/[^'"]+)['"]/)?.[1] ?? "";
@@ -104,7 +110,8 @@ function parseMatches(html: string): Match[] {
       awayLogo,
       time,
       score,
-      status: parseStatus(statusLabel, dateClass),
+      status: parseStatus(statusLabel, classStr),
+
       statusLabel,
       channel,
       commentator,
