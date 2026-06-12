@@ -173,7 +173,7 @@ export const getMatches = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       const html = await fetchPage(PAGE_URLS[data.day]);
-      return parseMatches(html);
+      return parseMatches(html, data.day);
     } catch (e) {
       console.error("getMatches failed", e);
       return [] as Match[];
