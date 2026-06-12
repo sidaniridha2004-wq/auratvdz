@@ -43,32 +43,33 @@
   --card-foreground: oklch(0.98 0.005 250);
   --popover: oklch(0.21 0.025 250);
   --popover-foreground: oklch(0.98 0.005 250);
-  --primary: oklch(0.78 0.19 140); /* electric pitch green */
-  --primary-foreground: oklch(0.15 0.02 250);
-  --secondary: oklch(0.28 0.03 250);
-  --secondary-foreground: oklch(0.98 0.005 250);
-  --muted: oklch(0.24 0.025 250);
-  --muted-foreground: oklch(0.7 0.02 250);
-  --accent: oklch(0.78 0.19 140);
-  --accent-foreground: oklch(0.15 0.02 250);
-  --destructive: oklch(0.65 0.24 27);
-  --destructive-foreground: oklch(0.98 0.005 250);
+  --primary: oklch(0.72 0.18 235); /* neon cyan/azure — matches AuraTV logo */
+  --primary-foreground: oklch(0.15 0.02 260);
+  --secondary: oklch(0.28 0.04 270);
+  --secondary-foreground: oklch(0.98 0.005 260);
+  --muted: oklch(0.24 0.03 260);
+  --muted-foreground: oklch(0.72 0.02 260);
+  --accent: oklch(0.65 0.22 305); /* electric violet */
+  --accent-foreground: oklch(0.98 0.005 260);
+  --destructive: oklch(0.66 0.25 22);
+  --destructive-foreground: oklch(0.98 0.005 260);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.78 0.19 140);
-  --live: oklch(0.66 0.25 27);
+  --ring: oklch(0.72 0.18 235);
+  --live: oklch(0.66 0.25 22);
 
   --gradient-hero: radial-gradient(
       ellipse at top left,
-      oklch(0.78 0.19 140 / 0.25),
+      oklch(0.72 0.18 235 / 0.28),
       transparent 55%
     ),
-    radial-gradient(ellipse at bottom right, oklch(0.55 0.22 280 / 0.25), transparent 55%),
-    linear-gradient(180deg, oklch(0.18 0.025 250), oklch(0.13 0.02 250));
-  --gradient-card: linear-gradient(160deg, oklch(0.24 0.03 250), oklch(0.19 0.025 250));
-  --shadow-glow: 0 0 60px -10px oklch(0.78 0.19 140 / 0.5);
-  --shadow-card: 0 8px 24px -8px oklch(0 0 0 / 0.5);
+    radial-gradient(ellipse at bottom right, oklch(0.55 0.24 305 / 0.28), transparent 55%),
+    linear-gradient(180deg, oklch(0.16 0.025 260), oklch(0.11 0.02 260));
+  --gradient-card: linear-gradient(160deg, oklch(0.24 0.035 265), oklch(0.18 0.025 260));
+  --shadow-glow: 0 0 60px -10px oklch(0.72 0.18 235 / 0.55);
+  --shadow-card: 0 8px 24px -8px oklch(0 0 0 / 0.55);
 }
+
 
 @layer base {
   * {
