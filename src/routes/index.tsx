@@ -108,33 +108,34 @@ function Home() {
 
       {/* Hero / featured match */}
       <section className="relative mx-auto max-w-7xl px-4 pt-8 sm:px-6 sm:pt-12">
+        <div className="ambient-orbs pointer-events-none absolute inset-0 -z-10 overflow-hidden" />
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           {/* Headline */}
-          <div className="flex flex-col justify-center gap-5">
+          <div className="relative z-10 flex flex-col justify-center gap-5 animate-fade-up">
             <div className="inline-flex w-fit items-center gap-2 rounded-full border border-border bg-card/60 px-3 py-1 text-xs uppercase tracking-[0.18em] text-muted-foreground backdrop-blur">
-              <span className="live-dot" /> {liveMatches.length} live matches now
+              <span className="live-dot" /> {liveMatches.length} live match{liveMatches.length === 1 ? "" : "es"} now
             </div>
             <h1 className="text-5xl font-bold leading-[0.95] sm:text-6xl">
               The match.
               <br />
-              <span className="text-primary">The channel.</span>
+              <span className="text-aurora">The channel.</span>
               <br />
               One click.
             </h1>
             <p className="max-w-xl text-base text-muted-foreground">
-              Live sports, scores, and HD channels in one place. Real-time fixtures from syrlive,
-              streamed via beIN SPORTS, MBC, France TV and more.
+              Live sports, scores, and HD channels in one place. Real-time fixtures synced from
+              syrlive, streamed via beIN SPORTS, MBC, France TV and more — in your local time.
             </p>
             <div className="flex flex-wrap gap-3">
               <a
                 href="#matches"
-                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow hover:opacity-90"
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-105"
               >
                 <Flame className="h-4 w-4" /> Today's matches
               </a>
               <a
                 href="#channels"
-                className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-5 py-3 text-sm font-semibold text-foreground hover:bg-secondary"
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-secondary"
               >
                 <Radio className="h-4 w-4" /> Browse channels
               </a>
@@ -142,7 +143,7 @@ function Home() {
           </div>
 
           {/* Featured match card */}
-          <div className="rounded-3xl border border-border bg-card/40 p-2 backdrop-blur">
+          <div className="relative z-10 rounded-3xl border border-border bg-card/40 p-2 backdrop-blur animate-fade-up">
             {matchesLoading ? (
               <div className="h-72 animate-pulse rounded-2xl bg-card" />
             ) : featured ? (
@@ -155,6 +156,7 @@ function Home() {
           </div>
         </div>
       </section>
+
 
       {/* Matches */}
       <section id="matches" className="mx-auto max-w-7xl px-4 pt-16 sm:px-6">
