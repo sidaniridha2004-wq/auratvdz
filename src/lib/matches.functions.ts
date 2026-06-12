@@ -8,6 +8,8 @@ export interface Match {
   awayTeam: string;
   awayLogo: string;
   time: string;
+  /** ISO 8601 kickoff timestamp in UTC; client formats to user's local time. */
+  kickoffIso: string | null;
   score: string;
   status: "live" | "soon" | "finished" | "unknown";
   statusLabel: string;
@@ -16,6 +18,39 @@ export interface Match {
   competition: string;
   url: string;
 }
+
+type Day = "today" | "yesterday" | "tomorrow" | "home";
+
+// Damascus is UTC+3 year-round (no DST since 2022) — matches syrlive's clock.
+const SOURCE_TZ_OFFSET_HOURS = 3;
+
+function damascusDateParts(day: Day): { y: number; m: number; d: number } {
+  // Today in Damascus TZ
+  const nowDam = new Date(Date.now() + SOURCE_TZ_OFFSET_HOURS * 3600_000);
+  const offset = day === "yesterday" ? -1 : day === "tomorrow" ? 1 : 0;
+  nowDam.setUTCDate(nowDam.getUTCDate() + offset);
+  return {
+    y: nowDam.getUTCFullYear(),
+    m: nowDam.getUTCMonth() + 1,
+    d: nowDam.getUTCDate(),
+  };
+}
+
+function parseKickoff(time: string, day: Day): string | null {
+  // time like "10:00 PM" or "5:00 AM"
+  const m = time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!m) return null;
+  let hh = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  const ap = m[3]?.toUpperCase();
+  if (ap === "PM" && hh < 12) hh += 12;
+  if (ap === "AM" && hh === 12) hh = 0;
+  const { y, m: mo, d } = damascusDateParts(day);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  // Damascus offset = +03:00
+  return `${y}-${pad(mo)}-${pad(d)}T${pad(hh)}:${pad(mm)}:00+03:00`;
+}
+
 
 const PAGE_URLS = {
   today: "https://d.syrlive.com/matches-today",
