@@ -94,21 +94,16 @@ function parseStatus(label: string, dateClass: string): Match["status"] {
   return "unknown";
 }
 
-function parseMatches(html: string): Match[] {
-  // Split by start of each match container so each chunk holds one match.
+function parseMatches(html: string, day: Day): Match[] {
   const parts = html.split(/<div\s+class=['"]match-container/);
   const matches: Match[] = [];
   for (let i = 1; i < parts.length; i++) {
-    // Limit the block to just before the next match-container (already guaranteed by split),
-    // but also cap at the end of the matches list container if present.
     const raw = parts[i];
     const endIdx = raw.search(/<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/);
     const block = endIdx > 0 ? raw.slice(0, endIdx) : raw;
 
-    // class string is at the very beginning, like:  comming-soon'>  or  end">
     const classStr = block.match(/^\s*([^'">]*)/)?.[1] ?? "";
 
-    // Team logos & names appear in order: right-team first, then left-team.
     const teamLogos = [...block.matchAll(/<div\s+class=['"]team-logo[^'"]*['"][^>]*>([\s\S]*?)<\/div>/g)].map(
       (m) => pickImg(m[1]),
     );
@@ -125,7 +120,6 @@ function parseMatches(html: string): Match[] {
     );
     const score = stripTags(block.match(/<div\s+class=['"]result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
     const dateMatch = block.match(/<div\s+class=['"]date([^'"]*)['"][^>]*>([\s\S]*?)<\/div>/);
-    const dateClass = dateMatch?.[1] ?? "";
     const statusLabel = stripTags(dateMatch?.[2] ?? "");
 
     const infoItems = [...block.matchAll(/<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((m) =>
@@ -144,9 +138,9 @@ function parseMatches(html: string): Match[] {
       awayTeam,
       awayLogo,
       time,
+      kickoffIso: parseKickoff(time, day),
       score,
       status: parseStatus(statusLabel, classStr),
-
       statusLabel,
       channel,
       commentator,
@@ -156,6 +150,7 @@ function parseMatches(html: string): Match[] {
   }
   return matches;
 }
+
 
 async function fetchPage(url: string): Promise<string> {
   const r = await fetch(url, {
