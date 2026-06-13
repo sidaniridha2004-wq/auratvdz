@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
-import { RefreshCw, AlertTriangle, ExternalLink } from "lucide-react";
+import { RefreshCw, AlertTriangle, ExternalLink, Settings, Check, Wifi } from "lucide-react";
 
 interface Props {
   src: string;
   rawUrl?: string;
-  onFallback?: () => void;
 }
 
 const MAX_AUTO_RETRIES = 3;
 
-export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
+interface Level {
+  index: number;
+  height: number;
+  bitrate: number;
+  label: string;
+}
+
+export function HlsPlayer({ src, rawUrl }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retriesRef = useRef(0);
@@ -18,6 +24,11 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
   const [loading, setLoading] = useState(true);
   const [retryNonce, setRetryNonce] = useState(0);
   const [retrying, setRetrying] = useState(false);
+
+  const [levels, setLevels] = useState<Level[]>([]);
+  const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = auto
+  const [activeHeight, setActiveHeight] = useState<number | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const manualRetry = useCallback(() => {
     retriesRef.current = 0;
@@ -32,6 +43,9 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
     setError(null);
     setLoading(true);
     setRetrying(false);
+    setLevels([]);
+    setCurrentLevel(-1);
+    setActiveHeight(null);
 
     let cancelled = false;
     const onLoaded = () => {
@@ -62,9 +76,12 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        manifestLoadingMaxRetry: 2,
-        levelLoadingMaxRetry: 2,
-        fragLoadingMaxRetry: 4,
+        // Adaptive bitrate – let hls.js pick & switch automatically
+        capLevelToPlayerSize: true,
+        abrEwmaDefaultEstimate: 1_000_000,
+        manifestLoadingMaxRetry: 3,
+        levelLoadingMaxRetry: 3,
+        fragLoadingMaxRetry: 6,
         manifestLoadingRetryDelay: 500,
         levelLoadingRetryDelay: 500,
         fragLoadingRetryDelay: 500,
@@ -72,6 +89,21 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
       hlsRef.current = hls;
       hls.loadSource(src);
       hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
+        const ls: Level[] = (data.levels || []).map((l, i) => ({
+          index: i,
+          height: l.height ?? 0,
+          bitrate: l.bitrate ?? 0,
+          label: l.height ? `${l.height}p` : `${Math.round((l.bitrate ?? 0) / 1000)}kbps`,
+        }));
+        setLevels(ls);
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => {
+        const lvl = hls.levels?.[data.level];
+        if (lvl) setActiveHeight(lvl.height ?? null);
+      });
 
       hls.on(Hls.Events.ERROR, (_e, data) => {
         if (!data.fatal) return;
@@ -116,16 +148,70 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
     };
   }, [src, retryNonce]);
 
+  const pickLevel = (idx: number) => {
+    const hls = hlsRef.current;
+    if (!hls) return;
+    hls.currentLevel = idx; // -1 means auto
+    setCurrentLevel(idx);
+    setMenuOpen(false);
+  };
+
+  const autoLabel = activeHeight ? `Auto · ${activeHeight}p` : "Auto";
+  const currentLabel =
+    currentLevel === -1
+      ? autoLabel
+      : (levels.find((l) => l.index === currentLevel)?.label ?? "—");
+
   return (
     <div className="space-y-3">
-      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-card">
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-card ring-1 ring-white/5">
         <video
           ref={videoRef}
           controls
           autoPlay
           playsInline
-          className="h-full w-full"
+          className="h-full w-full bg-black"
         />
+
+        {/* Quality selector overlay */}
+        {!error && levels.length > 0 && (
+          <div className="absolute right-3 top-3 z-10">
+            <button
+              onClick={() => setMenuOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/90"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              {currentLabel}
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-black/90 py-1 text-sm text-white shadow-xl backdrop-blur">
+                <button
+                  onClick={() => pickLevel(-1)}
+                  className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
+                >
+                  <span className="flex items-center gap-2">
+                    <Wifi className="h-3.5 w-3.5" /> Auto
+                  </span>
+                  {currentLevel === -1 && <Check className="h-3.5 w-3.5 text-primary" />}
+                </button>
+                <div className="my-1 h-px bg-white/10" />
+                {[...levels]
+                  .sort((a, b) => b.height - a.height)
+                  .map((l) => (
+                    <button
+                      key={l.index}
+                      onClick={() => pickLevel(l.index)}
+                      className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
+                    >
+                      <span>{l.label}</span>
+                      {currentLevel === l.index && <Check className="h-3.5 w-3.5 text-primary" />}
+                    </button>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {loading && !error && (
           <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2 bg-black/40">
             <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -136,6 +222,7 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
             )}
           </div>
         )}
+
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/85 px-6 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20 text-destructive">
@@ -144,7 +231,7 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
             <div>
               <div className="font-semibold">{error}</div>
               <div className="mt-1 text-sm text-muted-foreground">
-                Try another quality, retry the connection, or open in an external player.
+                Try again, or open the raw stream in an external player.
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
@@ -163,14 +250,6 @@ export function HlsPlayer({ src, rawUrl, onFallback }: Props) {
                 >
                   <ExternalLink className="h-4 w-4" /> Open in VLC
                 </a>
-              )}
-              {onFallback && (
-                <button
-                  onClick={onFallback}
-                  className="inline-flex items-center gap-2 rounded-full border border-border bg-card/60 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
-                >
-                  Next quality
-                </button>
               )}
             </div>
           </div>

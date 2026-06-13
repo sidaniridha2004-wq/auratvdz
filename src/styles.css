@@ -35,39 +35,44 @@
 }
 
 :root {
-  --radius: 0.75rem;
-  /* Dark sporty stadium palette */
-  --background: oklch(0.16 0.02 250);
+  --radius: 0.85rem;
+  /* Deep midnight stadium */
+  --background: oklch(0.14 0.02 255);
   --foreground: oklch(0.98 0.005 250);
-  --card: oklch(0.21 0.025 250);
+  --card: oklch(0.19 0.025 255);
   --card-foreground: oklch(0.98 0.005 250);
-  --popover: oklch(0.21 0.025 250);
+  --popover: oklch(0.19 0.025 255);
   --popover-foreground: oklch(0.98 0.005 250);
-  --primary: oklch(0.72 0.18 235); /* neon cyan/azure — matches AuraTV logo */
-  --primary-foreground: oklch(0.15 0.02 260);
-  --secondary: oklch(0.28 0.04 270);
+  --primary: oklch(0.74 0.18 220); /* electric sky */
+  --primary-foreground: oklch(0.12 0.02 260);
+  --secondary: oklch(0.26 0.035 270);
   --secondary-foreground: oklch(0.98 0.005 260);
-  --muted: oklch(0.24 0.03 260);
+  --muted: oklch(0.22 0.025 260);
   --muted-foreground: oklch(0.72 0.02 260);
-  --accent: oklch(0.65 0.22 305); /* electric violet */
+  --accent: oklch(0.66 0.22 305); /* violet */
   --accent-foreground: oklch(0.98 0.005 260);
   --destructive: oklch(0.66 0.25 22);
   --destructive-foreground: oklch(0.98 0.005 260);
   --border: oklch(1 0 0 / 8%);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.72 0.18 235);
+  --ring: oklch(0.74 0.18 220);
   --live: oklch(0.66 0.25 22);
 
   --gradient-hero: radial-gradient(
       ellipse at top left,
-      oklch(0.72 0.18 235 / 0.28),
+      oklch(0.74 0.18 220 / 0.30),
       transparent 55%
     ),
-    radial-gradient(ellipse at bottom right, oklch(0.55 0.24 305 / 0.28), transparent 55%),
-    linear-gradient(180deg, oklch(0.16 0.025 260), oklch(0.11 0.02 260));
-  --gradient-card: linear-gradient(160deg, oklch(0.24 0.035 265), oklch(0.18 0.025 260));
-  --shadow-glow: 0 0 60px -10px oklch(0.72 0.18 235 / 0.55);
-  --shadow-card: 0 8px 24px -8px oklch(0 0 0 / 0.55);
+    radial-gradient(ellipse at bottom right, oklch(0.55 0.24 305 / 0.30), transparent 55%),
+    linear-gradient(180deg, oklch(0.14 0.025 260), oklch(0.10 0.02 260));
+  --gradient-card: linear-gradient(160deg, oklch(0.23 0.035 265), oklch(0.16 0.025 260));
+  --gradient-mesh: conic-gradient(from 180deg at 50% 50%,
+    oklch(0.74 0.18 220 / 0.18),
+    oklch(0.66 0.22 305 / 0.18),
+    oklch(0.55 0.24 340 / 0.16),
+    oklch(0.74 0.18 220 / 0.18));
+  --shadow-glow: 0 0 60px -10px oklch(0.74 0.18 220 / 0.55);
+  --shadow-card: 0 12px 28px -12px oklch(0 0 0 / 0.6);
 }
 
 
@@ -98,6 +103,9 @@
   .bg-card-gradient {
     background: var(--gradient-card);
   }
+  .bg-mesh {
+    background: var(--gradient-mesh);
+  }
   .shadow-glow {
     box-shadow: var(--shadow-glow);
   }
@@ -122,13 +130,8 @@
     animation: live-pulse 1.6s ease-out infinite;
   }
   @keyframes live-pulse {
-    0% {
-      transform: scale(0.6);
-      opacity: 0.6;
-    }
-    100% {
-      transform: scale(1.8);
-      opacity: 0;
+    0% { transform: scale(0.6); opacity: 0.6; }
+    100% { transform: scale(1.8); opacity: 0; }
   }
 
   .text-aurora {
@@ -148,7 +151,7 @@
     animation: fade-up 0.5s ease-out both;
   }
   @keyframes fade-up {
-    from { opacity: 0; transform: translateY(8px); }
+    from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
   }
 
@@ -157,26 +160,40 @@
     content: "";
     position: absolute;
     border-radius: 9999px;
-    filter: blur(80px);
+    filter: blur(90px);
     pointer-events: none;
     z-index: 0;
   }
   .ambient-orbs::before {
-    width: 380px; height: 380px;
-    background: oklch(0.72 0.18 235 / 0.35);
-    top: -120px; left: -100px;
+    width: 420px; height: 420px;
+    background: oklch(0.74 0.18 220 / 0.35);
+    top: -140px; left: -100px;
     animation: orb-float 14s ease-in-out infinite;
   }
   .ambient-orbs::after {
-    width: 420px; height: 420px;
+    width: 460px; height: 460px;
     background: oklch(0.55 0.24 305 / 0.32);
-    top: 40px; right: -120px;
+    top: 40px; right: -140px;
     animation: orb-float 18s ease-in-out infinite reverse;
   }
   @keyframes orb-float {
     0%, 100% { transform: translate(0, 0) scale(1); }
     50% { transform: translate(30px, 40px) scale(1.08); }
   }
-}
 
+  .scroll-rail {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .scroll-rail::-webkit-scrollbar { display: none; }
+  .scroll-rail > * { scroll-snap-align: start; }
+
+  .card-hover {
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .card-hover:hover {
+    transform: translateY(-4px);
+    border-color: oklch(0.74 0.18 220 / 0.5);
+    box-shadow: var(--shadow-glow);
+  }
 }

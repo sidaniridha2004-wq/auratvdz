@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
+import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,34 +29,52 @@ const ApiPublicStreamRoute = ApiPublicStreamRouteImport.update({
   path: '/api/public/stream',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicMasterRoute = ApiPublicMasterRouteImport.update({
+  id: '/api/public/master',
+  path: '/api/public/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/watch/$channelId' | '/api/public/stream'
+  fullPaths:
+    | '/'
+    | '/watch/$channelId'
+    | '/api/public/master'
+    | '/api/public/stream'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/watch/$channelId' | '/api/public/stream'
-  id: '__root__' | '/' | '/watch/$channelId' | '/api/public/stream'
+  to: '/' | '/watch/$channelId' | '/api/public/master' | '/api/public/stream'
+  id:
+    | '__root__'
+    | '/'
+    | '/watch/$channelId'
+    | '/api/public/master'
+    | '/api/public/stream'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WatchChannelIdRoute: typeof WatchChannelIdRoute
+  ApiPublicMasterRoute: typeof ApiPublicMasterRoute
   ApiPublicStreamRoute: typeof ApiPublicStreamRoute
 }
 
@@ -82,12 +101,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicStreamRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/master': {
+      id: '/api/public/master'
+      path: '/api/public/master'
+      fullPath: '/api/public/master'
+      preLoaderRoute: typeof ApiPublicMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WatchChannelIdRoute: WatchChannelIdRoute,
+  ApiPublicMasterRoute: ApiPublicMasterRoute,
   ApiPublicStreamRoute: ApiPublicStreamRoute,
 }
 export const routeTree = rootRouteImport
