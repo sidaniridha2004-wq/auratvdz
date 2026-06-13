@@ -1,19 +1,16 @@
 import { Link } from "@tanstack/react-router";
-import { Play, Tv, Clock, Mic2 } from "lucide-react";
+import { Tv, Clock, Mic2, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/matches.functions";
 
 // Channel name → YacineTV channel id. Prefer 1080P streams.
-// IDs verified against http://ver3.yacinelive.com/api/categories/* on 2026-06-12.
 const CHANNEL_MAP: { match: RegExp; id: number; label: string }[] = [
-  // beIN MAX 1-6 (1080P category 90)
   { match: /bein\s*max\s*1\b/i, id: 1471, label: "beIN MAX 1" },
   { match: /bein\s*max\s*2\b/i, id: 1472, label: "beIN MAX 2" },
   { match: /bein\s*max\s*3\b/i, id: 1473, label: "beIN MAX 3" },
   { match: /bein\s*max\s*4\b/i, id: 1474, label: "beIN MAX 4" },
   { match: /bein\s*max\s*5\b/i, id: 1475, label: "beIN MAX 5" },
   { match: /bein\s*max\s*6\b/i, id: 1476, label: "beIN MAX 6" },
-  // beIN SPORTS 1-9 (category 4, 1080P)
   { match: /bein\s*(sports?\s*)?1\b/i, id: 1424, label: "beIN SPORTS 1" },
   { match: /bein\s*(sports?\s*)?2\b/i, id: 1425, label: "beIN SPORTS 2" },
   { match: /bein\s*(sports?\s*)?3\b/i, id: 1426, label: "beIN SPORTS 3" },
@@ -23,11 +20,9 @@ const CHANNEL_MAP: { match: RegExp; id: number; label: string }[] = [
   { match: /bein\s*(sports?\s*)?7\b/i, id: 1430, label: "beIN SPORTS 7" },
   { match: /bein\s*(sports?\s*)?8\b/i, id: 1431, label: "beIN SPORTS 8" },
   { match: /bein\s*(sports?\s*)?9\b/i, id: 1432, label: "beIN SPORTS 9" },
-  // beIN XTRA
   { match: /bein\s*xtra\s*1/i, id: 1421, label: "beIN XTRA 1" },
   { match: /bein\s*xtra\s*2/i, id: 1422, label: "beIN XTRA 2" },
   { match: /bein\s*xtra\s*3/i, id: 1423, label: "beIN XTRA 3" },
-  // Arabic variants
   { match: /بي\s*ان\s*ماكس\s*1|بي\s*إن\s*ماكس\s*1/i, id: 1471, label: "beIN MAX 1" },
   { match: /بي\s*ان\s*ماكس\s*2|بي\s*إن\s*ماكس\s*2/i, id: 1472, label: "beIN MAX 2" },
   { match: /بي\s*ان\s*ماكس\s*3|بي\s*إن\s*ماكس\s*3/i, id: 1473, label: "beIN MAX 3" },
@@ -49,20 +44,10 @@ function useLocalKickoff(iso: string | null) {
       return;
     }
     const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) {
-      setOut(null);
-      return;
-    }
+    if (Number.isNaN(d.getTime())) return setOut(null);
     setOut({
-      time: new Intl.DateTimeFormat(undefined, {
-        hour: "numeric",
-        minute: "2-digit",
-      }).format(d),
-      date: new Intl.DateTimeFormat(undefined, {
-        weekday: "short",
-        day: "numeric",
-        month: "short",
-      }).format(d),
+      time: new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d),
+      date: new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(d),
     });
   }, [iso]);
   return out;
@@ -93,14 +78,9 @@ export function MatchCard({ match }: { match: Match }) {
   const local = useLocalKickoff(match.kickoffIso);
   const showScore = match.status !== "soon" && match.score && match.score !== "0-0";
 
-  // Build a search payload that carries the matched channel name for the watch page header.
-  const watchSearch = ch
-    ? { name: ch.label }
-    : { name: "" };
-
-  return (
-    <div className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 bg-card-gradient p-5 shadow-card transition duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-glow">
-      {/* hover aurora */}
+  const inner = (
+    <div className="group relative flex h-full flex-col gap-4 overflow-hidden rounded-2xl border border-border/60 bg-card-gradient p-5 shadow-card card-hover">
+      {/* hover aurora wash */}
       <div className="pointer-events-none absolute -inset-px -z-0 rounded-2xl bg-gradient-to-br from-cyan-500/0 via-violet-500/0 to-fuchsia-500/0 opacity-0 transition duration-500 group-hover:from-cyan-500/10 group-hover:via-violet-500/10 group-hover:to-fuchsia-500/10 group-hover:opacity-100" />
 
       <div className="relative flex items-center justify-between">
@@ -165,14 +145,9 @@ export function MatchCard({ match }: { match: Match }) {
             <span className="truncate">{match.channel || "—"}</span>
           </div>
           {ch ? (
-            <Link
-              to="/watch/$channelId"
-              params={{ channelId: String(ch.id) }}
-              search={watchSearch}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-glow transition hover:scale-105 hover:opacity-95"
-            >
-              <Play className="h-3 w-3 fill-current" /> Watch
-            </Link>
+            <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-primary opacity-80 transition group-hover:opacity-100">
+              <PlayCircle className="h-4 w-4" /> Play
+            </div>
           ) : (
             <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
               No channel
@@ -187,5 +162,17 @@ export function MatchCard({ match }: { match: Match }) {
         )}
       </div>
     </div>
+  );
+
+  if (!ch) return inner;
+  return (
+    <Link
+      to="/watch/$channelId"
+      params={{ channelId: String(ch.id) }}
+      search={{ name: ch.label }}
+      className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
+    >
+      {inner}
+    </Link>
   );
 }
