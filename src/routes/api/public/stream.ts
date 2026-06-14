@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { assertSafeUrl } from "@/lib/ssrf-guard";
 
 // Proxies HLS streams that require custom User-Agent / Referer headers,
 // and rewrites .m3u8 playlist segment URLs to also flow through this proxy.
@@ -23,7 +24,7 @@ export const Route = createFileRoute("/api/public/stream")({
 
         let parsed: URL;
         try {
-          parsed = new URL(target);
+          parsed = assertSafeUrl(target);
         } catch {
           return new Response("bad url", { status: 400 });
         }

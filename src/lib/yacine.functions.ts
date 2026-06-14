@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { assertSafeUrl } from "./ssrf-guard";
 
-const API_URL = "http://ver3.yacinelive.com";
-const KEY = "c!xZj+N9&G@Ev@vw";
+import { getYacineConfig } from "./yacine-config.server";
 
 function decrypt(enc: string, key: string): string {
   const bin = atob(enc.trim());
@@ -14,10 +14,11 @@ function decrypt(enc: string, key: string): string {
 }
 
 async function req<T = unknown>(path: string): Promise<T> {
-  const r = await fetch(API_URL + path);
+  const { apiUrl, decryptKey } = getYacineConfig();
+  const r = await fetch(apiUrl + path);
   const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
   const text = await r.text();
-  const json = decrypt(text, KEY + timestamp);
+  const json = decrypt(text, decryptKey + timestamp);
   return JSON.parse(json) as T;
 }
 
@@ -91,10 +92,16 @@ export const probeStream = createServerFn({ method: "GET" })
     const headers: Record<string, string> = {};
     if (data.referer) headers["referer"] = data.referer;
     if (data.userAgent) headers["user-agent"] = data.userAgent;
+    let safe: URL;
+    try {
+      safe = assertSafeUrl(data.url);
+    } catch {
+      return { ok: false, status: 0 };
+    }
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const r = await fetch(data.url, { headers, signal: controller.signal, redirect: "follow" });
+      const r = await fetch(safe.toString(), { headers, signal: controller.signal, redirect: "follow" });
       if (!r.ok) return { ok: false, status: r.status };
       // Peek a small chunk and check it looks like an m3u8 playlist
       const text = (await r.text()).slice(0, 200);
