@@ -2,8 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { assertSafeUrl } from "./ssrf-guard";
 
-const API_URL = "http://ver3.yacinelive.com";
-const KEY = "c!xZj+N9&G@Ev@vw";
+import { getYacineConfig } from "./yacine-config.server";
 
 function decrypt(enc: string, key: string): string {
   const bin = atob(enc.trim());
@@ -15,10 +14,11 @@ function decrypt(enc: string, key: string): string {
 }
 
 async function req<T = unknown>(path: string): Promise<T> {
-  const r = await fetch(API_URL + path);
+  const { apiUrl, decryptKey } = getYacineConfig();
+  const r = await fetch(apiUrl + path);
   const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
   const text = await r.text();
-  const json = decrypt(text, KEY + timestamp);
+  const json = decrypt(text, decryptKey + timestamp);
   return JSON.parse(json) as T;
 }
 
