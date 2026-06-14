@@ -42,15 +42,24 @@ export const Route = createFileRoute("/watch/$channelId")({
   ),
 });
 
+// beIN MAX 1080p streams from this upstream are unreliable (the label often
+// points at a different feed), so we lock those channels to the 720p rung.
+function preferredHeightFor(name: string | undefined, id: number): number | undefined {
+  const n = (name ?? "").toLowerCase();
+  const isBeinMaxName = /bein\s*max/.test(n) || /ماكس/.test(name ?? "");
+  const isBeinMaxId = id >= 1471 && id <= 1476;
+  if (isBeinMaxName || isBeinMaxId) return 720;
+  return undefined;
+}
+
 function Watch() {
   const { channelId } = Route.useParams();
   const { name, logo } = Route.useSearch();
   const id = Number(channelId);
   if (!Number.isFinite(id)) throw notFound();
 
-  // Single master playlist that includes every quality variant – hls.js will
-  // auto-switch between them based on the viewer's connection.
   const masterUrl = `/api/public/master?channelId=${id}`;
+  const preferredHeight = preferredHeightFor(name, id);
 
   return (
     <div className="min-h-screen bg-hero">
@@ -84,12 +93,13 @@ function Watch() {
         </div>
 
         <div className="mt-6">
-          <HlsPlayer key={id} src={masterUrl} />
+          <HlsPlayer key={id} src={masterUrl} preferredHeight={preferredHeight} />
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground">
-          Quality switches automatically based on your connection. Tap the gear icon on the player
-          to lock a specific resolution.
+          {preferredHeight
+            ? `Locked to ${preferredHeight}p for this channel — tap the gear icon to switch quality.`
+            : "Quality switches automatically based on your connection. Tap the gear icon on the player to lock a specific resolution."}
         </p>
       </div>
     </div>
