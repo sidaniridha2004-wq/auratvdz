@@ -5,6 +5,13 @@ import { RefreshCw, AlertTriangle, ExternalLink, Settings, Check, Wifi } from "l
 interface Props {
   src: string;
   rawUrl?: string;
+  /**
+   * If set, on first manifest parse we lock playback to the variant whose
+   * height matches (or is closest to) this value instead of letting ABR pick.
+   * Useful when an upstream label (e.g. beIN MAX 1080p) is unreliable and a
+   * specific rung is known to be the right channel feed.
+   */
+  preferredHeight?: number;
 }
 
 const MAX_AUTO_RETRIES = 3;
@@ -16,7 +23,7 @@ interface Level {
   label: string;
 }
 
-export function HlsPlayer({ src, rawUrl }: Props) {
+export function HlsPlayer({ src, rawUrl, preferredHeight }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retriesRef = useRef(0);
@@ -98,6 +105,20 @@ export function HlsPlayer({ src, rawUrl }: Props) {
           label: l.height ? `${l.height}p` : `${Math.round((l.bitrate ?? 0) / 1000)}kbps`,
         }));
         setLevels(ls);
+
+        // Lock to a preferred rung when caller asks for it (e.g. beIN MAX
+        // streams whose 1080p label often points at a different feed).
+        if (preferredHeight && ls.length > 0) {
+          const withHeight = ls.filter((l) => l.height > 0);
+          if (withHeight.length > 0) {
+            const best = withHeight.reduce((a, b) =>
+              Math.abs(a.height - preferredHeight) <= Math.abs(b.height - preferredHeight) ? a : b,
+            );
+            hls.currentLevel = best.index;
+            setCurrentLevel(best.index);
+            setActiveHeight(best.height);
+          }
+        }
       });
 
       hls.on(Hls.Events.LEVEL_SWITCHED, (_e, data) => {
@@ -146,7 +167,7 @@ export function HlsPlayer({ src, rawUrl }: Props) {
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [src, retryNonce]);
+  }, [src, retryNonce, preferredHeight]);
 
   const pickLevel = (idx: number) => {
     const hls = hlsRef.current;
