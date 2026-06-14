@@ -1,12 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { getYacineConfig } from "@/lib/yacine-config.server";
 
 // Builds a single HLS master playlist that references every quality variant
 // returned by YacineTV as a separate stream. hls.js then performs adaptive
 // bitrate switching automatically (YouTube-style), choosing the best quality
 // for the viewer's bandwidth and falling back when the connection drops.
-
-const API_URL = "http://ver3.yacinelive.com";
-const KEY = "c!xZj+N9&G@Ev@vw";
 
 function decrypt(enc: string, key: string): string {
   const bin = atob(enc.trim());
@@ -25,10 +23,11 @@ interface StreamLink {
 }
 
 async function fetchStreams(channelId: number): Promise<StreamLink[]> {
-  const r = await fetch(`${API_URL}/api/channel/${channelId}`);
+  const { apiUrl, decryptKey } = getYacineConfig();
+  const r = await fetch(`${apiUrl}/api/channel/${channelId}`);
   const ts = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
   const text = await r.text();
-  const json = JSON.parse(decrypt(text, KEY + ts)) as { data: StreamLink[] };
+  const json = JSON.parse(decrypt(text, decryptKey + ts)) as { data: StreamLink[] };
   return json.data ?? [];
 }
 
