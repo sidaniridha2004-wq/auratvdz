@@ -450,6 +450,75 @@ function Home() {
         )}
       </section>
 
+      {/* AURATV CHANNELS (from pastebin manifest) */}
+      <section id="auratv" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
+          <Tv2 className="h-3.5 w-3.5" /> AuraTV Direct
+        </div>
+        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:flex-wrap sm:justify-between">
+          <div className="min-w-0">
+            <h2 className="font-display text-3xl font-bold sm:text-4xl">Premium Sports Channels</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {auraChannels?.length ?? 0} channels · adaptive quality, beIN MAX locked to 720p
+            </p>
+          </div>
+          <div className="relative w-full shrink-0 sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={auraQ}
+              onChange={(e) => setAuraQ(e.target.value)}
+              placeholder="Search AuraTV channels…"
+              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]"
+            />
+          </div>
+        </div>
+
+        {auraLoading ? (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {Array.from({ length: 10 }).map((_, i) => (
+              <div key={i} className="aspect-video animate-pulse rounded-xl bg-card" />
+            ))}
+          </div>
+        ) : filteredAura.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
+            No AuraTV channels available.
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {filteredAura.map((ch) => (
+              <Link
+                key={ch.key}
+                to="/watch/tv/$key"
+                params={{ key: ch.key }}
+                search={{ name: ch.name }}
+                className="group relative flex aspect-video flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-card-gradient p-3 shadow-card transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-glow"
+              >
+                <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <div className="relative flex items-start justify-between">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-destructive">
+                    <span className="live-dot" /> Live
+                  </span>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100" />
+                </div>
+                <div className="relative flex items-end justify-between gap-2">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black/30 text-primary">
+                    <Radio className="h-5 w-5" />
+                  </div>
+                  <div className="min-w-0 flex-1 text-right">
+                    <div className="truncate text-sm font-semibold capitalize">{ch.name}</div>
+                    <div className="mt-0.5 truncate text-[10px] uppercase tracking-widest text-muted-foreground">
+                      {ch.qualities.slice(0, 4).join(" · ")}
+                      {ch.qualities.length > 4 ? ` +${ch.qualities.length - 4}` : ""}
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+
+
       <footer className="relative border-t border-white/10 py-10 text-center">
         <div className="mx-auto max-w-7xl px-6">
           <div className="font-display text-lg font-bold">
