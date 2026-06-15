@@ -11,8 +11,10 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
+import { Route as WatchTvKeyRouteImport } from './routes/watch.tv.$key'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
 import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
+import { Route as ApiPublicAuratvMasterRouteImport } from './routes/api/public/auratv-master'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,6 +24,11 @@ const IndexRoute = IndexRouteImport.update({
 const WatchChannelIdRoute = WatchChannelIdRouteImport.update({
   id: '/watch/$channelId',
   path: '/watch/$channelId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WatchTvKeyRoute = WatchTvKeyRouteImport.update({
+  id: '/watch/tv/$key',
+  path: '/watch/tv/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicStreamRoute = ApiPublicStreamRouteImport.update({
@@ -34,48 +41,71 @@ const ApiPublicMasterRoute = ApiPublicMasterRouteImport.update({
   path: '/api/public/master',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
+  id: '/api/public/auratv-master',
+  path: '/api/public/auratv-master',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
+  '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/watch/$channelId'
+    | '/api/public/auratv-master'
     | '/api/public/master'
     | '/api/public/stream'
+    | '/watch/tv/$key'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/watch/$channelId' | '/api/public/master' | '/api/public/stream'
+  to:
+    | '/'
+    | '/watch/$channelId'
+    | '/api/public/auratv-master'
+    | '/api/public/master'
+    | '/api/public/stream'
+    | '/watch/tv/$key'
   id:
     | '__root__'
     | '/'
     | '/watch/$channelId'
+    | '/api/public/auratv-master'
     | '/api/public/master'
     | '/api/public/stream'
+    | '/watch/tv/$key'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   WatchChannelIdRoute: typeof WatchChannelIdRoute
+  ApiPublicAuratvMasterRoute: typeof ApiPublicAuratvMasterRoute
   ApiPublicMasterRoute: typeof ApiPublicMasterRoute
   ApiPublicStreamRoute: typeof ApiPublicStreamRoute
+  WatchTvKeyRoute: typeof WatchTvKeyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -94,6 +124,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchChannelIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watch/tv/$key': {
+      id: '/watch/tv/$key'
+      path: '/watch/tv/$key'
+      fullPath: '/watch/tv/$key'
+      preLoaderRoute: typeof WatchTvKeyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/stream': {
       id: '/api/public/stream'
       path: '/api/public/stream'
@@ -108,25 +145,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMasterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/auratv-master': {
+      id: '/api/public/auratv-master'
+      path: '/api/public/auratv-master'
+      fullPath: '/api/public/auratv-master'
+      preLoaderRoute: typeof ApiPublicAuratvMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   WatchChannelIdRoute: WatchChannelIdRoute,
+  ApiPublicAuratvMasterRoute: ApiPublicAuratvMasterRoute,
   ApiPublicMasterRoute: ApiPublicMasterRoute,
   ApiPublicStreamRoute: ApiPublicStreamRoute,
+  WatchTvKeyRoute: WatchTvKeyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
