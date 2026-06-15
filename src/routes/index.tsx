@@ -19,6 +19,8 @@ import {
   getSubCategories,
 } from "@/lib/yacine.functions";
 import { getMatches } from "@/lib/matches.functions";
+import { getAuraChannels } from "@/lib/auratv-channels.functions";
+
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
 
@@ -54,6 +56,21 @@ function Home() {
   const fetchMatches = useServerFn(getMatches);
   const fetchSubs = useServerFn(getSubCategories);
   const fetchChannels = useServerFn(getCategoryChannels);
+  const fetchAura = useServerFn(getAuraChannels);
+
+  const { data: auraChannels, isLoading: auraLoading } = useQuery({
+    queryKey: ["aura-channels"],
+    queryFn: () => fetchAura(),
+    staleTime: 10 * 60_000,
+  });
+  const [auraQ, setAuraQ] = useState("");
+  const filteredAura = useMemo(() => {
+    const list = auraChannels ?? [];
+    if (!auraQ.trim()) return list;
+    const n = auraQ.toLowerCase();
+    return list.filter((c) => c.name.toLowerCase().includes(n) || c.key.toLowerCase().includes(n));
+  }, [auraChannels, auraQ]);
+
 
   const { data: categories, isLoading: catsLoading } = useQuery({
     queryKey: ["categories"],
