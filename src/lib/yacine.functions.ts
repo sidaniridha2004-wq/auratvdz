@@ -101,12 +101,25 @@ export const probeStream = createServerFn({ method: "GET" })
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
     try {
-      const r = await fetch(safe.toString(), { headers, signal: controller.signal, redirect: "follow" });
-      if (!r.ok) return { ok: false, status: r.status };
-      // Peek a small chunk and check it looks like an m3u8 playlist
+      // Follow redirects manually so every hop is re-validated by assertSafeUrl
+      let current = safe;
+      let r: Response | null = null;
+      for (let hop = 0; hop < 5; hop++) {
+        r = await fetch(current.toString(), { headers, signal: controller.signal, redirect: "manual" });
+        if (![301, 302, 303, 307, 308].includes(r.status)) break;
+        const loc = r.headers.get("location");
+        if (!loc) break;
+        try {
+          current = assertSafeUrl(new URL(loc, current).toString());
+        } catch {
+          return { ok: false, status: 0 };
+        }
+      }
+      if (!r || !r.ok) return { ok: false, status: r?.status ?? 0 };
       const text = (await r.text()).slice(0, 200);
       const looksLikeHls = text.includes("#EXTM3U");
       return { ok: looksLikeHls, status: r.status };
+
     } catch {
       return { ok: false, status: 0 };
     } finally {
