@@ -243,39 +243,54 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
         />
 
         {/* Quality selector overlay */}
-        {!error && levels.length > 0 && (
+        {!error && (sourceMode || levels.length > 0) && (
           <div className="absolute right-3 top-3 z-10">
             <button
               onClick={() => setMenuOpen((v) => !v)}
               className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/90"
             >
               <Settings className="h-3.5 w-3.5" />
-              {currentLabel}
+              {sourceMode ? activeSourceLabel : currentLabel}
             </button>
             {menuOpen && (
               <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-xl border border-white/10 bg-black/90 py-1 text-sm text-white shadow-xl backdrop-blur">
-                <button
-                  onClick={() => pickLevel(-1)}
-                  className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
-                >
-                  <span className="flex items-center gap-2">
-                    <Wifi className="h-3.5 w-3.5" /> Auto
-                  </span>
-                  {currentLevel === -1 && <Check className="h-3.5 w-3.5 text-primary" />}
-                </button>
-                <div className="my-1 h-px bg-white/10" />
-                {[...levels]
-                  .sort((a, b) => b.height - a.height)
-                  .map((l) => (
+                {sourceMode ? (
+                  sources!.map((s, i) => (
                     <button
-                      key={l.index}
-                      onClick={() => pickLevel(l.index)}
+                      key={`${s.label}-${i}`}
+                      onClick={() => pickSource(i)}
                       className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
                     >
-                      <span>{l.label}</span>
-                      {currentLevel === l.index && <Check className="h-3.5 w-3.5 text-primary" />}
+                      <span>{s.label}</span>
+                      {sourceIdx === i && <Check className="h-3.5 w-3.5 text-primary" />}
                     </button>
-                  ))}
+                  ))
+                ) : (
+                  <>
+                    <button
+                      onClick={() => pickLevel(-1)}
+                      className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
+                    >
+                      <span className="flex items-center gap-2">
+                        <Wifi className="h-3.5 w-3.5" /> Auto
+                      </span>
+                      {currentLevel === -1 && <Check className="h-3.5 w-3.5 text-primary" />}
+                    </button>
+                    <div className="my-1 h-px bg-white/10" />
+                    {[...levels]
+                      .sort((a, b) => b.height - a.height)
+                      .map((l) => (
+                        <button
+                          key={l.index}
+                          onClick={() => pickLevel(l.index)}
+                          className="flex w-full items-center justify-between px-3 py-2 hover:bg-white/10"
+                        >
+                          <span>{l.label}</span>
+                          {currentLevel === l.index && <Check className="h-3.5 w-3.5 text-primary" />}
+                        </button>
+                      ))}
+                  </>
+                )}
               </div>
             )}
           </div>
