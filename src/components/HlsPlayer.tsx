@@ -78,7 +78,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video || !src) return;
+    if (!video || !effectiveSrc) return;
     setError(null);
     setLoading(true);
     setRetrying(false);
@@ -93,7 +93,11 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
         retriesRef.current = 0;
       }
     };
+    const onStall = () => {
+      console.warn(`[player] stall waiting at t=${video.currentTime.toFixed(2)}s`);
+    };
     video.addEventListener("loadeddata", onLoaded);
+    video.addEventListener("waiting", onStall);
 
     const scheduleRetry = (reason: string) => {
       if (cancelled) return;
@@ -115,7 +119,6 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
-        // Adaptive bitrate – let hls.js pick & switch automatically
         capLevelToPlayerSize: true,
         abrEwmaDefaultEstimate: 1_000_000,
         manifestLoadingMaxRetry: 3,
@@ -126,7 +129,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
         fragLoadingRetryDelay: 500,
       });
       hlsRef.current = hls;
-      hls.loadSource(src);
+      hls.loadSource(effectiveSrc);
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
@@ -138,9 +141,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
         }));
         setLevels(ls);
 
-        // Lock to a preferred rung when caller asks for it (e.g. beIN MAX
-        // streams whose 1080p label often points at a different feed).
-        if (preferredHeight && ls.length > 0) {
+        // Only do height-locking when caller passes a single src (yacine). In
+        // sources mode the parent already picked the right rung URL.
+        if (!sources && preferredHeight && ls.length > 0) {
           const withHeight = ls.filter((l) => l.height > 0);
           if (withHeight.length > 0) {
             const best = withHeight.reduce((a, b) =>
@@ -159,6 +162,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
       });
 
       hls.on(Hls.Events.ERROR, (_e, data) => {
+        console.warn(
+          `[player] hls ${data.fatal ? "FATAL" : "warn"} type=${data.type} details=${data.details}`,
+        );
         if (!data.fatal) return;
         const type = data.type;
         if (type === Hls.ErrorTypes.NETWORK_ERROR) {
@@ -180,12 +186,13 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
         }
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
+      video.src = effectiveSrc;
       const onErr = () => scheduleRetry("This stream is currently unavailable.");
       video.addEventListener("error", onErr);
       return () => {
         cancelled = true;
         video.removeEventListener("loadeddata", onLoaded);
+        video.removeEventListener("waiting", onStall);
         video.removeEventListener("error", onErr);
       };
     } else {
@@ -196,10 +203,11 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
     return () => {
       cancelled = true;
       video.removeEventListener("loadeddata", onLoaded);
+      video.removeEventListener("waiting", onStall);
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [src, retryNonce, preferredHeight]);
+  }, [effectiveSrc, retryNonce, preferredHeight, sources]);
 
   const pickLevel = (idx: number) => {
     const hls = hlsRef.current;
@@ -208,6 +216,14 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
     setCurrentLevel(idx);
     setMenuOpen(false);
   };
+
+  const pickSource = (idx: number) => {
+    setSourceIdx(idx);
+    setMenuOpen(false);
+  };
+
+  const sourceMode = !!(sources && sources.length);
+  const activeSourceLabel = sourceMode ? sources![sourceIdx]?.label : null;
 
   const autoLabel = activeHeight ? `Auto · ${activeHeight}p` : "Auto";
   const currentLabel =
