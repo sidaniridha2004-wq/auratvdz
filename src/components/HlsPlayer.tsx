@@ -33,7 +33,7 @@ interface Level {
   label: string;
 }
 
-export function HlsPlayer({ src, rawUrl, preferredHeight }: Props) {
+export function HlsPlayer({ src, rawUrl, preferredHeight, sources }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retriesRef = useRef(0);
@@ -41,6 +41,28 @@ export function HlsPlayer({ src, rawUrl, preferredHeight }: Props) {
   const [loading, setLoading] = useState(true);
   const [retryNonce, setRetryNonce] = useState(0);
   const [retrying, setRetrying] = useState(false);
+
+  // Source-mode: pick an initial source index (preferred height, else best)
+  const initialSourceIdx = (() => {
+    if (!sources || sources.length === 0) return 0;
+    if (preferredHeight) {
+      const withH = sources
+        .map((s, i) => ({ i, h: s.height ?? 0 }))
+        .filter((x) => x.h > 0);
+      if (withH.length) {
+        return withH.reduce((a, b) =>
+          Math.abs(a.h - preferredHeight) <= Math.abs(b.h - preferredHeight) ? a : b,
+        ).i;
+      }
+    }
+    // highest height first, else first
+    const ranked = sources
+      .map((s, i) => ({ i, h: s.height ?? 0 }))
+      .sort((a, b) => b.h - a.h);
+    return ranked[0]?.i ?? 0;
+  })();
+  const [sourceIdx, setSourceIdx] = useState<number>(initialSourceIdx);
+  const effectiveSrc = sources && sources.length ? sources[sourceIdx]?.url : src;
 
   const [levels, setLevels] = useState<Level[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1); // -1 = auto
