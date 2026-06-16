@@ -1,8 +1,12 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { ArrowLeft, Radio } from "lucide-react";
 import { z } from "zod";
 import { SiteHeader } from "@/components/SiteHeader";
-import { HlsPlayer } from "@/components/HlsPlayer";
+import { HlsPlayer, type QualitySource } from "@/components/HlsPlayer";
+import { getAuraChannelStreams } from "@/lib/auratv-channels.functions";
 
 const watchSearchSchema = z.object({
   name: z.string().optional(),
@@ -41,19 +45,48 @@ export const Route = createFileRoute("/watch/tv/$key")({
   ),
 });
 
-// beIN MAX feeds are unreliable above 720p — lock those channels.
 function preferredHeightFor(key: string, name: string | undefined): number | undefined {
   const all = `${key} ${name ?? ""}`.toLowerCase();
   if (/bein.*max/.test(all) || /ماكس/.test(name ?? "")) return 720;
   return undefined;
 }
 
+// Approximate height from the upstream quality label (e.g. "FHD" → 1080).
+function heightFromLabel(label: string): number {
+  const n = label.toUpperCase();
+  const num = parseInt(n.match(/(\d{3,4})/)?.[1] ?? "0", 10);
+  if (num) return num;
+  if (n.includes("4K")) return 2160;
+  if (n.includes("FHD") || n.includes("FULL")) return 1080;
+  if (n.includes("HEVC")) return 1080;
+  if (n.includes("HD")) return 720;
+  if (n.includes("SD")) return 480;
+  return 0;
+}
+
 function WatchTv() {
   const { key } = Route.useParams();
   const { name } = Route.useSearch();
   const display = name ?? key;
-  const masterUrl = `/api/public/auratv-master?key=${encodeURIComponent(key)}`;
   const preferredHeight = preferredHeightFor(key, name);
+
+  const fetchStreams = useServerFn(getAuraChannelStreams);
+  const { data: rawStreams, isLoading, error } = useQuery({
+    queryKey: ["aura-streams", key],
+    queryFn: () => fetchStreams({ data: { key } }),
+    staleTime: 5 * 60_000,
+  });
+
+  const sources: QualitySource[] = useMemo(() => {
+    if (!rawStreams) return [];
+    return rawStreams
+      .map((s) => ({
+        label: s.quality,
+        url: `/api/public/stream?url=${encodeURIComponent(s.url)}`,
+        height: heightFromLabel(s.quality),
+      }))
+      .sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
+  }, [rawStreams]);
 
   return (
     <div className="min-h-screen bg-hero">
@@ -79,13 +112,25 @@ function WatchTv() {
         </div>
 
         <div className="mt-6">
-          <HlsPlayer key={key} src={masterUrl} preferredHeight={preferredHeight} />
+          {isLoading ? (
+            <div className="aspect-video w-full animate-pulse rounded-2xl bg-card" />
+          ) : error || sources.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
+              No working streams for this channel.
+            </div>
+          ) : (
+            <HlsPlayer
+              key={key}
+              sources={sources}
+              preferredHeight={preferredHeight}
+            />
+          )}
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground">
           {preferredHeight
-            ? `Locked to ${preferredHeight}p for this channel — tap the gear icon to switch quality.`
-            : "Quality switches automatically based on your connection. Tap the gear icon on the player to lock a specific resolution."}
+            ? `Locked to ~${preferredHeight}p for this channel — tap the gear icon to switch quality.`
+            : "Tap the gear icon on the player to switch between the available qualities."}
         </p>
       </div>
     </div>
