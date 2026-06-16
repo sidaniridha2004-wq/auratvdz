@@ -2,16 +2,26 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import Hls from "hls.js";
 import { RefreshCw, AlertTriangle, ExternalLink, Settings, Check, Wifi } from "lucide-react";
 
+export interface QualitySource {
+  label: string;
+  url: string;
+  height?: number;
+}
+
 interface Props {
-  src: string;
+  src?: string;
   rawUrl?: string;
   /**
    * If set, on first manifest parse we lock playback to the variant whose
    * height matches (or is closest to) this value instead of letting ABR pick.
-   * Useful when an upstream label (e.g. beIN MAX 1080p) is unreliable and a
-   * specific rung is known to be the right channel feed.
    */
   preferredHeight?: number;
+  /**
+   * If provided, the player switches between these explicit source URLs
+   * instead of relying on a single HLS master's ABR ladder. Used for
+   * AuraTV JSON channels where each quality is its own playlist.
+   */
+  sources?: QualitySource[];
 }
 
 const MAX_AUTO_RETRIES = 3;
