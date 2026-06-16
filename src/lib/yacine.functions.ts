@@ -15,11 +15,33 @@ function decrypt(enc: string, key: string): string {
 
 async function req<T = unknown>(path: string): Promise<T> {
   const { apiUrl, decryptKey } = getYacineConfig();
-  const r = await fetch(apiUrl + path);
-  const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
-  const text = await r.text();
-  const json = decrypt(text, decryptKey + timestamp);
-  return JSON.parse(json) as T;
+  const url = apiUrl + path;
+  const attempt = async (n: number): Promise<T> => {
+    const t0 = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const r = await fetch(url, { signal: controller.signal });
+      const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
+      const text = await r.text();
+      if (!r.ok) throw new Error(`yacine ${r.status} (${text.length}B)`);
+      const json = decrypt(text, decryptKey + timestamp);
+      const parsed = JSON.parse(json) as T;
+      console.log(`[yacine] ok ${path} ${r.status} ${Date.now() - t0}ms try=${n}`);
+      return parsed;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error(`[yacine] fail ${path} ${Date.now() - t0}ms try=${n} ${msg}`);
+      if (n < 2) {
+        await new Promise((res) => setTimeout(res, 400 * (n + 1)));
+        return attempt(n + 1);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  return attempt(0);
 }
 
 export interface Category {

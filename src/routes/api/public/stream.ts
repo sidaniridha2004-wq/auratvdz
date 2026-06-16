@@ -11,15 +11,34 @@ import { assertSafeUrl } from "@/lib/ssrf-guard";
 const MAX_REDIRECTS = 5;
 const UPSTREAM_TIMEOUT_MS = 15_000;
 
+function rid() {
+  return Math.random().toString(36).slice(2, 8);
+}
+function shortUrl(u: string) {
+  try {
+    const p = new URL(u);
+    return `${p.hostname}${p.pathname.slice(0, 40)}`;
+  } catch {
+    return u.slice(0, 60);
+  }
+}
+
 async function safeFetch(
   startUrl: URL,
   headers: Record<string, string>,
+  logId: string,
 ): Promise<Response> {
   let current = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      controller.abort();
+      console.warn(
+        `[stream ${logId}] timeout ${UPSTREAM_TIMEOUT_MS}ms hop=${hop} ${shortUrl(current.toString())}`,
+      );
+    }, UPSTREAM_TIMEOUT_MS);
     let r: Response;
+    const t0 = Date.now();
     try {
       r = await fetch(current.toString(), {
         headers,
@@ -29,6 +48,9 @@ async function safeFetch(
     } finally {
       clearTimeout(timer);
     }
+    console.log(
+      `[stream ${logId}] hop=${hop} status=${r.status} ${Date.now() - t0}ms ${shortUrl(current.toString())}`,
+    );
     if (![301, 302, 303, 307, 308].includes(r.status)) return r;
     const loc = r.headers.get("location");
     if (!loc) return r;
@@ -70,11 +92,16 @@ export const Route = createFileRoute("/api/public/stream")({
         const range = request.headers.get("range");
         if (range) headers["range"] = range;
 
+        const logId = rid();
+        const t0 = Date.now();
+        console.log(`[stream ${logId}] start ${shortUrl(parsed.toString())} range=${range ?? "-"}`);
+
         let upstream: Response;
         try {
-          upstream = await safeFetch(parsed, headers);
+          upstream = await safeFetch(parsed, headers, logId);
         } catch (e) {
-          console.error("stream proxy upstream failed", e);
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error(`[stream ${logId}] upstream FAIL ${Date.now() - t0}ms ${msg}`);
           return new Response("upstream unavailable", {
             status: 502,
             headers: { "access-control-allow-origin": "*" },
@@ -98,14 +125,15 @@ export const Route = createFileRoute("/api/public/stream")({
           try {
             text = await upstream.text();
           } catch (e) {
-            console.error("stream proxy read playlist failed", e);
+            const msg = e instanceof Error ? e.message : String(e);
+            console.error(`[stream ${logId}] read playlist FAIL ${msg}`);
             return new Response("upstream read error", {
               status: 502,
               headers: { "access-control-allow-origin": "*" },
             });
           }
-          // upstream.url is empty under redirect:"manual" — use the final URL we resolved
           const finalUrl = parsed;
+          const lineCount = text.split("\n").length;
           const rewritten = text
             .split("\n")
             .map((line) => {
@@ -126,12 +154,12 @@ export const Route = createFileRoute("/api/public/stream")({
             })
             .join("\n");
 
+          console.log(
+            `[stream ${logId}] playlist ${text.length}B lines=${lineCount} ${Date.now() - t0}ms`,
+          );
           return new Response(rewritten, {
             status: upstream.status,
-            headers: {
-              ...baseHeaders,
-              "content-type": "application/vnd.apple.mpegurl",
-            },
+            headers: { ...baseHeaders, "content-type": "application/vnd.apple.mpegurl" },
           });
         }
 
@@ -141,6 +169,10 @@ export const Route = createFileRoute("/api/public/stream")({
           const v = upstream.headers.get(h);
           if (v) passHeaders.set(h, v);
         }
+        const cl = upstream.headers.get("content-length") ?? "?";
+        console.log(
+          `[stream ${logId}] segment ct=${ct} bytes=${cl} status=${upstream.status} ${Date.now() - t0}ms`,
+        );
         return new Response(upstream.body, {
           status: upstream.status,
           headers: passHeaders,
