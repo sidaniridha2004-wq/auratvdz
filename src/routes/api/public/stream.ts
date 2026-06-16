@@ -11,15 +11,34 @@ import { assertSafeUrl } from "@/lib/ssrf-guard";
 const MAX_REDIRECTS = 5;
 const UPSTREAM_TIMEOUT_MS = 15_000;
 
+function rid() {
+  return Math.random().toString(36).slice(2, 8);
+}
+function shortUrl(u: string) {
+  try {
+    const p = new URL(u);
+    return `${p.hostname}${p.pathname.slice(0, 40)}`;
+  } catch {
+    return u.slice(0, 60);
+  }
+}
+
 async function safeFetch(
   startUrl: URL,
   headers: Record<string, string>,
+  logId: string,
 ): Promise<Response> {
   let current = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    const timer = setTimeout(() => {
+      controller.abort();
+      console.warn(
+        `[stream ${logId}] timeout ${UPSTREAM_TIMEOUT_MS}ms hop=${hop} ${shortUrl(current.toString())}`,
+      );
+    }, UPSTREAM_TIMEOUT_MS);
     let r: Response;
+    const t0 = Date.now();
     try {
       r = await fetch(current.toString(), {
         headers,
@@ -29,6 +48,9 @@ async function safeFetch(
     } finally {
       clearTimeout(timer);
     }
+    console.log(
+      `[stream ${logId}] hop=${hop} status=${r.status} ${Date.now() - t0}ms ${shortUrl(current.toString())}`,
+    );
     if (![301, 302, 303, 307, 308].includes(r.status)) return r;
     const loc = r.headers.get("location");
     if (!loc) return r;
