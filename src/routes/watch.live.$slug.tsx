@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { HlsPlayer } from "@/components/HlsPlayer";
 import { ChannelLogo } from "@/components/ChannelLogo";
 import { findChannelBySlug } from "@/lib/m3u-channels";
+import { useChannelsBySlug } from "@/lib/channels-client";
 
 export const Route = createFileRoute("/watch/live/$slug")({
   component: WatchLive,
