@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
 import { Route as WatchTvKeyRouteImport } from './routes/watch.tv.$key'
+import { Route as WatchLiveSlugRouteImport } from './routes/watch.live.$slug'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
+import { Route as ApiPublicProbeRouteImport } from './routes/api/public/probe'
 import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
 import { Route as ApiPublicAuratvMasterRouteImport } from './routes/api/public/auratv-master'
 
@@ -31,9 +33,19 @@ const WatchTvKeyRoute = WatchTvKeyRouteImport.update({
   path: '/watch/tv/$key',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchLiveSlugRoute = WatchLiveSlugRouteImport.update({
+  id: '/watch/live/$slug',
+  path: '/watch/live/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicStreamRoute = ApiPublicStreamRouteImport.update({
   id: '/api/public/stream',
   path: '/api/public/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicProbeRoute = ApiPublicProbeRouteImport.update({
+  id: '/api/public/probe',
+  path: '/api/public/probe',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicMasterRoute = ApiPublicMasterRouteImport.update({
@@ -52,7 +64,9 @@ export interface FileRoutesByFullPath {
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
+  '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRoutesByTo {
@@ -60,7 +74,9 @@ export interface FileRoutesByTo {
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
+  '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRoutesById {
@@ -69,7 +85,9 @@ export interface FileRoutesById {
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
+  '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
 }
 export interface FileRouteTypes {
@@ -79,7 +97,9 @@ export interface FileRouteTypes {
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
+    | '/api/public/probe'
     | '/api/public/stream'
+    | '/watch/live/$slug'
     | '/watch/tv/$key'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -87,7 +107,9 @@ export interface FileRouteTypes {
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
+    | '/api/public/probe'
     | '/api/public/stream'
+    | '/watch/live/$slug'
     | '/watch/tv/$key'
   id:
     | '__root__'
@@ -95,7 +117,9 @@ export interface FileRouteTypes {
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
+    | '/api/public/probe'
     | '/api/public/stream'
+    | '/watch/live/$slug'
     | '/watch/tv/$key'
   fileRoutesById: FileRoutesById
 }
@@ -104,7 +128,9 @@ export interface RootRouteChildren {
   WatchChannelIdRoute: typeof WatchChannelIdRoute
   ApiPublicAuratvMasterRoute: typeof ApiPublicAuratvMasterRoute
   ApiPublicMasterRoute: typeof ApiPublicMasterRoute
+  ApiPublicProbeRoute: typeof ApiPublicProbeRoute
   ApiPublicStreamRoute: typeof ApiPublicStreamRoute
+  WatchLiveSlugRoute: typeof WatchLiveSlugRoute
   WatchTvKeyRoute: typeof WatchTvKeyRoute
 }
 
@@ -131,11 +157,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchTvKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watch/live/$slug': {
+      id: '/watch/live/$slug'
+      path: '/watch/live/$slug'
+      fullPath: '/watch/live/$slug'
+      preLoaderRoute: typeof WatchLiveSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/stream': {
       id: '/api/public/stream'
       path: '/api/public/stream'
       fullPath: '/api/public/stream'
       preLoaderRoute: typeof ApiPublicStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/probe': {
+      id: '/api/public/probe'
+      path: '/api/public/probe'
+      fullPath: '/api/public/probe'
+      preLoaderRoute: typeof ApiPublicProbeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/master': {
@@ -160,7 +200,9 @@ const rootRouteChildren: RootRouteChildren = {
   WatchChannelIdRoute: WatchChannelIdRoute,
   ApiPublicAuratvMasterRoute: ApiPublicAuratvMasterRoute,
   ApiPublicMasterRoute: ApiPublicMasterRoute,
+  ApiPublicProbeRoute: ApiPublicProbeRoute,
   ApiPublicStreamRoute: ApiPublicStreamRoute,
+  WatchLiveSlugRoute: WatchLiveSlugRoute,
   WatchTvKeyRoute: WatchTvKeyRoute,
 }
 export const routeTree = rootRouteImport
