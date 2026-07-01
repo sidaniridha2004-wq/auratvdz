@@ -11,6 +11,24 @@ export function categoryFor(group: string, name = ""): ChannelCategory {
   return "general";
 }
 
+/**
+ * Fallback letter-avatar color for a channel, keyed on its GROUP label so
+ * regional groups (Algeria TV, French TV, Maghreb) get their own tone.
+ */
+export function categoryColorForGroup(group: string): string {
+  const g = group.toLowerCase();
+  if (/bein|sport|rmc/.test(g)) return "#c0392b";           // red
+  if (/movie|cinema|ciné/.test(g)) return "#2980b9";         // blue
+  if (/series|drama/.test(g)) return "#8e44ad";              // purple
+  if (/kid|disney|nick|toon|baraem/.test(g)) return "#f39c12"; // yellow
+  if (/news/.test(g)) return "#7f8c8d";                      // grey
+  if (/lifestyle|doc|documentary|nat geo|history/.test(g)) return "#27ae60"; // green
+  if (/french tv|canal|osn/.test(g)) return "#e67e22";       // orange
+  if (/algeria|maghreb|tunis|maroc/.test(g)) return "#16a085"; // teal
+  return "#2c3e50";                                          // dark navy
+}
+
+
 export const CATEGORY_META: Record<
   ChannelCategory,
   { label: string; color: string; ring: string; text: string; bg: string }
