@@ -86,11 +86,18 @@ function pickImg(block: string): string {
   return s?.[1] ?? "";
 }
 
-function parseStatus(label: string, dateClass: string): Match["status"] {
-  if (dateClass.includes("live") || label.includes("جارية")) return "live";
-  if (dateClass.includes("finished") || label.includes("إنتهت") || label.includes("انتهت"))
+function parseStatus(label: string, dateClass: string, score: string): Match["status"] {
+  if (dateClass.includes("live") || label.includes("جارية") || label.includes("مباشر")) return "live";
+  if (
+    dateClass.includes("finished") ||
+    label.includes("إنتهت") ||
+    label.includes("انتهت") ||
+    label.includes("انتهى")
+  )
     return "finished";
   if (dateClass.includes("soon") || label.includes("لم")) return "soon";
+  // Heuristic: a non-zero score with no explicit status usually means finished.
+  if (score && /\d+\s*-\s*\d+/.test(score) && score.replace(/\s/g, "") !== "0-0") return "finished";
   return "unknown";
 }
 
@@ -140,7 +147,7 @@ function parseMatches(html: string, day: Day): Match[] {
       time,
       kickoffIso: parseKickoff(time, day),
       score,
-      status: parseStatus(statusLabel, classStr),
+      status: parseStatus(statusLabel, classStr, score),
       statusLabel,
       channel,
       commentator,

@@ -2,37 +2,27 @@ import { Link } from "@tanstack/react-router";
 import { Tv, Clock, Mic2, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/matches.functions";
+import { resolveMatchChannelSlug, findChannelBySlug } from "@/lib/m3u-channels";
 
-// Channel name → YacineTV channel id. Prefer 1080P streams.
-const CHANNEL_MAP: { match: RegExp; id: number; label: string }[] = [
-  { match: /bein\s*max\s*1\b/i, id: 1471, label: "beIN MAX 1" },
-  { match: /bein\s*max\s*2\b/i, id: 1472, label: "beIN MAX 2" },
-  { match: /bein\s*max\s*3\b/i, id: 1473, label: "beIN MAX 3" },
-  { match: /bein\s*max\s*4\b/i, id: 1474, label: "beIN MAX 4" },
-  { match: /bein\s*max\s*5\b/i, id: 1475, label: "beIN MAX 5" },
-  { match: /bein\s*max\s*6\b/i, id: 1476, label: "beIN MAX 6" },
-  { match: /bein\s*(sports?\s*)?1\b/i, id: 1424, label: "beIN SPORTS 1" },
-  { match: /bein\s*(sports?\s*)?2\b/i, id: 1425, label: "beIN SPORTS 2" },
-  { match: /bein\s*(sports?\s*)?3\b/i, id: 1426, label: "beIN SPORTS 3" },
-  { match: /bein\s*(sports?\s*)?4\b/i, id: 1427, label: "beIN SPORTS 4" },
-  { match: /bein\s*(sports?\s*)?5\b/i, id: 1428, label: "beIN SPORTS 5" },
-  { match: /bein\s*(sports?\s*)?6\b/i, id: 1429, label: "beIN SPORTS 6" },
-  { match: /bein\s*(sports?\s*)?7\b/i, id: 1430, label: "beIN SPORTS 7" },
-  { match: /bein\s*(sports?\s*)?8\b/i, id: 1431, label: "beIN SPORTS 8" },
-  { match: /bein\s*(sports?\s*)?9\b/i, id: 1432, label: "beIN SPORTS 9" },
-  { match: /bein\s*xtra\s*1/i, id: 1421, label: "beIN XTRA 1" },
-  { match: /bein\s*xtra\s*2/i, id: 1422, label: "beIN XTRA 2" },
-  { match: /bein\s*xtra\s*3/i, id: 1423, label: "beIN XTRA 3" },
-  { match: /بي\s*ان\s*ماكس\s*1|بي\s*إن\s*ماكس\s*1/i, id: 1471, label: "beIN MAX 1" },
-  { match: /بي\s*ان\s*ماكس\s*2|بي\s*إن\s*ماكس\s*2/i, id: 1472, label: "beIN MAX 2" },
-  { match: /بي\s*ان\s*ماكس\s*3|بي\s*إن\s*ماكس\s*3/i, id: 1473, label: "beIN MAX 3" },
-  { match: /بي\s*ان\s*سبورت\s*1|بي\s*إن\s*سبورت\s*1/i, id: 1424, label: "beIN SPORTS 1" },
-  { match: /بي\s*ان\s*سبورت\s*2|بي\s*إن\s*سبورت\s*2/i, id: 1425, label: "beIN SPORTS 2" },
-];
+type Resolved =
+  | { kind: "m3u"; slug: string; label: string }
+  | { kind: "yacine"; id: number; label: string }
+  | null;
 
-function resolveChannel(name: string): { id: number; label: string } | null {
+// Resolve a match's channel to a playable route. Prefers our M3U primary
+// server; falls back to YacineTV IDs for beIN MAX 1-6.
+function resolveChannel(name: string): Resolved {
   if (!name) return null;
-  for (const c of CHANNEL_MAP) if (c.match.test(name)) return { id: c.id, label: c.label };
+  const slug = resolveMatchChannelSlug(name);
+  if (slug) {
+    const ch = findChannelBySlug(slug);
+    if (ch) return { kind: "m3u", slug, label: ch.name };
+  }
+  const m = name.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    return { kind: "yacine", id: 1470 + n, label: `beIN MAX ${n}` };
+  }
   return null;
 }
 
@@ -165,6 +155,17 @@ export function MatchCard({ match }: { match: Match }) {
   );
 
   if (!ch) return inner;
+  if (ch.kind === "m3u") {
+    return (
+      <Link
+        to="/watch/live/$slug"
+        params={{ slug: ch.slug }}
+        className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
+      >
+        {inner}
+      </Link>
+    );
+  }
   return (
     <Link
       to="/watch/$channelId"
