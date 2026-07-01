@@ -109,18 +109,23 @@ function Home() {
     return `${Math.max(m, 1)}m`;
   }, [nextMatch, nowMs]);
 
-  // Resolved channels reflect admin edits (name/logo/category/url) and hide
-  // list live — updates from /admin propagate here instantly without refresh.
-  const resolved = useResolvedChannels();
+  // Channels come from Supabase as the single source of truth.
+  // useChannels() subscribes to realtime + refetches on window focus, so
+  // admin edits show up here immediately without a page reload. If the
+  // fetch hasn't landed yet we fall back to the static M3U catalogue so
+  // the homepage never renders empty on first paint.
+  const { channels: dbChannels, bySlug: dbBySlug } = useChannels();
+  const resolved: M3uChannel[] = dbChannels.length > 0 ? dbChannels : M3U_CHANNELS;
   const resolvedBySlug = useMemo(() => {
-    const m = new Map<string, (typeof resolved)[number]>();
-    for (const c of resolved) m.set(c.slug, c);
+    if (dbChannels.length > 0) return dbBySlug;
+    const m = new Map<string, M3uChannel>();
+    for (const c of M3U_CHANNELS) m.set(c.slug, c);
     return m;
-  }, [resolved]);
+  }, [dbChannels.length, dbBySlug]);
 
   // Channel groups (excluding beIN MAX — has its own dedicated section)
   const groups = useMemo(() => {
-    const g: Record<string, typeof resolved> = {};
+    const g: Record<string, M3uChannel[]> = {};
     for (const c of resolved) (g[c.group] ??= []).push(c);
     delete g["beIN Sports MAX"];
     return g;
@@ -132,7 +137,7 @@ function Home() {
   const [beinQ, setBeinQ] = useState("");
 
   const beinChannels = useMemo(() => {
-    const list = BEIN_MAX_SLUGS.map((s) => resolvedBySlug.get(s)).filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
+    const list = BEIN_MAX_SLUGS.map((s) => resolvedBySlug.get(s)).filter(Boolean) as M3uChannel[];
     if (!beinQ.trim()) return list;
     const n = beinQ.toLowerCase();
     return list.filter((c) => c.name.toLowerCase().includes(n));
@@ -142,14 +147,14 @@ function Home() {
     const src = groups[currentGroup] ?? [];
     if (!q.trim()) return src;
     const n = q.toLowerCase();
-    return src.filter((c) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n));
+    return src.filter((c: M3uChannel) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n));
   }, [groups, currentGroup, q]);
 
   const favoriteChannels = useMemo(() => {
     return favorites
       .map((slug) => resolvedBySlug.get(slug))
-      .filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
-  }, [favorites]);
+      .filter(Boolean) as M3uChannel[];
+  }, [favorites, resolvedBySlug]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-hero">
