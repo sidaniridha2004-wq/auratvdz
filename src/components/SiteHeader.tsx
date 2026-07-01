@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import logoAsset from "@/assets/auratv-logo.png.asset.json";
-import { Flame, Radio, Star, Sun, Moon, Settings, Activity } from "lucide-react";
+import { Flame, Radio, Star, Sun, Moon, Activity } from "lucide-react";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useFavorites } from "@/lib/favorites";
