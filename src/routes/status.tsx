@@ -81,6 +81,19 @@ function StatusPage() {
           <Stat label={t("status.down")} value={data?.down ?? 0} tone="bad" />
         </div>
 
+        {(() => {
+          const down = data?.down ?? 0;
+          const checked = data?.checked ?? 0;
+          if (checked === 0) return null;
+          const allOk = down === 0;
+          return (
+            <div className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${allOk ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-orange-500/30 bg-orange-500/10 text-orange-300"}`}>
+              {allOk ? "🟢 All systems operational" : `🟡 Some streams may be unavailable — ${down} channel${down === 1 ? "" : "s"} down`}
+            </div>
+          );
+        })()}
+
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
