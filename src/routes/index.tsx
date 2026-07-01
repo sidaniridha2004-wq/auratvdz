@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
-import { M3U_CHANNELS, findChannelBySlug, channelsByGroup } from "@/lib/m3u-channels";
+import { M3U_CHANNELS, findChannelBySlug } from "@/lib/m3u-channels";
+import { useResolvedChannels } from "@/lib/channel-overrides";
 import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
@@ -107,12 +108,22 @@ function Home() {
     return `${Math.max(m, 1)}m`;
   }, [nextMatch, nowMs]);
 
+  // Resolved channels reflect admin edits (name/logo/category/url) and hide
+  // list live — updates from /admin propagate here instantly without refresh.
+  const resolved = useResolvedChannels();
+  const resolvedBySlug = useMemo(() => {
+    const m = new Map<string, (typeof resolved)[number]>();
+    for (const c of resolved) m.set(c.slug, c);
+    return m;
+  }, [resolved]);
+
   // Channel groups (excluding beIN MAX — has its own dedicated section)
   const groups = useMemo(() => {
-    const g = channelsByGroup();
+    const g: Record<string, typeof resolved> = {};
+    for (const c of resolved) (g[c.group] ??= []).push(c);
     delete g["beIN Sports MAX"];
     return g;
-  }, []);
+  }, [resolved]);
   const groupNames = useMemo(() => Object.keys(groups).sort(), [groups]);
   const [activeGroup, setActiveGroup] = useState<string>("");
   const currentGroup = activeGroup || groupNames[0] || "";
@@ -120,11 +131,11 @@ function Home() {
   const [beinQ, setBeinQ] = useState("");
 
   const beinChannels = useMemo(() => {
-    const list = BEIN_MAX_SLUGS.map(findChannelBySlug).filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
+    const list = BEIN_MAX_SLUGS.map((s) => resolvedBySlug.get(s)).filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
     if (!beinQ.trim()) return list;
     const n = beinQ.toLowerCase();
     return list.filter((c) => c.name.toLowerCase().includes(n));
-  }, [beinQ]);
+  }, [beinQ, resolvedBySlug]);
 
   const filteredChannels = useMemo(() => {
     const src = groups[currentGroup] ?? [];
@@ -135,7 +146,7 @@ function Home() {
 
   const favoriteChannels = useMemo(() => {
     return favorites
-      .map((slug) => findChannelBySlug(slug))
+      .map((slug) => resolvedBySlug.get(slug))
       .filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
   }, [favorites]);
 
