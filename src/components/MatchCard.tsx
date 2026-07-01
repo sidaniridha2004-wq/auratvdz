@@ -136,7 +136,7 @@ export function MatchCard({ match }: { match: Match }) {
           ) : (
             <div className="h-14 w-14 rounded-full bg-muted" />
           )}
-          <div className="text-sm font-semibold leading-tight">{match.awayTeam}</div>
+          <div className="text-base font-semibold leading-tight">{match.awayTeam}</div>
         </div>
       </div>
 
