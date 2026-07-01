@@ -72,7 +72,15 @@ function Home() {
 
   const liveMatches = useMemo(() => matches.filter((m) => m.status === "live"), [matches]);
   const otherMatches = useMemo(() => matches.filter((m) => m.status !== "live"), [matches]);
-  const featured = liveMatches[0] ?? matches[0];
+  // Hero card shows the next upcoming match (soonest kickoff still ahead).
+  // Falls back to null so the floating card hides when nothing's upcoming —
+  // never duplicates a card that already appears in the schedule below.
+  const featured = useMemo(() => {
+    const upcoming = matches
+      .filter((m) => m.status === "soon" && m.kickoffIso && new Date(m.kickoffIso).getTime() > Date.now())
+      .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime());
+    return upcoming[0] ?? null;
+  }, [matches]);
   const totalMatches = matches.length;
 
   const nextMatch = useMemo(() => {
@@ -221,19 +229,19 @@ function Home() {
               </div>
             </div>
 
-            <div className="relative conic-border rounded-3xl">
-              <div className="relative rounded-3xl bg-card/70 p-2 backdrop-blur-xl">
-                {matchesLoading ? (
+            {matchesLoading ? (
+              <div className="relative conic-border rounded-3xl">
+                <div className="relative rounded-3xl bg-card/70 p-2 backdrop-blur-xl">
                   <div className="h-80 animate-pulse rounded-2xl bg-card/70" />
-                ) : featured ? (
-                  <MatchCard match={featured} />
-                ) : (
-                  <div className="flex h-80 items-center justify-center rounded-2xl bg-card text-sm text-muted-foreground">
-                    No matches scheduled.
-                  </div>
-                )}
+                </div>
               </div>
-            </div>
+            ) : featured ? (
+              <div className="relative conic-border rounded-3xl">
+                <div className="relative rounded-3xl bg-card/70 p-2 backdrop-blur-xl">
+                  <MatchCard match={featured} />
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </section>

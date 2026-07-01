@@ -12,7 +12,9 @@ export interface M3uChannel {
 }
 
 const BEIN_LOGO =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/BeIN_Sports_logo.svg/200px-BeIN_Sports_logo.svg.png";
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/BeIN_Sports_France_logo.svg/200px-BeIN_Sports_France_logo.svg.png";
+const BEIN_MAX_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Logo_beIN_SPORTS_MAX.png/200px-Logo_beIN_SPORTS_MAX.png";
 const MBC_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/MBC_logo.svg/200px-MBC_logo.svg.png";
 const CANAL_LOGO =
@@ -26,12 +28,12 @@ const ALG_LOGO =
 
 export const M3U_CHANNELS: M3uChannel[] = [
   // beIN Sports MAX — PRIMARY server for match streams
-  { slug: "bein-max-1", name: "beIN SPORTS MAX 1", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/AzMjD2IyADQPb2tLfQ/index.m3u8?token==", matchAlias: "beIN Max 1" },
-  { slug: "bein-max-2", name: "beIN SPORTS MAX 2", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/AzMjD2IyADQPb2dLfQ/index.m3u8?token==", matchAlias: "beIN Max 2" },
-  { slug: "bein-max-3", name: "beIN SPORTS MAX 3", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/cTMhX14BDE0/index.m3u8?token==", matchAlias: "beIN Max 3" },
-  { slug: "bein-max-4", name: "beIN SPORTS MAX 4", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/cTMhX14BDE1/index.m3u8?token==", matchAlias: "beIN Max 4" },
-  { slug: "bein-max-5", name: "beIN SPORTS MAX 5", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/fGxnXkcRABYyNE0TfQ/index.m3u8?token==", matchAlias: "beIN Max 5" },
-  { slug: "bein-max-6", name: "beIN SPORTS MAX 6", group: "beIN Sports MAX", logo: BEIN_LOGO, url: "https://table.houseinventer.com/pdf/cG5tXl8cAlZxKhAXJnE/index.m3u8?token==", matchAlias: "beIN Max 6" },
+  { slug: "bein-max-1", name: "beIN SPORTS MAX 1", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/AzMjD2IyADQPb2tLfQ/index.m3u8?token==", matchAlias: "beIN Max 1" },
+  { slug: "bein-max-2", name: "beIN SPORTS MAX 2", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/AzMjD2IyADQPb2dLfQ/index.m3u8?token==", matchAlias: "beIN Max 2" },
+  { slug: "bein-max-3", name: "beIN SPORTS MAX 3", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/cTMhX14BDE0/index.m3u8?token==", matchAlias: "beIN Max 3" },
+  { slug: "bein-max-4", name: "beIN SPORTS MAX 4", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/cTMhX14BDE1/index.m3u8?token==", matchAlias: "beIN Max 4" },
+  { slug: "bein-max-5", name: "beIN SPORTS MAX 5", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/fGxnXkcRABYyNE0TfQ/index.m3u8?token==", matchAlias: "beIN Max 5" },
+  { slug: "bein-max-6", name: "beIN SPORTS MAX 6", group: "beIN Sports MAX", logo: BEIN_MAX_LOGO, url: "https://table.houseinventer.com/pdf/cG5tXl8cAlZxKhAXJnE/index.m3u8?token==", matchAlias: "beIN Max 6" },
 
   // beIN Sports (Arabic + English)
   { slug: "bein-1-eng", name: "beIN SPORTS 1 ENG", group: "beIN Sports", logo: BEIN_LOGO, url: "http://stream.woodfencepods.com/pdf/IC0gRg9bSFNxbAsWZmkLFRZASWV7fGgncCxhWANNAAoFGXFhZ3E/index.m3u8?token==" },
