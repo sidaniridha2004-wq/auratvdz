@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { HlsPlayer } from "@/components/HlsPlayer";
 import { ChannelLogo } from "@/components/ChannelLogo";
 import { findChannelBySlug } from "@/lib/m3u-channels";
+import { useChannelsBySlug } from "@/lib/channels-client";
 
 export const Route = createFileRoute("/watch/live/$slug")({
   component: WatchLive,
@@ -39,8 +40,13 @@ export const Route = createFileRoute("/watch/live/$slug")({
 
 function WatchLive() {
   const { slug } = Route.useParams();
-  const ch = findChannelBySlug(slug);
+  const bySlug = useChannelsBySlug();
+  const staticCh = findChannelBySlug(slug);
+  const dbCh = bySlug.get(slug);
+  const ch = dbCh ?? staticCh;
   if (!ch) throw notFound();
+  // Prefer the DB logo (kept fresh via admin edits); fall back to static.
+  const logo = dbCh?.logo || staticCh?.logo;
 
   const isBeinMax = /bein\s*sports?\s*max/i.test(ch.name);
   const preferredHeight = isBeinMax ? 720 : undefined;
@@ -59,8 +65,9 @@ function WatchLive() {
 
         <div className="mt-4 flex items-center gap-3">
           <ChannelLogo
-            src={ch.logo}
+            src={logo}
             name={ch.name}
+            group={ch.group}
             className="h-12 w-12 rounded-xl bg-card p-1.5 shadow-card"
           />
           <div>
