@@ -266,7 +266,7 @@ function Home() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />)}
           </div>
-        ) : (matches?.length ?? 0) === 0 ? (
+        ) : matches.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
             No matches found for {t(`day.${day}`)}.
           </div>
