@@ -132,10 +132,13 @@ function RootComponent() {
         <I18nProvider>
           <FavoritesProvider>
             <CustomChannelsProvider>
-              <Outlet />
-              <TelegramPopup />
-              <InstallBanner />
-              <MobileTabBar />
+              <AdminProvider>
+                <Outlet />
+                <TelegramPopup />
+                <InstallBanner />
+                <MobileTabBar />
+                <AdminHotkey />
+              </AdminProvider>
             </CustomChannelsProvider>
           </FavoritesProvider>
         </I18nProvider>
