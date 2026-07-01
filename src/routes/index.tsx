@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
 import { M3U_CHANNELS, findChannelBySlug } from "@/lib/m3u-channels";
-import { useResolvedChannels } from "@/lib/channel-overrides";
+import { useChannels } from "@/lib/channels-client";
 import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
@@ -15,6 +15,7 @@ import { useFavorites } from "@/lib/favorites";
 import { useCustomChannels } from "@/lib/custom-channels";
 import { useI18n } from "@/lib/i18n";
 import stadiumBg from "@/assets/stadium-night.jpg";
+import type { M3uChannel } from "@/lib/m3u-channels";
 
 export const Route = createFileRoute("/")({
   component: Home,
