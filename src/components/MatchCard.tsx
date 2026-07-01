@@ -3,7 +3,7 @@ import { Tv, Clock, Mic2, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/matches.functions";
 import { resolveMatchChannelSlug, findChannelBySlug, type M3uChannel } from "@/lib/m3u-channels";
-import { useChannels } from "@/lib/channels-client";
+import { useChannelsBySlug } from "@/lib/channels-client";
 import { ChannelLogo } from "./ChannelLogo";
 
 type Resolved =
