@@ -63,13 +63,6 @@ export function SiteHeader() {
           >
             <Activity className="h-4 w-4" /> {t("nav.status")}
           </Link>
-          <Link
-            to="/settings/channels"
-            aria-label={t("nav.settings")}
-            className="hidden rounded-full p-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground lg:inline-flex"
-          >
-            <Settings className="h-4 w-4" />
-          </Link>
 
           {/* Lang switcher */}
           <div className="hidden overflow-hidden rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase sm:flex">
