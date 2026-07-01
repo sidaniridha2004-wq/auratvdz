@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Star, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { ChannelLogo } from "./ChannelLogo";
 import { useFavorites } from "@/lib/favorites";
 import { CATEGORY_META, categoryFor, type ChannelCategory } from "@/lib/channel-category";
