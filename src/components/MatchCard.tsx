@@ -155,6 +155,17 @@ export function MatchCard({ match }: { match: Match }) {
   );
 
   if (!ch) return inner;
+  if (ch.kind === "m3u") {
+    return (
+      <Link
+        to="/watch/live/$slug"
+        params={{ slug: ch.slug }}
+        className="block h-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background rounded-2xl"
+      >
+        {inner}
+      </Link>
+    );
+  }
   return (
     <Link
       to="/watch/$channelId"
