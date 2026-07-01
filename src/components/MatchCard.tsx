@@ -83,7 +83,8 @@ function StatusBadge({ m, localTime }: { m: Match; localTime: string | null }) {
 }
 
 export function MatchCard({ match }: { match: Match }) {
-  const ch = resolveChannel(match.channel);
+  const { bySlug } = useChannels();
+  const ch = resolveChannel(match.channel, bySlug);
   const local = useLocalKickoff(match.kickoffIso);
   const countdown = useCountdown(match.status === "soon" ? match.kickoffIso : null);
   const showScore = match.status !== "soon" && match.score && match.score !== "0-0";
