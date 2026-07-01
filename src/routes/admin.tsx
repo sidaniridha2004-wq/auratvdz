@@ -57,14 +57,23 @@ interface Row {
 function useHidden() {
   const [hidden, setHidden] = useState<string[]>([]);
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(HIDDEN_KEY);
-      if (raw) setHidden(JSON.parse(raw));
-    } catch {}
+    const load = () => {
+      try {
+        const raw = localStorage.getItem(HIDDEN_KEY);
+        setHidden(raw ? JSON.parse(raw) : []);
+      } catch {}
+    };
+    load();
+    window.addEventListener(OVERRIDES_EVENT, load);
+    window.addEventListener("storage", load);
+    return () => {
+      window.removeEventListener(OVERRIDES_EVENT, load);
+      window.removeEventListener("storage", load);
+    };
   }, []);
   const set = (next: string[]) => {
     setHidden(next);
-    try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(next)); } catch {}
+    writeHidden(next);
   };
   const toggle = (id: string) => {
     set(hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]);
@@ -81,15 +90,24 @@ function useHidden() {
 function useOverrides() {
   const [overrides, setOverrides] = useState<OverrideMap>({});
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(OVERRIDES_KEY);
-      if (raw) setOverrides(JSON.parse(raw));
-    } catch {}
+    const load = () => {
+      try {
+        const raw = localStorage.getItem(OVERRIDES_KEY);
+        setOverrides(raw ? JSON.parse(raw) : {});
+      } catch {}
+    };
+    load();
+    window.addEventListener(OVERRIDES_EVENT, load);
+    window.addEventListener("storage", load);
+    return () => {
+      window.removeEventListener(OVERRIDES_EVENT, load);
+      window.removeEventListener("storage", load);
+    };
   }, []);
   const save = (id: string, patch: Override) => {
     const next = { ...overrides, [id]: { ...overrides[id], ...patch } };
     setOverrides(next);
-    try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next)); } catch {}
+    writeOverrides(next);
   };
   return { overrides, save };
 }
