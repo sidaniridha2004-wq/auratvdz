@@ -56,9 +56,10 @@ export function Footer() {
             href="https://t.me/Aura_TV"
             target="_blank"
             rel="noreferrer"
-            className="mt-3 inline-flex text-xs text-primary hover:underline"
+            className="mt-3 inline-flex flex-col text-xs"
           >
-            @Aura_TV on Telegram
+            <span className="font-semibold text-primary hover:underline">@Aura_TV on Telegram</span>
+            <span className="text-muted-foreground">Join for stream updates, new channels & fix alerts.</span>
           </a>
         </div>
       </div>
