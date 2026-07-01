@@ -26,7 +26,7 @@ export function Footer() {
             <li><Link to="/" hash="channels" className="hover:text-foreground text-muted-foreground">{t("nav.channels")}</Link></li>
             <li><Link to="/" hash="favorites" className="hover:text-foreground text-muted-foreground">{t("nav.favorites")}</Link></li>
             <li><Link to="/status" className="hover:text-foreground text-muted-foreground">{t("nav.status")}</Link></li>
-            <li><Link to="/settings/channels" className="hover:text-foreground text-muted-foreground">{t("nav.settings")}</Link></li>
+            
           </ul>
         </div>
         <div>
