@@ -1,0 +1,44 @@
+import { Link, useLocation } from "@tanstack/react-router";
+import { Home, Calendar, Radio, Star } from "lucide-react";
+import { useI18n } from "@/lib/i18n";
+import { useFavorites } from "@/lib/favorites";
+
+export function MobileTabBar() {
+  const { t } = useI18n();
+  const location = useLocation();
+  const { count } = useFavorites();
+  const hash = location.hash;
+  const isHome = location.pathname === "/" && !hash;
+
+  const items = [
+    { to: "/", hash: "", icon: Home, label: t("nav.home"), active: isHome },
+    { to: "/", hash: "matches", icon: Calendar, label: t("nav.matches"), active: hash === "matches" },
+    { to: "/", hash: "channels", icon: Radio, label: t("nav.channels"), active: hash === "channels" },
+    { to: "/", hash: "favorites", icon: Star, label: t("nav.favorites"), active: hash === "favorites", badge: count },
+  ] as const;
+
+  return (
+    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-background/80 backdrop-blur-xl sm:hidden">
+      <div className="grid grid-cols-4">
+        {items.map((it) => (
+          <Link
+            key={it.label}
+            to={it.to}
+            hash={it.hash || undefined}
+            className={`relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+              it.active ? "text-primary" : "text-muted-foreground"
+            }`}
+          >
+            <it.icon className="h-5 w-5" />
+            <span>{it.label}</span>
+            {"badge" in it && it.badge ? (
+              <span className="absolute right-4 top-1 rounded-full bg-primary px-1.5 text-[9px] font-bold text-primary-foreground">
+                {it.badge}
+              </span>
+            ) : null}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
