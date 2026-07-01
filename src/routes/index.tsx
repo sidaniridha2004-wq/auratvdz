@@ -403,11 +403,6 @@ function Home() {
           </div>
         )}
 
-        <div className="mt-8 text-center">
-          <Link to="/settings/channels" className="text-sm font-semibold text-primary hover:underline">
-            + Add your own channels →
-          </Link>
-        </div>
       </section>
 
       <Footer />
