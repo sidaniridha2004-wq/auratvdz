@@ -19,8 +19,6 @@ export const Route = createFileRoute("/admin")({
   }),
 });
 
-const HIDDEN_KEY = "auratv:admin:hidden";
-const OVERRIDES_KEY = "auratv:admin:overrides";
 const PAGE_SIZE = 20;
 
 // Full category list per spec
@@ -46,14 +44,6 @@ const ALL_CATEGORIES = [
   "Documentaries",
   "Maghreb",
 ];
-
-interface Override {
-  name?: string;
-  category?: string;
-  logo?: string;
-  url?: string;
-}
-type OverrideMap = Record<string, Override>;
 
 interface Row {
   id: string;           // stable id (slug for built-in, custom id for custom)
