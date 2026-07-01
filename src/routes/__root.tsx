@@ -14,10 +14,12 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { TelegramPopup } from "../components/TelegramPopup";
 import { InstallBanner } from "../components/InstallBanner";
 import { MobileTabBar } from "../components/MobileTabBar";
+import { AdminHotkey } from "../components/AdminHotkey";
 import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
 import { FavoritesProvider } from "../lib/favorites";
 import { CustomChannelsProvider } from "../lib/custom-channels";
+import { AdminProvider } from "../lib/admin";
 
 function NotFoundComponent() {
   return (
