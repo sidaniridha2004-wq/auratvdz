@@ -12,7 +12,7 @@ export interface M3uChannel {
 }
 
 const BEIN_LOGO =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/BeIN_Sports_France_logo.svg/200px-BeIN_Sports_France_logo.svg.png";
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4c/BeIN_Sports_logo.svg/200px-BeIN_Sports_logo.svg.png";
 const MBC_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/MBC_logo.svg/200px-MBC_logo.svg.png";
 const CANAL_LOGO =
