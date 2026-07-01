@@ -1,13 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { assertSafeUrl } from "@/lib/ssrf-guard";
-import { M3U_CHANNELS } from "@/lib/m3u-channels";
-import { probeOne, getSnapshot, sweepAll, triggerSweepIfStale } from "@/lib/probe-store.server";
 
 /**
- * Per-channel uptime probe.
- * GET /api/public/probe                → full snapshot (background refresh)
- * GET /api/public/probe?slug=bein-max-1 → single channel (cached)
- * GET /api/public/probe?url=<hls>       → arbitrary URL
+ * Per-channel uptime probe. Loads the server-only store lazily inside
+ * handlers so it never ships to the client bundle.
  */
 
 const CACHE_TTL_MS = 60_000;
@@ -21,11 +16,18 @@ export const Route = createFileRoute("/api/public/probe")({
   server: {
     handlers: {
       OPTIONS: async () =>
-        new Response(null, { status: 204, headers: { ...CORS, "access-control-allow-methods": "GET, OPTIONS" } }),
+        new Response(null, {
+          status: 204,
+          headers: { ...CORS, "access-control-allow-methods": "GET, OPTIONS" },
+        }),
       GET: async ({ request }) => {
         const url = new URL(request.url);
         const arb = url.searchParams.get("url");
         const slug = url.searchParams.get("slug");
+        const { M3U_CHANNELS } = await import("@/lib/m3u-channels");
+        const { probeOne, getSnapshot, sweepAll, triggerSweepIfStale } = await import(
+          "@/lib/probe-store.server"
+        );
 
         if (arb) {
           const r = await probeOne(arb);
@@ -33,7 +35,11 @@ export const Route = createFileRoute("/api/public/probe")({
         }
         if (slug) {
           const ch = M3U_CHANNELS.find((c) => c.slug === slug);
-          if (!ch) return new Response(JSON.stringify({ error: "unknown slug" }), { status: 404, headers: CORS });
+          if (!ch)
+            return new Response(JSON.stringify({ error: "unknown slug" }), {
+              status: 404,
+              headers: CORS,
+            });
           const snap = getSnapshot();
           const cached = snap.results.find((r) => r.slug === slug);
           if (cached && Date.now() - cached.checkedAt < CACHE_TTL_MS) {
@@ -44,13 +50,8 @@ export const Route = createFileRoute("/api/public/probe")({
         }
 
         const snap = getSnapshot();
-        if (snap.checked === 0) {
-          await sweepAll(true);
-        } else {
-          triggerSweepIfStale();
-        }
-        // Also make sure to safely assert (unused import warning silencer)
-        void assertSafeUrl;
+        if (snap.checked === 0) await sweepAll(true);
+        else triggerSweepIfStale();
         return new Response(JSON.stringify(getSnapshot()), { headers: CORS });
       },
     },
