@@ -106,9 +106,9 @@ export function MatchCard({ match }: { match: Match }) {
           <div className="text-base font-semibold leading-tight">{match.homeTeam}</div>
         </div>
 
-        <div className="flex shrink-0 flex-col items-center px-2 min-w-[110px]">
+        <div className="flex shrink-0 flex-col items-center px-2 min-w-[120px]">
           {showScore ? (
-            <div className="font-display text-5xl font-black tabular-nums number-glow leading-none">
+            <div className="font-display text-6xl font-black tabular-nums number-glow leading-none tracking-tight">
               {match.score.replace(/-/g, " - ")}
             </div>
           ) : countdown ? (
