@@ -14,7 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      channels: {
+        Row: {
+          category: string
+          created_at: string
+          is_active: boolean
+          is_custom: boolean
+          logo_url: string
+          match_alias: string | null
+          name: string
+          slug: string
+          sort_order: number
+          stream_url: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          is_active?: boolean
+          is_custom?: boolean
+          logo_url?: string
+          match_alias?: string | null
+          name: string
+          slug: string
+          sort_order?: number
+          stream_url: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          is_active?: boolean
+          is_custom?: boolean
+          logo_url?: string
+          match_alias?: string | null
+          name?: string
+          slug?: string
+          sort_order?: number
+          stream_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
