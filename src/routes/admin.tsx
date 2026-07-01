@@ -7,6 +7,7 @@ import { ChannelLogo } from "@/components/ChannelLogo";
 import { useAdmin } from "@/lib/admin";
 import { useCustomChannels } from "@/lib/custom-channels";
 import { M3U_CHANNELS } from "@/lib/m3u-channels";
+import { HIDDEN_KEY, OVERRIDES_KEY, OVERRIDES_EVENT, writeHidden, writeOverrides, type Override, type OverrideMap } from "@/lib/channel-overrides";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
