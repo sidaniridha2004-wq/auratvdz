@@ -12,7 +12,7 @@ export interface M3uChannel {
 }
 
 const BEIN_LOGO =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/BeIN_Sports_France_logo.svg/200px-BeIN_Sports_France_logo.svg.png";
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b8/BeIN_Sports_logo.png/200px-BeIN_Sports_logo.png";
 const BEIN_MAX_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5d/Logo_beIN_SPORTS_MAX.png/200px-Logo_beIN_SPORTS_MAX.png";
 const MBC_LOGO =
@@ -22,9 +22,33 @@ const CANAL_LOGO =
 const FRANCE_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/France_T%C3%A9l%C3%A9visions_logo_2018.svg/200px-France_T%C3%A9l%C3%A9visions_logo_2018.svg.png";
 const OSN_LOGO =
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d7/OSN_logo.svg/200px-OSN_logo.svg.png";
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/OSN_2020_logo.svg/200px-OSN_2020_logo.svg.png";
 const ALG_LOGO =
   "https://upload.wikimedia.org/wikipedia/commons/thumb/7/77/Flag_of_Algeria.svg/200px-Flag_of_Algeria.svg.png";
+const NATGEO_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/National_Geographic_logo.svg/200px-National_Geographic_logo.svg.png";
+const DISNEY_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d4/Disney_Channel_logo.svg/200px-Disney_Channel_logo.svg.png";
+const NICK_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/30/Nickelodeon_logo.svg/200px-Nickelodeon_logo.svg.png";
+const TF1_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3d/TF1_logo_2013.svg/200px-TF1_logo_2013.svg.png";
+const FRANCE2_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/5c/France_2_logo_%282008%29.svg/200px-France_2_logo_%282008%29.svg.png";
+const FRANCE3_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/17/France_3_-_Logo_2008.svg/200px-France_3_-_Logo_2008.svg.png";
+const FRANCE4_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4a/France_4_logo.svg/200px-France_4_logo.svg.png";
+const FRANCE5_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2c/France_5_logo_2002.svg/200px-France_5_logo_2002.svg.png";
+const W9_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/27/W9_logo.svg/200px-W9_logo.svg.png";
+const SIXTER_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/67/6ter_Logo.svg/200px-6ter_Logo.svg.png";
+const CHERIE25_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/Ch%C3%A9rie_25_logo.svg/200px-Ch%C3%A9rie_25_logo.svg.png";
+const TELETOON_LOGO =
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3b/T%C3%A9l%C3%A9toon_logo.svg/200px-T%C3%A9l%C3%A9toon_logo.svg.png";
 
 export const M3U_CHANNELS: M3uChannel[] = [
   // beIN Sports MAX — PRIMARY server for match streams
