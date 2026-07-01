@@ -75,3 +75,18 @@ export function useChannels() {
     error: query.error as Error | null,
   };
 }
+
+/** Lightweight lookup — reads the same cached query without adding a realtime channel. */
+export function useChannelsBySlug() {
+  const fetchChannels = useServerFn(listChannels);
+  const query = useQuery({
+    queryKey: CHANNELS_QUERY_KEY,
+    queryFn: () => fetchChannels(),
+    staleTime: 30_000,
+  });
+  return useMemo(() => {
+    const m = new Map<string, M3uChannel>();
+    for (const r of query.data ?? []) if (r.is_active) m.set(r.slug, rowToChannel(r));
+    return m;
+  }, [query.data]);
+}
