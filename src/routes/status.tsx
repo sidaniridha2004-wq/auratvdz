@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { RefreshCw, CheckCircle2, XCircle, Search } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Search, MessageCircle } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/Footer";
 import { getChannelStatus } from "@/lib/status.functions";
