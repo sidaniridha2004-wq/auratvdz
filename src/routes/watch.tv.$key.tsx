@@ -7,10 +7,9 @@ import { z } from "zod";
 import { SiteHeader } from "@/components/SiteHeader";
 import { HlsPlayer, type QualitySource } from "@/components/HlsPlayer";
 import { getAuraChannelStreams } from "@/lib/auratv-channels.functions";
+import { useCustomChannels } from "@/lib/custom-channels";
 
-const watchSearchSchema = z.object({
-  name: z.string().optional(),
-});
+const watchSearchSchema = z.object({ name: z.string().optional() });
 
 export const Route = createFileRoute("/watch/tv/$key")({
   validateSearch: watchSearchSchema,
@@ -22,15 +21,8 @@ export const Route = createFileRoute("/watch/tv/$key")({
         <SiteHeader />
         <div className="mx-auto max-w-3xl px-6 py-24 text-center">
           <p className="text-destructive">{error.message}</p>
-          <button
-            onClick={() => {
-              router.invalidate();
-              reset();
-            }}
-            className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
-          >
-            Retry
-          </button>
+          <button onClick={() => { router.invalidate(); reset(); }}
+                  className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground">Retry</button>
         </div>
       </div>
     );
@@ -38,9 +30,7 @@ export const Route = createFileRoute("/watch/tv/$key")({
   notFoundComponent: () => (
     <div className="min-h-screen bg-hero">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
-        Channel not found.
-      </div>
+      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">Channel not found.</div>
     </div>
   ),
 });
@@ -51,7 +41,6 @@ function preferredHeightFor(key: string, name: string | undefined): number | und
   return undefined;
 }
 
-// Approximate height from the upstream quality label (e.g. "FHD" → 1080).
 function heightFromLabel(label: string): number {
   const n = label.toUpperCase();
   const num = parseInt(n.match(/(\d{3,4})/)?.[1] ?? "0", 10);
@@ -67,17 +56,30 @@ function heightFromLabel(label: string): number {
 function WatchTv() {
   const { key } = Route.useParams();
   const { name } = Route.useSearch();
-  const display = name ?? key;
-  const preferredHeight = preferredHeightFor(key, name);
+  const isCustom = key.startsWith("custom-");
+  const { find } = useCustomChannels();
+  const custom = isCustom ? find(key) : undefined;
+  const display = custom?.name ?? name ?? key;
+  const preferredHeight = preferredHeightFor(key, display);
 
   const fetchStreams = useServerFn(getAuraChannelStreams);
   const { data: rawStreams, isLoading, error } = useQuery({
     queryKey: ["aura-streams", key],
     queryFn: () => fetchStreams({ data: { key } }),
     staleTime: 5 * 60_000,
+    enabled: !isCustom,
   });
 
   const sources: QualitySource[] = useMemo(() => {
+    if (isCustom && custom) {
+      return custom.sources
+        .map((s) => ({
+          label: s.quality || "Stream",
+          url: `/api/public/stream?url=${encodeURIComponent(s.url)}`,
+          height: heightFromLabel(s.quality),
+        }))
+        .sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
+    }
     if (!rawStreams) return [];
     return rawStreams
       .map((s) => ({
@@ -86,16 +88,16 @@ function WatchTv() {
         height: heightFromLabel(s.quality),
       }))
       .sort((a, b) => (b.height ?? 0) - (a.height ?? 0));
-  }, [rawStreams]);
+  }, [rawStreams, isCustom, custom]);
+
+  const loading = isCustom ? false : isLoading;
+  const showEmpty = (!loading && !isCustom && (error || sources.length === 0)) || (isCustom && sources.length === 0);
 
   return (
     <div className="min-h-screen bg-hero">
       <SiteHeader />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-        >
+        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Home
         </Link>
 
@@ -112,26 +114,17 @@ function WatchTv() {
         </div>
 
         <div className="mt-6">
-          {isLoading ? (
+          {loading ? (
             <div className="aspect-video w-full animate-pulse rounded-2xl bg-card" />
-          ) : error || sources.length === 0 ? (
+          ) : showEmpty ? (
             <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
               No working streams for this channel.
             </div>
           ) : (
-            <HlsPlayer
-              key={key}
-              sources={sources}
-              preferredHeight={preferredHeight}
-            />
+            <HlsPlayer key={key} sources={sources} preferredHeight={preferredHeight}
+                       mirrors={sources.map((s) => s.url)} />
           )}
         </div>
-
-        <p className="mt-4 text-xs text-muted-foreground">
-          {preferredHeight
-            ? `Locked to ~${preferredHeight}p for this channel — tap the gear icon to switch quality.`
-            : "Tap the gear icon on the player to switch between the available qualities."}
-        </p>
       </div>
     </div>
   );

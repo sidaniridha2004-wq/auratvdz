@@ -9,8 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StatusRouteImport } from './routes/status'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
+import { Route as SettingsChannelsRouteImport } from './routes/settings.channels'
 import { Route as WatchTvKeyRouteImport } from './routes/watch.tv.$key'
 import { Route as WatchLiveSlugRouteImport } from './routes/watch.live.$slug'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
@@ -18,6 +20,11 @@ import { Route as ApiPublicProbeRouteImport } from './routes/api/public/probe'
 import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
 import { Route as ApiPublicAuratvMasterRouteImport } from './routes/api/public/auratv-master'
 
+const StatusRoute = StatusRouteImport.update({
+  id: '/status',
+  path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -26,6 +33,11 @@ const IndexRoute = IndexRouteImport.update({
 const WatchChannelIdRoute = WatchChannelIdRouteImport.update({
   id: '/watch/$channelId',
   path: '/watch/$channelId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsChannelsRoute = SettingsChannelsRouteImport.update({
+  id: '/settings/channels',
+  path: '/settings/channels',
   getParentRoute: () => rootRouteImport,
 } as any)
 const WatchTvKeyRoute = WatchTvKeyRouteImport.update({
@@ -61,6 +73,8 @@ const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
+  '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
@@ -71,6 +85,8 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
+  '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
@@ -82,6 +98,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/status': typeof StatusRoute
+  '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
@@ -94,6 +112,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/status'
+    | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
@@ -104,6 +124,8 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/status'
+    | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
@@ -114,6 +136,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/status'
+    | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
     | '/api/public/master'
@@ -125,6 +149,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  StatusRoute: typeof StatusRoute
+  SettingsChannelsRoute: typeof SettingsChannelsRoute
   WatchChannelIdRoute: typeof WatchChannelIdRoute
   ApiPublicAuratvMasterRoute: typeof ApiPublicAuratvMasterRoute
   ApiPublicMasterRoute: typeof ApiPublicMasterRoute
@@ -136,6 +162,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/status': {
+      id: '/status'
+      path: '/status'
+      fullPath: '/status'
+      preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -148,6 +181,13 @@ declare module '@tanstack/react-router' {
       path: '/watch/$channelId'
       fullPath: '/watch/$channelId'
       preLoaderRoute: typeof WatchChannelIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings/channels': {
+      id: '/settings/channels'
+      path: '/settings/channels'
+      fullPath: '/settings/channels'
+      preLoaderRoute: typeof SettingsChannelsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/watch/tv/$key': {
@@ -197,6 +237,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  StatusRoute: StatusRoute,
+  SettingsChannelsRoute: SettingsChannelsRoute,
   WatchChannelIdRoute: WatchChannelIdRoute,
   ApiPublicAuratvMasterRoute: ApiPublicAuratvMasterRoute,
   ApiPublicMasterRoute: ApiPublicMasterRoute,
@@ -208,13 +250,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

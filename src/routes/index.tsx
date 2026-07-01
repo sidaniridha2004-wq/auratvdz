@@ -1,29 +1,19 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo, useEffect } from "react";
-import {
-  Search,
-  Radio,
-  ChevronRight,
-  Calendar,
-  Flame,
-  Trophy,
-  Tv2,
-  Zap,
-  Sparkles,
-} from "lucide-react";
-import {
-  getCategories,
-  getCategoryChannels,
-  getSubCategories,
-} from "@/lib/yacine.functions";
+import { useState, useMemo } from "react";
+import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
-import { M3U_CHANNELS } from "@/lib/m3u-channels";
-
+import { M3U_CHANNELS, findChannelBySlug, channelsByGroup } from "@/lib/m3u-channels";
+import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
-import { ChannelLogo } from "@/components/ChannelLogo";
+import { ChannelCard } from "@/components/ChannelCard";
+import { Footer } from "@/components/Footer";
+import { useFavorites } from "@/lib/favorites";
+import { useCustomChannels } from "@/lib/custom-channels";
+import { useI18n } from "@/lib/i18n";
+import stadiumBg from "@/assets/stadium-night.jpg";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -37,10 +27,7 @@ function ErrorView({ message, reset }: { message: string; reset: () => void }) {
       <div>
         <p className="text-destructive">{message}</p>
         <button
-          onClick={() => {
-            router.invalidate();
-            reset();
-          }}
+          onClick={() => { router.invalidate(); reset(); }}
           className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
         >
           Retry
@@ -52,31 +39,13 @@ function ErrorView({ message, reset }: { message: string; reset: () => void }) {
 
 type Day = "yesterday" | "today" | "tomorrow";
 
+const BEIN_MAX_SLUGS = ["bein-max-1", "bein-max-2", "bein-max-3", "bein-max-4", "bein-max-5", "bein-max-6"];
+
 function Home() {
-  const fetchCats = useServerFn(getCategories);
+  const { t } = useI18n();
   const fetchMatches = useServerFn(getMatches);
-  const fetchSubs = useServerFn(getSubCategories);
-  const fetchChannels = useServerFn(getCategoryChannels);
-
-  const [auraQ, setAuraQ] = useState("");
-  const filteredAura = useMemo(() => {
-    if (!auraQ.trim()) return M3U_CHANNELS;
-    const n = auraQ.toLowerCase();
-    return M3U_CHANNELS.filter(
-      (c) =>
-        c.name.toLowerCase().includes(n) ||
-        c.group.toLowerCase().includes(n) ||
-        c.slug.toLowerCase().includes(n),
-    );
-  }, [auraQ]);
-
-
-
-  const { data: categories, isLoading: catsLoading } = useQuery({
-    queryKey: ["categories"],
-    queryFn: () => fetchCats(),
-    staleTime: 5 * 60_000,
-  });
+  const { favorites } = useFavorites();
+  const { channels: customChannels } = useCustomChannels();
 
   const [day, setDay] = useState<Day>("today");
   const { data: matches, isLoading: matchesLoading } = useQuery({
@@ -90,111 +59,123 @@ function Home() {
   const featured = liveMatches[0] ?? matches?.[0];
   const totalMatches = matches?.length ?? 0;
 
-  const [selected, setSelected] = useState<number | null>(null);
-  const [selectedSub, setSelectedSub] = useState<number | null>(null);
+  const nextMatch = useMemo(() => {
+    return (matches ?? [])
+      .filter((m) => m.status === "soon" && m.kickoffIso)
+      .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime())[0];
+  }, [matches]);
+
+  // Channel groups (excluding beIN MAX — has its own dedicated section)
+  const groups = useMemo(() => {
+    const g = channelsByGroup();
+    delete g["beIN Sports MAX"];
+    return g;
+  }, []);
+  const groupNames = useMemo(() => Object.keys(groups).sort(), [groups]);
+  const [activeGroup, setActiveGroup] = useState<string>("");
+  const currentGroup = activeGroup || groupNames[0] || "";
   const [q, setQ] = useState("");
+  const [beinQ, setBeinQ] = useState("");
 
-  const activeTopId = selected ?? categories?.[0]?.id ?? null;
-  const activeTop = categories?.find((c) => c.id === activeTopId);
-  const hasChildren = (activeTop?.child_count ?? 0) > 0;
-  useEffect(() => setSelectedSub(null), [activeTopId]);
-
-  const { data: subs, isLoading: subsLoading } = useQuery({
-    queryKey: ["subs", activeTopId],
-    queryFn: () => fetchSubs({ data: { categoryId: activeTopId! } }),
-    enabled: hasChildren && activeTopId != null,
-    staleTime: 5 * 60_000,
-  });
-
-  const effectiveCategoryId = hasChildren
-    ? (selectedSub ?? subs?.[0]?.id ?? null)
-    : activeTopId;
-
-  const { data: channels, isLoading: chLoading } = useQuery({
-    queryKey: ["channels", effectiveCategoryId],
-    queryFn: () => fetchChannels({ data: { categoryId: effectiveCategoryId! } }),
-    enabled: effectiveCategoryId != null,
-    staleTime: 60_000,
-  });
+  const beinChannels = useMemo(() => {
+    const list = BEIN_MAX_SLUGS.map(findChannelBySlug).filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
+    if (!beinQ.trim()) return list;
+    const n = beinQ.toLowerCase();
+    return list.filter((c) => c.name.toLowerCase().includes(n));
+  }, [beinQ]);
 
   const filteredChannels = useMemo(() => {
-    if (!channels) return [];
-    const visible = channels.filter((c) => c.is_hide === 0);
-    if (!q.trim()) return visible;
-    const needle = q.toLowerCase();
-    return visible.filter((c) => c.name.toLowerCase().includes(needle));
-  }, [channels, q]);
+    const src = groups[currentGroup] ?? [];
+    if (!q.trim()) return src;
+    const n = q.toLowerCase();
+    return src.filter((c) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n));
+  }, [groups, currentGroup, q]);
 
-  const activeSub = subs?.find((s) => s.id === effectiveCategoryId);
-  const channelsTitle = hasChildren
-    ? `${activeTop?.name} — ${activeSub?.name ?? "…"}`
-    : activeTop?.name ?? "Channels";
+  const favoriteChannels = useMemo(() => {
+    return favorites
+      .map((slug) => findChannelBySlug(slug))
+      .filter(Boolean) as NonNullable<ReturnType<typeof findChannelBySlug>>[];
+  }, [favorites]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-hero">
-      <div className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-[720px] grid-backdrop" />
       <SiteHeader />
 
-      {/* HERO */}
-      <section className="relative">
-        <div className="ambient-orbs pointer-events-none absolute inset-0 -z-10 overflow-hidden" />
-        <div className="relative mx-auto max-w-7xl px-4 pt-10 sm:px-6 sm:pt-16">
-          <div className="grid items-center gap-8 lg:grid-cols-[1.35fr_1fr]">
-            {/* Headline */}
-            <div className="relative z-10 flex flex-col gap-6 animate-fade-up">
-              <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground backdrop-blur">
-                <Sparkles className="h-3 w-3 text-accent" /> AuraTV · Live in your timezone
+      {/* Live ticker bar */}
+      <div className="sticky top-[65px] z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
+        <div className="mx-auto flex h-11 max-w-7xl items-center gap-4 overflow-hidden px-4 text-xs sm:px-6">
+          <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
+            <span className="live-dot" /> {t("ticker.live")} {liveMatches.length}
+          </div>
+          <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
+          <div className="hidden shrink-0 text-muted-foreground sm:block">
+            <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
+          </div>
+          <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
+            <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
+            {nextMatch ? (
+              <span className="truncate">
+                <span className="font-semibold text-foreground">{nextMatch.homeTeam}</span> vs{" "}
+                <span className="font-semibold text-foreground">{nextMatch.awayTeam}</span>
+                <span className="ml-2 text-primary">{nextMatch.time}</span>
+              </span>
+            ) : (
+              <span className="truncate">—</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* HERO — left-aligned, stadium bg, floating match card right */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 -z-10">
+          <img
+            src={stadiumBg}
+            alt=""
+            aria-hidden
+            width={1920}
+            height={1024}
+            className="h-full w-full object-cover opacity-70"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
+          <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
+        </div>
+        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
+            <div className="flex flex-col items-start gap-6 text-left animate-fade-up">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground backdrop-blur">
+                <Sparkles className="h-3 w-3 text-accent" /> {t("hero.badge")}
               </div>
-              <h1 className="font-display text-[2.6rem] font-bold leading-[0.95] sm:text-6xl lg:text-7xl">
-                Every match.
+              <h1 className="font-display text-[2.75rem] font-black leading-[0.95] sm:text-6xl lg:text-7xl">
+                Live sport,
                 <br />
-                <span className="text-aurora">Every channel.</span>
+                <span className="text-aurora">every channel,</span>
                 <br />
-                <span className="text-foreground/90">One tap away.</span>
+                <span className="text-foreground/90">one tap away.</span>
               </h1>
               <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-                Live sports, fixtures and HD TV — synced from beIN SPORTS, MBC, France TV and more.
-                Adaptive quality, zero ads, your local time.
+                {t("hero.tagline")}
               </p>
               <div className="flex flex-wrap gap-3">
-                <a
-                  href="#matches"
+                <Link
+                  to="/"
+                  hash="matches"
                   className="group inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.03]"
                 >
-                  <Flame className="h-4 w-4 transition group-hover:rotate-12" /> Today's matches
-                </a>
-                <a
-                  href="#channels"
+                  <Flame className="h-4 w-4 transition group-hover:rotate-12" /> {t("hero.today")}
+                </Link>
+                <Link
+                  to="/"
+                  hash="channels"
                   className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-foreground backdrop-blur transition hover:bg-white/10"
                 >
-                  <Radio className="h-4 w-4" /> Browse channels
-                </a>
-              </div>
-
-              {/* Stat strip */}
-              <div className="mt-2 grid max-w-lg grid-cols-3 gap-3">
-                <Stat
-                  icon={<Zap className="h-3.5 w-3.5" />}
-                  label="Live now"
-                  value={liveMatches.length}
-                  accent
-                />
-                <Stat
-                  icon={<Trophy className="h-3.5 w-3.5" />}
-                  label="Today's matches"
-                  value={totalMatches}
-                />
-                <Stat
-                  icon={<Tv2 className="h-3.5 w-3.5" />}
-                  label="Categories"
-                  value={categories?.length ?? 0}
-                />
+                  <Radio className="h-4 w-4" /> {t("hero.browse")}
+                </Link>
               </div>
             </div>
 
-            {/* Featured match card */}
-            <div className="relative z-10 conic-border rounded-3xl">
-              <div className="relative rounded-3xl bg-card/40 p-2 backdrop-blur-xl">
+            <div className="relative conic-border rounded-3xl">
+              <div className="relative rounded-3xl bg-card/70 p-2 backdrop-blur-xl">
                 {matchesLoading ? (
                   <div className="h-80 animate-pulse rounded-2xl bg-card/70" />
                 ) : featured ? (
@@ -207,57 +188,28 @@ function Home() {
               </div>
             </div>
           </div>
-
-          {/* Live ticker */}
-          {liveMatches.length > 0 && (
-            <div className="mt-10 overflow-hidden rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur animate-fade-up">
-              <div className="flex items-stretch">
-                <div className="flex shrink-0 items-center gap-2 border-r border-white/10 bg-destructive/15 px-4 text-[11px] font-bold uppercase tracking-[0.22em] text-destructive">
-                  <span className="live-dot" /> Live
-                </div>
-                <div className="marquee min-w-0 flex-1 py-3">
-                  <div className="marquee-track px-6 text-sm">
-                    {[...liveMatches, ...liveMatches].map((m, i) => (
-                      <span key={`${m.id}-${i}`} className="flex items-center gap-2 whitespace-nowrap">
-                        <span className="text-muted-foreground">{m.competition}</span>
-                        <span className="font-semibold">{m.homeTeam}</span>
-                        <span className="rounded bg-white/10 px-1.5 py-0.5 font-display tabular-nums">
-                          {m.score && m.score !== "0-0" ? m.score : "VS"}
-                        </span>
-                        <span className="font-semibold">{m.awayTeam}</span>
-                        <span className="text-xs text-primary">· {m.channel}</span>
-                        <span className="mx-2 text-white/20">•</span>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </section>
 
       {/* MATCHES */}
-      <section id="matches" className="relative mx-auto max-w-7xl px-4 pt-20 sm:px-6">
-        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4 sm:flex sm:flex-wrap sm:justify-between">
-          <div className="min-w-0">
+      <section id="matches" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+          <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-              <Calendar className="h-3.5 w-3.5" /> Fixtures
+              <Calendar className="h-3.5 w-3.5" /> {t("section.fixtures")}
             </div>
-            <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">Match Schedule</h2>
+            <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{t("section.schedule")}</h2>
           </div>
-          <div className="flex shrink-0 rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
+          <div className="flex rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
             {(["yesterday", "today", "tomorrow"] as Day[]).map((d) => (
               <button
                 key={d}
                 onClick={() => setDay(d)}
                 className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition sm:px-4 ${
-                  day === d
-                    ? "bg-primary text-primary-foreground shadow-glow"
-                    : "text-muted-foreground hover:text-foreground"
+                  day === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {d}
+                {t(`day.${d}`)}
               </button>
             ))}
           </div>
@@ -265,316 +217,155 @@ function Home() {
 
         {matchesLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />
-            ))}
+            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />)}
           </div>
         ) : (matches?.length ?? 0) === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
-            No matches found for {day}.
+            No matches found for {t(`day.${day}`)}.
           </div>
         ) : (
           <>
             {liveMatches.length > 0 && (
               <>
-                <SectionLabel
-                  icon={<span className="live-dot" />}
-                  label={`Live now · ${liveMatches.length}`}
-                  tone="destructive"
-                />
+                <div className="mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-widest text-emerald-300">
+                  <span className="live-dot" /> Live now · {liveMatches.length}
+                </div>
                 <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {liveMatches.map((m) => (
-                    <MatchCard key={m.id} match={m} />
-                  ))}
+                  {liveMatches.map((m) => <MatchCard key={m.id} match={m} />)}
                 </div>
               </>
             )}
             {otherMatches.length > 0 && (
-              <>
-                {liveMatches.length > 0 && (
-                  <SectionLabel
-                    icon={<Calendar className="h-3 w-3" />}
-                    label="Upcoming & finished"
-                    tone="muted"
-                  />
-                )}
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {otherMatches.map((m) => (
-                    <MatchCard key={m.id} match={m} />
-                  ))}
-                </div>
-              </>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {otherMatches.map((m) => <MatchCard key={m.id} match={m} />)}
+              </div>
             )}
           </>
         )}
       </section>
 
+      {/* FAVORITES */}
+      <section id="favorites" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+        <div className="mb-6 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
+          <Star className="h-3.5 w-3.5 fill-current" /> {t("section.favorites")}
+        </div>
+        <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">{t("section.favorites")}</h2>
+        {favoriteChannels.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
+            {t("favorites.empty")}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            {favoriteChannels.map((c) => (
+              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
+                           href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* beIN SPORTS MAX — Primary (merged) */}
+      <section className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
+              <Sparkles className="h-3.5 w-3.5" /> Featured · Primary server
+            </div>
+            <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{t("section.bein_primary")}</h2>
+          </div>
+          <div className="relative w-full shrink-0 sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={beinQ} onChange={(e) => setBeinQ(e.target.value)} placeholder={t("search.channels")}
+                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+          {beinChannels.map((c) => (
+            <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
+                         href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} featured />
+          ))}
+        </div>
+      </section>
+
       {/* CHANNELS */}
       <section id="channels" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
         <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-          <Radio className="h-3.5 w-3.5" /> Live TV
+          <Radio className="h-3.5 w-3.5" /> {t("section.live_tv")}
         </div>
-        <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">Channel Universe</h2>
+        <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">{t("section.channels")}</h2>
 
-        {/* Top categories */}
         <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
           <div className="flex gap-2 pb-2">
-            {catsLoading &&
-              Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="h-10 w-32 animate-pulse rounded-full bg-white/5" />
-              ))}
-            {categories?.map((cat) => {
-              const active = cat.id === activeTopId;
+            {groupNames.map((g) => {
+              const active = g === currentGroup;
               return (
-                <button
-                  key={cat.id}
-                  onClick={() => setSelected(cat.id)}
-                  className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-                    active
-                      ? "bg-primary text-primary-foreground shadow-glow"
-                      : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
-                  }`}
-                >
-                  {cat.name}
-                  {cat.child_count > 0 && (
-                    <span
-                      className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${
-                        active ? "bg-primary-foreground/20" : "bg-white/10"
-                      }`}
-                    >
-                      {cat.child_count}
-                    </span>
-                  )}
+                <button key={g} onClick={() => setActiveGroup(g)}
+                        className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                          active ? "bg-primary text-primary-foreground shadow-glow"
+                                 : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+                        }`}>
+                  {g}
+                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-primary-foreground/20" : "bg-white/10"}`}>
+                    {groups[g].length}
+                  </span>
                 </button>
               );
             })}
           </div>
         </div>
 
-        {hasChildren && (
-          <div className="mt-3 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-            <div className="flex items-center gap-2 pb-2">
-              <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                Quality
-              </span>
-              {subsLoading &&
-                Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="h-8 w-28 animate-pulse rounded-full bg-white/5" />
-                ))}
-              {subs?.map((s) => {
-                const active = s.id === effectiveCategoryId;
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => setSelectedSub(s.id)}
-                    className={`shrink-0 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition ${
-                      active
-                        ? "bg-foreground text-background"
-                        : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {s.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        <div className="mb-5 mt-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-wrap sm:justify-between">
-          <div className="min-w-0">
-            <h3 className="truncate font-display text-xl font-bold">{channelsTitle}</h3>
+        <div className="mb-5 mt-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-xl font-bold">{currentGroup}</h3>
             <p className="text-sm text-muted-foreground">
-              {filteredChannels.length} channel{filteredChannels.length === 1 ? "" : "s"} available
+              {filteredChannels.length} channel{filteredChannels.length === 1 ? "" : "s"}
             </p>
           </div>
           <div className="relative w-full shrink-0 sm:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search channels…"
-              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]"
-            />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search.channels")}
+                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
           </div>
         </div>
 
-        {chLoading ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {Array.from({ length: 10 }).map((_, i) => (
-              <div key={i} className="aspect-video animate-pulse rounded-xl bg-card" />
-            ))}
-          </div>
-        ) : filteredChannels.length === 0 ? (
+        {filteredChannels.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
             No channels found.
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {filteredChannels.map((ch) => (
-              <Link
-                key={ch.id}
-                to="/watch/$channelId"
-                params={{ channelId: String(ch.id) }}
-                search={{ name: ch.name, logo: ch.logo }}
-                className="group relative flex aspect-video flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-card-gradient p-3 shadow-card transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-glow"
-              >
-                {/* hover sheen */}
-                <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                <div className="relative flex items-start justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-destructive">
-                    <span className="live-dot" /> Live
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100" />
-                </div>
-                <div className="relative flex items-end justify-between gap-2">
-                  {ch.logo ? (
-                    <img
-                      src={ch.logo}
-                      alt={ch.name}
-                      loading="lazy"
-                      className="h-10 w-10 rounded-md bg-black/30 object-contain p-1 transition group-hover:scale-110"
-                    />
-                  ) : (
-                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-black/30 text-primary">
-                      <Radio className="h-5 w-5" />
-                    </div>
-                  )}
-                  <div className="min-w-0 flex-1 text-right">
-                    <div className="truncate text-sm font-semibold">{ch.name}</div>
-                  </div>
-                </div>
-              </Link>
+            {filteredChannels.map((c) => (
+              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
+                           href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
+                           category={categoryFor(c.group, c.name)} />
             ))}
           </div>
         )}
-      </section>
 
-      {/* AURATV PRIMARY SERVER CHANNELS (static M3U list) */}
-      <section id="auratv" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
-        <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-          <Tv2 className="h-3.5 w-3.5" /> AuraTV Primary
-        </div>
-        <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 sm:flex sm:flex-wrap sm:justify-between">
-          <div className="min-w-0">
-            <h2 className="font-display text-3xl font-bold sm:text-4xl">Primary Server Channels</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {M3U_CHANNELS.length} channels · beIN SPORTS MAX 1-6 is the primary source for matches
-            </p>
-          </div>
-          <div className="relative w-full shrink-0 sm:w-72">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={auraQ}
-              onChange={(e) => setAuraQ(e.target.value)}
-              placeholder="Search channels…"
-              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]"
-            />
-          </div>
-        </div>
-
-        {filteredAura.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
-            No channels match your search.
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {filteredAura.map((ch) => (
-              <Link
-                key={ch.slug}
-                to="/watch/live/$slug"
-                params={{ slug: ch.slug }}
-                className="group relative flex aspect-video flex-col justify-between overflow-hidden rounded-xl border border-white/5 bg-card-gradient p-3 shadow-card transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-glow"
-              >
-                <div className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                <div className="relative flex items-start justify-between">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-destructive/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-destructive">
-                    <span className="live-dot" /> Live
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition group-hover:translate-x-1 group-hover:opacity-100" />
-                </div>
-                <div className="relative flex items-end justify-between gap-2">
-                  <ChannelLogo
-                    src={ch.logo}
-                    name={ch.name}
-                    className="h-10 w-10 rounded-md bg-black/30 p-1"
-                  />
-                  <div className="min-w-0 flex-1 text-right">
-                    <div className="truncate text-sm font-semibold">{ch.name}</div>
-                    <div className="mt-0.5 truncate text-[10px] uppercase tracking-widest text-muted-foreground">
-                      {ch.group}
-                    </div>
-                  </div>
-                </div>
-              </Link>
-            ))}
+        {/* User's custom channels */}
+        {customChannels.length > 0 && (
+          <div className="mt-16">
+            <h3 className="mb-4 font-display text-2xl font-bold">My Channels</h3>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+              {customChannels.map((c) => (
+                <ChannelCard key={c.id} slug={c.id} name={c.name} group="My Channels" logo={c.logo}
+                             href={{ to: "/watch/tv/$key", params: { key: c.id }, search: { name: c.name } }}
+                             category={c.category} />
+              ))}
+            </div>
           </div>
         )}
+
+        <div className="mt-8 text-center">
+          <Link to="/settings/channels" className="text-sm font-semibold text-primary hover:underline">
+            + Add your own channels →
+          </Link>
+        </div>
       </section>
 
-
-
-      <footer className="relative border-t border-white/10 py-10 text-center">
-        <div className="mx-auto max-w-7xl px-6">
-          <div className="font-display text-lg font-bold">
-            <span className="text-aurora">AuraTV</span>
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Live sports & TV streaming · fixtures by syrlive · adaptive HD with auto-switching
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
 
-function Stat({
-  icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: number;
-  accent?: boolean;
-}) {
-  return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3 backdrop-blur">
-      <div
-        className={`flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${
-          accent ? "text-destructive" : "text-muted-foreground"
-        }`}
-      >
-        {icon} {label}
-      </div>
-      <div
-        className={`mt-1 font-display text-2xl font-bold tabular-nums ${
-          accent ? "number-glow text-foreground" : "text-foreground"
-        }`}
-      >
-        {value}
-      </div>
-    </div>
-  );
-}
-
-function SectionLabel({
-  icon,
-  label,
-  tone,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  tone: "destructive" | "muted";
-}) {
-  return (
-    <div
-      className={`mb-3 inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] ${
-        tone === "destructive" ? "text-destructive" : "text-muted-foreground"
-      }`}
-    >
-      {icon} {label}
-    </div>
-  );
-}
+export { M3U_CHANNELS };

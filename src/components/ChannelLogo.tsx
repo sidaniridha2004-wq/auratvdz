@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { CATEGORY_META, type ChannelCategory } from "@/lib/channel-category";
 
 interface Props {
   src?: string;
   name: string;
+  category?: ChannelCategory;
   className?: string;
 }
 
@@ -12,36 +14,22 @@ function initials(name: string): string {
     .trim()
     .split(/\s+/)
     .filter(Boolean);
-  const letters = words
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("");
+  const letters = words.slice(0, 2).map((w) => w[0]).join("");
   return (letters || name.slice(0, 2)).toUpperCase();
 }
 
-// Deterministic gradient based on name so channels look distinct.
-function gradientFor(name: string): string {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
-  const h1 = h % 360;
-  const h2 = (h1 + 60) % 360;
-  return `linear-gradient(135deg, hsl(${h1} 70% 45%), hsl(${h2} 70% 35%))`;
-}
-
-/**
- * Renders a channel logo with a colored initials fallback whenever the
- * remote logo fails to load (broken Wikipedia URLs, cross-origin blocks…).
- */
-export function ChannelLogo({ src, name, className = "" }: Props) {
+export function ChannelLogo({ src, name, category, className = "" }: Props) {
   const [broken, setBroken] = useState(!src);
   if (broken || !src) {
+    const color = category ? CATEGORY_META[category].color : "hsl(260 60% 55%)";
+    const letter = initials(name).charAt(0);
     return (
       <div
-        className={`flex items-center justify-center rounded-md text-[10px] font-bold text-white shadow-inner ${className}`}
-        style={{ background: gradientFor(name) }}
+        className={`flex items-center justify-center rounded-full text-sm font-bold text-white shadow-inner ${className}`}
+        style={{ background: `radial-gradient(circle at 30% 30%, color-mix(in oklab, ${color} 90%, white 10%), ${color})` }}
         aria-label={name}
       >
-        {initials(name)}
+        {letter}
       </div>
     );
   }
