@@ -40,8 +40,13 @@ export const Route = createFileRoute("/watch/live/$slug")({
 
 function WatchLive() {
   const { slug } = Route.useParams();
-  const ch = findChannelBySlug(slug);
+  const bySlug = useChannelsBySlug();
+  const staticCh = findChannelBySlug(slug);
+  const dbCh = bySlug.get(slug);
+  const ch = dbCh ?? staticCh;
   if (!ch) throw notFound();
+  // Prefer the DB logo (kept fresh via admin edits); fall back to static.
+  const logo = dbCh?.logo || staticCh?.logo;
 
   const isBeinMax = /bein\s*sports?\s*max/i.test(ch.name);
   const preferredHeight = isBeinMax ? 720 : undefined;
