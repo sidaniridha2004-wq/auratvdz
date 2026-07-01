@@ -78,11 +78,12 @@ function Home() {
   // Falls back to null so the floating card hides when nothing's upcoming —
   // never duplicates a card that already appears in the schedule below.
   const featured = useMemo(() => {
+    if (liveMatches.length > 0) return liveMatches[0];
     const upcoming = matches
       .filter((m) => m.status === "soon" && m.kickoffIso && new Date(m.kickoffIso).getTime() > Date.now())
       .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime());
     return upcoming[0] ?? null;
-  }, [matches]);
+  }, [matches, liveMatches]);
   const totalMatches = matches.length;
 
   const nextMatch = useMemo(() => {
