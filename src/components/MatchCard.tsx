@@ -2,7 +2,8 @@ import { Link } from "@tanstack/react-router";
 import { Tv, Clock, Mic2, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/matches.functions";
-import { resolveMatchChannelSlug, findChannelBySlug } from "@/lib/m3u-channels";
+import { resolveMatchChannelSlug, findChannelBySlug, type M3uChannel } from "@/lib/m3u-channels";
+import { useChannels } from "@/lib/channels-client";
 import { ChannelLogo } from "./ChannelLogo";
 
 type Resolved =
@@ -10,12 +11,15 @@ type Resolved =
   | { kind: "yacine"; id: number; label: string }
   | null;
 
-function resolveChannel(name: string): Resolved {
+function resolveChannel(name: string, bySlug: Map<string, M3uChannel>): Resolved {
   if (!name) return null;
   const slug = resolveMatchChannelSlug(name);
   if (slug) {
-    const ch = findChannelBySlug(slug);
-    if (ch) return { kind: "m3u", slug, label: ch.name, logo: ch.logo };
+    const dbCh = bySlug.get(slug);
+    const staticCh = findChannelBySlug(slug);
+    const label = dbCh?.name || staticCh?.name;
+    const logo = dbCh?.logo || staticCh?.logo;
+    if (label) return { kind: "m3u", slug, label, logo };
   }
   const m = name.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
   if (m) {
