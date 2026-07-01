@@ -48,22 +48,56 @@ function Home() {
   const { channels: customChannels } = useCustomChannels();
 
   const [day, setDay] = useState<Day>("today");
-  const { data: matches, isLoading: matchesLoading } = useQuery({
+  const { data: rawMatches, isLoading: matchesLoading } = useQuery({
     queryKey: ["matches", day],
     queryFn: () => fetchMatches({ data: { day } }),
     staleTime: 2 * 60_000,
   });
 
-  const liveMatches = useMemo(() => (matches ?? []).filter((m) => m.status === "live"), [matches]);
-  const otherMatches = useMemo(() => (matches ?? []).filter((m) => m.status !== "live"), [matches]);
-  const featured = liveMatches[0] ?? matches?.[0];
-  const totalMatches = matches?.length ?? 0;
+  // Filter by USER's LOCAL calendar day so TODAY/YESTERDAY/TOMORROW never mix.
+  const matches = useMemo(() => {
+    const list = rawMatches ?? [];
+    const now = new Date();
+    const target = new Date(now);
+    if (day === "yesterday") target.setDate(target.getDate() - 1);
+    if (day === "tomorrow") target.setDate(target.getDate() + 1);
+    const targetKey = target.toLocaleDateString();
+    return list.filter((m) => {
+      if (!m.kickoffIso) return true; // keep entries without a parseable kickoff
+      const d = new Date(m.kickoffIso);
+      if (Number.isNaN(d.getTime())) return true;
+      return d.toLocaleDateString() === targetKey;
+    });
+  }, [rawMatches, day]);
+
+  const liveMatches = useMemo(() => matches.filter((m) => m.status === "live"), [matches]);
+  const otherMatches = useMemo(() => matches.filter((m) => m.status !== "live"), [matches]);
+  const featured = liveMatches[0] ?? matches[0];
+  const totalMatches = matches.length;
 
   const nextMatch = useMemo(() => {
-    return (matches ?? [])
+    return matches
       .filter((m) => m.status === "soon" && m.kickoffIso)
       .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime())[0];
   }, [matches]);
+
+  // Live countdown to next kickoff (updates every 30s). Always renders "Xh Xm"
+  // or "Xm" — never blank colons.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const nextCountdown = useMemo(() => {
+    if (!nextMatch?.kickoffIso) return null;
+    const diff = new Date(nextMatch.kickoffIso).getTime() - nowMs;
+    if (!Number.isFinite(diff) || diff <= 0) return null;
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${Math.max(m, 1)}m`;
+  }, [nextMatch, nowMs]);
 
   // Channel groups (excluding beIN MAX — has its own dedicated section)
   const groups = useMemo(() => {
