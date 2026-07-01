@@ -51,17 +51,19 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
           className="h-12 w-12 shrink-0 rounded-xl bg-black/30 p-1.5"
         />
         <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
             toggle(slug);
           }}
           aria-label={fav ? "Remove favorite" : "Add favorite"}
+          title={fav ? "Remove favorite" : "Add favorite"}
           className={`relative z-20 rounded-full p-1.5 transition ${
             fav ? "text-yellow-400" : "text-muted-foreground hover:text-yellow-400"
           }`}
         >
-          <Star className={`h-4 w-4 ${fav ? "fill-current" : ""}`} />
+          <span aria-hidden="true">{fav ? "★" : "☆"}</span>
         </button>
       </div>
 
