@@ -65,8 +65,9 @@ function WatchLive() {
 
         <div className="mt-4 flex items-center gap-3">
           <ChannelLogo
-            src={ch.logo}
+            src={logo}
             name={ch.name}
+            group={ch.group}
             className="h-12 w-12 rounded-xl bg-card p-1.5 shadow-card"
           />
           <div>
