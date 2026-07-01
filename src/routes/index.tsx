@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
 import { M3U_CHANNELS, findChannelBySlug, channelsByGroup } from "@/lib/m3u-channels";
