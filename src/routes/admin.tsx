@@ -1,13 +1,19 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { Lock, LogOut, Plus, Trash2, Eye, EyeOff, ArrowLeft, Search, Pencil, X, Save } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { Lock, LogOut, Plus, Trash2, Eye, EyeOff, ArrowLeft, Search, Pencil, X, Save, Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/Footer";
 import { ChannelLogo } from "@/components/ChannelLogo";
 import { useAdmin } from "@/lib/admin";
-import { useCustomChannels } from "@/lib/custom-channels";
-import { M3U_CHANNELS } from "@/lib/m3u-channels";
-import { HIDDEN_KEY, OVERRIDES_KEY, OVERRIDES_EVENT, writeHidden, writeOverrides, type Override, type OverrideMap } from "@/lib/channel-overrides";
+import { useChannels, CHANNELS_QUERY_KEY } from "@/lib/channels-client";
+import {
+  adminUpdateChannel,
+  adminSetActive,
+  adminInsertChannel,
+  adminDeleteChannel,
+} from "@/lib/channels.functions";
+import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -19,107 +25,42 @@ export const Route = createFileRoute("/admin")({
   }),
 });
 
+// The password lives in the browser only long enough to authorize the current
+// admin session's writes; we forward it to server fns that re-check it against
+// process.env.ADMIN_PASSWORD before doing anything with the service-role key.
+const PW_KEY = "auratv:admin:pw";
 const PAGE_SIZE = 20;
 
-// Full category list per spec
 const ALL_CATEGORIES = [
-  "beIN Sports MAX",
-  "beIN Sports",
-  "Canal+ France",
-  "French TV",
-  "Algeria TV",
-  "MBC Entertainment",
-  "MBC Movies",
-  "MBC Drama",
-  "MBC Kids",
-  "MBC Regional",
-  "OSN Movies",
-  "Sports",
-  "Movies",
-  "Series",
-  "Kids & Family",
-  "News",
-  "General",
-  "Lifestyle & Doc",
-  "Documentaries",
-  "Maghreb",
+  "beIN Sports MAX", "beIN Sports", "Canal+ France", "French TV", "Algeria TV",
+  "MBC Entertainment", "MBC Movies", "MBC Drama", "MBC Kids", "MBC Regional",
+  "OSN Movies", "Sports", "Movies", "Series", "Kids & Family", "News",
+  "General", "Lifestyle & Doc", "Documentaries", "Maghreb",
 ];
 
 interface Row {
-  id: string;           // stable id (slug for built-in, custom id for custom)
+  slug: string;
   name: string;
   category: string;
-  logo?: string;
-  url: string;
-  builtin: boolean;
+  logo_url: string;
+  stream_url: string;
+  is_active: boolean;
+  is_custom: boolean;
 }
-
-function useHidden() {
-  const [hidden, setHidden] = useState<string[]>([]);
-  useEffect(() => {
-    const load = () => {
-      try {
-        const raw = localStorage.getItem(HIDDEN_KEY);
-        setHidden(raw ? JSON.parse(raw) : []);
-      } catch {}
-    };
-    load();
-    window.addEventListener(OVERRIDES_EVENT, load);
-    window.addEventListener("storage", load);
-    return () => {
-      window.removeEventListener(OVERRIDES_EVENT, load);
-      window.removeEventListener("storage", load);
-    };
-  }, []);
-  const set = (next: string[]) => {
-    setHidden(next);
-    writeHidden(next);
-  };
-  const toggle = (id: string) => {
-    set(hidden.includes(id) ? hidden.filter((x) => x !== id) : [...hidden, id]);
-  };
-  const setMany = (ids: string[], active: boolean) => {
-    const s = new Set(hidden);
-    if (active) ids.forEach((i) => s.delete(i));
-    else ids.forEach((i) => s.add(i));
-    set(Array.from(s));
-  };
-  return { hidden, toggle, setMany };
-}
-
-function useOverrides() {
-  const [overrides, setOverrides] = useState<OverrideMap>({});
-  useEffect(() => {
-    const load = () => {
-      try {
-        const raw = localStorage.getItem(OVERRIDES_KEY);
-        setOverrides(raw ? JSON.parse(raw) : {});
-      } catch {}
-    };
-    load();
-    window.addEventListener(OVERRIDES_EVENT, load);
-    window.addEventListener("storage", load);
-    return () => {
-      window.removeEventListener(OVERRIDES_EVENT, load);
-      window.removeEventListener("storage", load);
-    };
-  }, []);
-  const save = (id: string, patch: Override) => {
-    const next = { ...overrides, [id]: { ...overrides[id], ...patch } };
-    setOverrides(next);
-    writeOverrides(next);
-  };
-  return { overrides, save };
-}
+type Patch = Partial<Pick<Row, "name" | "category" | "logo_url" | "stream_url" | "is_active">>;
 
 function AdminPage() {
   const { isAdmin, login, logout } = useAdmin();
   const [pw, setPw] = useState("");
   const [err, setErr] = useState(false);
   const navigate = useNavigate();
-  const { channels: customChannels, add, remove } = useCustomChannels();
-  const { hidden, toggle: toggleHidden, setMany } = useHidden();
-  const { overrides, save: saveOverride } = useOverrides();
+  const qc = useQueryClient();
+  const { rows: dbRows, isLoading, error } = useChannels();
+
+  const updateFn = useServerFn(adminUpdateChannel);
+  const bulkFn = useServerFn(adminSetActive);
+  const insertFn = useServerFn(adminInsertChannel);
+  const deleteFn = useServerFn(adminDeleteChannel);
 
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState<string>("all");
@@ -127,42 +68,23 @@ function AdminPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Row | null>(null);
   const [adding, setAdding] = useState(false);
-  const [syncTick, setSyncTick] = useState(0);
+  const [busy, setBusy] = useState(false);
 
-  // "Sync on open" — resets pagination and reloads localStorage overrides/hidden
+  // Retain the password in sessionStorage so refresh doesn't drop it.
+  const [adminPw, setAdminPw] = useState<string>("");
   useEffect(() => {
-    if (!isAdmin) return;
-    try {
-      const rawH = localStorage.getItem(HIDDEN_KEY);
-      const rawO = localStorage.getItem(OVERRIDES_KEY);
-      // trigger re-render if raw exists
-      if (rawH || rawO) setSyncTick((t) => t + 1);
-    } catch {}
+    try { setAdminPw(sessionStorage.getItem(PW_KEY) ?? ""); } catch {}
   }, [isAdmin]);
 
-  const rows: Row[] = useMemo(() => {
-    void syncTick;
-    const builtin: Row[] = M3U_CHANNELS.map((c) => {
-      const o = overrides[c.slug] ?? {};
-      return {
-        id: c.slug,
-        name: o.name ?? c.name,
-        category: o.category ?? c.group,
-        logo: o.logo ?? c.logo,
-        url: o.url ?? c.url,
-        builtin: true,
-      };
-    });
-    const custom: Row[] = customChannels.map((c) => ({
-      id: c.id,
-      name: c.name,
-      category: c.category,
-      logo: c.logo,
-      url: c.sources[0]?.url ?? "",
-      builtin: false,
-    }));
-    return [...builtin, ...custom];
-  }, [customChannels, overrides, syncTick]);
+  const rows: Row[] = useMemo(() => dbRows.map((r) => ({
+    slug: r.slug,
+    name: r.name,
+    category: r.category,
+    logo_url: r.logo_url,
+    stream_url: r.stream_url,
+    is_active: r.is_active,
+    is_custom: r.is_custom,
+  })), [dbRows]);
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
@@ -177,12 +99,15 @@ function AdminPage() {
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
   useEffect(() => { if (page >= pageCount) setPage(0); }, [pageCount, page]);
 
-  const allChecked = pageRows.length > 0 && pageRows.every((r) => selected.has(r.id));
+  const activeCount = rows.filter((r) => r.is_active).length;
+  const hiddenCount = rows.length - activeCount;
+
+  const allChecked = pageRows.length > 0 && pageRows.every((r) => selected.has(r.slug));
   const togglePageSelected = () => {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allChecked) pageRows.forEach((r) => next.delete(r.id));
-      else pageRows.forEach((r) => next.add(r.id));
+      if (allChecked) pageRows.forEach((r) => next.delete(r.slug));
+      else pageRows.forEach((r) => next.add(r.slug));
       return next;
     });
   };
@@ -194,13 +119,71 @@ function AdminPage() {
     });
   };
 
+  const invalidate = () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+
+  const doSave = async (slug: string, patch: Patch) => {
+    setBusy(true);
+    try {
+      await updateFn({ data: { password: adminPw, slug, patch } });
+      await invalidate();
+    } catch (e) {
+      alert(`Save failed: ${(e as Error).message}`);
+    } finally { setBusy(false); }
+  };
+  const doToggle = async (r: Row) => {
+    await doSave(r.slug, { is_active: !r.is_active });
+  };
+  const doBulk = async (active: boolean) => {
+    if (selected.size === 0) return;
+    setBusy(true);
+    try {
+      await bulkFn({ data: { password: adminPw, slugs: Array.from(selected), is_active: active } });
+      setSelected(new Set());
+      await invalidate();
+    } catch (e) {
+      alert(`Bulk update failed: ${(e as Error).message}`);
+    } finally { setBusy(false); }
+  };
+  const doDelete = async (r: Row) => {
+    if (!confirm(`Delete ${r.name}? This cannot be undone.`)) return;
+    setBusy(true);
+    try {
+      await deleteFn({ data: { password: adminPw, slug: r.slug } });
+      await invalidate();
+    } catch (e) {
+      alert(`Delete failed: ${(e as Error).message}`);
+    } finally { setBusy(false); }
+  };
+  const doInsert = async (patch: Patch & { slug?: string }) => {
+    const slug = (patch.slug || patch.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    if (!slug || !patch.name || !patch.stream_url) return alert("Name, stream URL, and slug are required.");
+    setBusy(true);
+    try {
+      await insertFn({ data: { password: adminPw, channel: {
+        slug,
+        name: patch.name,
+        category: patch.category ?? "General",
+        logo_url: patch.logo_url ?? "",
+        stream_url: patch.stream_url,
+      } } });
+      setAdding(false);
+      await invalidate();
+    } catch (e) {
+      alert(`Insert failed: ${(e as Error).message}`);
+    } finally { setBusy(false); }
+  };
+
   if (!isAdmin) {
     return (
       <div className="min-h-screen bg-hero flex items-center justify-center px-4">
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            if (login(pw)) { setErr(false); } else setErr(true);
+            if (login(pw)) {
+              try { sessionStorage.setItem(PW_KEY, pw); } catch {}
+              setAdminPw(pw);
+              setErr(false);
+            } else setErr(true);
           }}
           className="w-full max-w-sm rounded-2xl border border-white/10 bg-card p-6 shadow-glow"
         >
@@ -242,8 +225,9 @@ function AdminPage() {
               Channel management <span className="text-yellow-400">🔒</span>
             </h1>
             <p className="text-sm text-muted-foreground">
-              {rows.length} channels total · {rows.length - hidden.length} active · {hidden.length} hidden
+              {rows.length} channels total · {activeCount} active · {hiddenCount} hidden {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
             </p>
+            {error && <p className="text-xs text-red-400">Load error: {error.message}</p>}
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -253,7 +237,7 @@ function AdminPage() {
               <Plus className="h-4 w-4" /> Add new channel
             </button>
             <button
-              onClick={() => { logout(); navigate({ to: "/" }); }}
+              onClick={() => { try { sessionStorage.removeItem(PW_KEY); } catch {}; logout(); navigate({ to: "/" }); }}
               className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
             >
               <LogOut className="h-4 w-4" /> Sign out
@@ -261,7 +245,6 @@ function AdminPage() {
           </div>
         </div>
 
-        {/* Filters */}
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -282,16 +265,15 @@ function AdminPage() {
           </select>
         </div>
 
-        {/* Bulk actions */}
         {selected.size > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm">
             <span className="font-semibold">{selected.size} selected</span>
             <button
-              onClick={() => { setMany(Array.from(selected), true); setSelected(new Set()); }}
+              onClick={() => doBulk(true)}
               className="ml-auto rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30"
             >Set active</button>
             <button
-              onClick={() => { setMany(Array.from(selected), false); setSelected(new Set()); }}
+              onClick={() => doBulk(false)}
               className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/30"
             >Set inactive</button>
             <button
@@ -301,7 +283,6 @@ function AdminPage() {
           </div>
         )}
 
-        {/* Table */}
         <div className="rounded-2xl border border-white/10 overflow-hidden">
           <div className="max-h-[65vh] overflow-y-auto">
             <table className="w-full text-sm">
@@ -319,45 +300,45 @@ function AdminPage() {
                 </tr>
               </thead>
               <tbody>
-                {pageRows.length === 0 ? (
+                {isLoading ? (
+                  <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Loading channels…</td></tr>
+                ) : pageRows.length === 0 ? (
                   <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No channels match.</td></tr>
                 ) : pageRows.map((r) => {
-                  const isHidden = hidden.includes(r.id);
-                  const isSel = selected.has(r.id);
+                  const isSel = selected.has(r.slug);
                   return (
-                    <tr key={r.id} className={`border-t border-white/5 ${isHidden ? "opacity-50 line-through" : ""}`}>
+                    <tr key={r.slug} className={`border-t border-white/5 ${!r.is_active ? "opacity-50 line-through" : ""}`}>
                       <td className="px-3 py-2">
-                        <input type="checkbox" checked={isSel} onChange={() => toggleOne(r.id)} className="h-4 w-4 accent-primary" />
+                        <input type="checkbox" checked={isSel} onChange={() => toggleOne(r.slug)} className="h-4 w-4 accent-primary" />
                       </td>
                       <td className="px-2 py-2">
-                        <ChannelLogo src={r.logo} name={r.name} group={r.category} size={32} />
+                        <ChannelLogo src={r.logo_url} name={r.name} group={r.category} size={32} />
                       </td>
                       <td className="px-3 py-2 font-medium">
                         {r.name}
-                        {!r.builtin && <span className="ml-2 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">custom</span>}
+                        {r.is_custom && <span className="ml-2 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">custom</span>}
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground uppercase">{r.category}</td>
-                      <td className="px-3 py-2 hidden md:table-cell max-w-[260px] truncate text-xs text-muted-foreground" title={r.url}>{r.url}</td>
+                      <td className="px-3 py-2 hidden md:table-cell max-w-[260px] truncate text-xs text-muted-foreground" title={r.stream_url}>{r.stream_url}</td>
                       <td className="px-3 py-2">
-                        {isHidden ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">Inactive</span>
-                        ) : (
+                        {r.is_active ? (
                           <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Active</span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">Inactive</span>
                         )}
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <button onClick={() => setEditing(r)} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10">
+                        <button onClick={() => setEditing(r)} disabled={busy} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40">
                           <Pencil className="h-3 w-3" /> Edit
                         </button>
-                        <button onClick={() => toggleHidden(r.id)} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10">
-                          {isHidden ? <><Eye className="h-3 w-3" /> Show</> : <><EyeOff className="h-3 w-3" /> Hide</>}
+                        <button onClick={() => doToggle(r)} disabled={busy} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40">
+                          {r.is_active ? <><EyeOff className="h-3 w-3" /> Hide</> : <><Eye className="h-3 w-3" /> Show</>}
                         </button>
-                        {!r.builtin && (
+                        {r.is_custom && (
                           <button
-                            onClick={() => {
-                              if (confirm(`Are you sure you want to permanently delete ${r.name}? This cannot be undone.`)) remove(r.id);
-                            }}
-                            className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20"
+                            onClick={() => doDelete(r)}
+                            disabled={busy}
+                            className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20 disabled:opacity-40"
                           >
                             <Trash2 className="h-3 w-3" /> Delete
                           </button>
@@ -370,7 +351,6 @@ function AdminPage() {
             </table>
           </div>
 
-          {/* Pagination */}
           <div className="flex items-center justify-between border-t border-white/10 bg-black/40 px-4 py-3 text-xs text-muted-foreground">
             <div>
               Showing {filtered.length === 0 ? 0 : page * PAGE_SIZE + 1}–{Math.min(filtered.length, (page + 1) * PAGE_SIZE)} of {filtered.length}
@@ -397,27 +377,15 @@ function AdminPage() {
         <EditModal
           row={editing}
           onClose={() => setEditing(null)}
-          onSave={(patch) => {
-            saveOverride(editing.id, patch);
-            setEditing(null);
-          }}
+          onSave={async (patch) => { await doSave(editing.slug, patch); setEditing(null); }}
         />
       )}
       {adding && (
         <EditModal
-          row={{ id: "", name: "", category: "Sports", logo: "", url: "", builtin: false }}
+          row={{ slug: "", name: "", category: "Sports", logo_url: "", stream_url: "", is_active: true, is_custom: true }}
           isNew
           onClose={() => setAdding(false)}
-          onSave={(patch) => {
-            if (!patch.name?.trim() || !patch.url?.trim()) return;
-            add({
-              name: patch.name.trim(),
-              category: (patch.category ?? "general") as any,
-              logo: patch.logo?.trim() || undefined,
-              sources: [{ quality: "auto", url: patch.url.trim() }],
-            });
-            setAdding(false);
-          }}
+          onSave={(patch) => doInsert(patch)}
         />
       )}
     </div>
@@ -425,20 +393,17 @@ function AdminPage() {
 }
 
 function EditModal({
-  row,
-  isNew,
-  onClose,
-  onSave,
+  row, isNew, onClose, onSave,
 }: {
   row: Row;
   isNew?: boolean;
   onClose: () => void;
-  onSave: (patch: Override) => void;
+  onSave: (patch: Patch) => void;
 }) {
   const [name, setName] = useState(row.name);
   const [category, setCategory] = useState(row.category);
-  const [logo, setLogo] = useState(row.logo ?? "");
-  const [url, setUrl] = useState(row.url);
+  const [logo, setLogo] = useState(row.logo_url ?? "");
+  const [url, setUrl] = useState(row.stream_url);
 
   return (
     <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
@@ -450,7 +415,7 @@ function EditModal({
           </button>
         </div>
         <form
-          onSubmit={(e) => { e.preventDefault(); onSave({ name, category, logo, url }); }}
+          onSubmit={(e) => { e.preventDefault(); onSave({ name, category, logo_url: logo, stream_url: url }); }}
           className="space-y-3"
         >
           <Field label="Channel name">
