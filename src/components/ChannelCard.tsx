@@ -47,8 +47,8 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
         <ChannelLogo
           src={logo}
           name={name}
-          category={cat}
-          className="h-12 w-12 shrink-0 rounded-xl bg-black/30 p-1.5"
+          group={group}
+          className="shrink-0"
         />
         <button
           type="button"
