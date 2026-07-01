@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
 import { M3U_CHANNELS, findChannelBySlug, channelsByGroup } from "@/lib/m3u-channels";
@@ -48,22 +48,56 @@ function Home() {
   const { channels: customChannels } = useCustomChannels();
 
   const [day, setDay] = useState<Day>("today");
-  const { data: matches, isLoading: matchesLoading } = useQuery({
+  const { data: rawMatches, isLoading: matchesLoading } = useQuery({
     queryKey: ["matches", day],
     queryFn: () => fetchMatches({ data: { day } }),
     staleTime: 2 * 60_000,
   });
 
-  const liveMatches = useMemo(() => (matches ?? []).filter((m) => m.status === "live"), [matches]);
-  const otherMatches = useMemo(() => (matches ?? []).filter((m) => m.status !== "live"), [matches]);
-  const featured = liveMatches[0] ?? matches?.[0];
-  const totalMatches = matches?.length ?? 0;
+  // Filter by USER's LOCAL calendar day so TODAY/YESTERDAY/TOMORROW never mix.
+  const matches = useMemo(() => {
+    const list = rawMatches ?? [];
+    const now = new Date();
+    const target = new Date(now);
+    if (day === "yesterday") target.setDate(target.getDate() - 1);
+    if (day === "tomorrow") target.setDate(target.getDate() + 1);
+    const targetKey = target.toLocaleDateString();
+    return list.filter((m) => {
+      if (!m.kickoffIso) return true; // keep entries without a parseable kickoff
+      const d = new Date(m.kickoffIso);
+      if (Number.isNaN(d.getTime())) return true;
+      return d.toLocaleDateString() === targetKey;
+    });
+  }, [rawMatches, day]);
+
+  const liveMatches = useMemo(() => matches.filter((m) => m.status === "live"), [matches]);
+  const otherMatches = useMemo(() => matches.filter((m) => m.status !== "live"), [matches]);
+  const featured = liveMatches[0] ?? matches[0];
+  const totalMatches = matches.length;
 
   const nextMatch = useMemo(() => {
-    return (matches ?? [])
+    return matches
       .filter((m) => m.status === "soon" && m.kickoffIso)
       .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime())[0];
   }, [matches]);
+
+  // Live countdown to next kickoff (updates every 30s). Always renders "Xh Xm"
+  // or "Xm" — never blank colons.
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(id);
+  }, []);
+  const nextCountdown = useMemo(() => {
+    if (!nextMatch?.kickoffIso) return null;
+    const diff = new Date(nextMatch.kickoffIso).getTime() - nowMs;
+    if (!Number.isFinite(diff) || diff <= 0) return null;
+    const h = Math.floor(diff / 3_600_000);
+    const m = Math.floor((diff % 3_600_000) / 60_000);
+    if (h >= 24) return `${Math.floor(h / 24)}d ${h % 24}h`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${Math.max(m, 1)}m`;
+  }, [nextMatch, nowMs]);
 
   // Channel groups (excluding beIN MAX — has its own dedicated section)
   const groups = useMemo(() => {
@@ -104,27 +138,40 @@ function Home() {
       {/* Live ticker bar */}
       <div className="sticky top-[65px] z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="mx-auto flex h-11 max-w-7xl items-center gap-4 overflow-hidden px-4 text-xs sm:px-6">
-          <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
-            <span className="live-dot" /> {t("ticker.live")} {liveMatches.length}
-          </div>
-          <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
-          <div className="hidden shrink-0 text-muted-foreground sm:block">
-            <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
-          </div>
-          <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
-            <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
-            {nextMatch ? (
-              <span className="truncate">
-                <span className="font-semibold text-foreground">{nextMatch.homeTeam}</span> vs{" "}
-                <span className="font-semibold text-foreground">{nextMatch.awayTeam}</span>
-                <span className="ml-2 text-primary">{nextMatch.time}</span>
-              </span>
-            ) : (
-              <span className="truncate">—</span>
-            )}
-          </div>
+          {liveMatches.length === 0 && !nextMatch ? (
+            <div className="flex w-full items-center justify-center gap-2 font-semibold uppercase tracking-widest text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
+              No streams live right now — check back later
+            </div>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
+                <span className="live-dot" />
+                {liveMatches.length > 0 ? `${t("ticker.live")} ${liveMatches.length}` : "No live matches"}
+              </div>
+              <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
+              <div className="hidden shrink-0 text-muted-foreground sm:block">
+                <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
+              </div>
+              <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
+                <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
+                {nextMatch ? (
+                  <span className="truncate">
+                    <span className="font-semibold text-foreground">{nextMatch.homeTeam}</span> vs{" "}
+                    <span className="font-semibold text-foreground">{nextMatch.awayTeam}</span>
+                    <span className="ml-2 font-bold text-primary tabular-nums">
+                      {nextCountdown ?? nextMatch.time ?? "soon"}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="truncate">No upcoming matches</span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
+
 
       {/* HERO — left-aligned, stadium bg, floating match card right */}
       <section className="relative overflow-hidden">
@@ -219,7 +266,7 @@ function Home() {
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />)}
           </div>
-        ) : (matches?.length ?? 0) === 0 ? (
+        ) : matches.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
             No matches found for {t(`day.${day}`)}.
           </div>
@@ -356,11 +403,6 @@ function Home() {
           </div>
         )}
 
-        <div className="mt-8 text-center">
-          <Link to="/settings/channels" className="text-sm font-semibold text-primary hover:underline">
-            + Add your own channels →
-          </Link>
-        </div>
       </section>
 
       <Footer />

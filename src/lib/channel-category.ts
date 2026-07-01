@@ -45,9 +45,9 @@ export const CATEGORY_META: Record<
   },
   general: {
     label: "GENERAL",
-    color: "hsl(260 60% 60%)",
-    ring: "ring-violet-500/40",
-    text: "text-violet-300",
-    bg: "bg-violet-500/15",
+    color: "hsl(175 70% 45%)",
+    ring: "ring-teal-500/40",
+    text: "text-teal-300",
+    bg: "bg-teal-500/15",
   },
 };

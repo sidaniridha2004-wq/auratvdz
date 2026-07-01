@@ -38,6 +38,7 @@ export function ChannelLogo({ src, name, category, className = "" }: Props) {
       src={src}
       alt={name}
       loading="lazy"
+      referrerPolicy="no-referrer"
       onError={() => setBroken(true)}
       className={`object-contain ${className}`}
     />

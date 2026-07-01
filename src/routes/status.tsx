@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { RefreshCw, CheckCircle2, XCircle, Search } from "lucide-react";
+import { RefreshCw, CheckCircle2, XCircle, Search, MessageCircle } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/Footer";
 import { getChannelStatus } from "@/lib/status.functions";
@@ -81,6 +81,19 @@ function StatusPage() {
           <Stat label={t("status.down")} value={data?.down ?? 0} tone="bad" />
         </div>
 
+        {(() => {
+          const down = data?.down ?? 0;
+          const checked = data?.checked ?? 0;
+          if (checked === 0) return null;
+          const allOk = down === 0;
+          return (
+            <div className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${allOk ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-orange-500/30 bg-orange-500/10 text-orange-300"}`}>
+              {allOk ? "🟢 All systems operational" : `🟡 Some streams may be unavailable — ${down} channel${down === 1 ? "" : "s"} down`}
+            </div>
+          );
+        })()}
+
+
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -115,21 +128,14 @@ function StatusPage() {
                 <th className="px-4 py-3">{t("status.response")}</th>
                 <th className="px-4 py-3">{t("status.last_check")}</th>
                 <th className="px-4 py-3">{t("status.reason")}</th>
+                <th className="px-4 py-3 text-right">Report</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                    Loading…
-                  </td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
               ) : rows.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
-                    No channels match.
-                  </td>
-                </tr>
+                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No channels match.</td></tr>
               ) : (
                 rows.map((r) => (
                   <tr key={r.slug} className="border-t border-white/5">
@@ -137,17 +143,31 @@ function StatusPage() {
                     <td className="px-4 py-3">
                       {r.ok ? (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                          <CheckCircle2 className="h-3 w-3" /> {t("status.up")}
+                          <CheckCircle2 className="h-3 w-3" /> 🟢 Online
+                        </span>
+                      ) : r.checkedAt === 0 ? (
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-300">
+                          🟡 Unstable
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-300">
-                          <XCircle className="h-3 w-3" /> {t("status.down")}
+                          <XCircle className="h-3 w-3" /> 🔴 Offline
                         </span>
                       )}
                     </td>
                     <td className="px-4 py-3 tabular-nums text-muted-foreground">{r.ms}ms</td>
                     <td className="px-4 py-3 text-muted-foreground">{relativeTime(r.checkedAt)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{r.reason ?? "—"}</td>
+                    <td className="px-4 py-3 text-right">
+                      <a
+                        href={`https://t.me/Aura_TV?text=${encodeURIComponent(`Issue with channel: ${r.name} (${r.slug}) — ${r.reason ?? "not working"}`)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-white/10"
+                      >
+                        <MessageCircle className="h-3 w-3" /> Report
+                      </a>
+                    </td>
                   </tr>
                 ))
               )}

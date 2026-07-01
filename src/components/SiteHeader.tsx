@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import logoAsset from "@/assets/auratv-logo.png.asset.json";
-import { Flame, Radio, Star, Sun, Moon, Settings, Activity } from "lucide-react";
+import { Flame, Radio, Star, Sun, Moon, Activity } from "lucide-react";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useFavorites } from "@/lib/favorites";
@@ -62,13 +62,6 @@ export function SiteHeader() {
             className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground lg:inline-flex"
           >
             <Activity className="h-4 w-4" /> {t("nav.status")}
-          </Link>
-          <Link
-            to="/settings/channels"
-            aria-label={t("nav.settings")}
-            className="hidden rounded-full p-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground lg:inline-flex"
-          >
-            <Settings className="h-4 w-4" />
           </Link>
 
           {/* Lang switcher */}

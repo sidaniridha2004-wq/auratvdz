@@ -14,10 +14,12 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { TelegramPopup } from "../components/TelegramPopup";
 import { InstallBanner } from "../components/InstallBanner";
 import { MobileTabBar } from "../components/MobileTabBar";
+import { AdminHotkey } from "../components/AdminHotkey";
 import { I18nProvider } from "../lib/i18n";
 import { ThemeProvider } from "../lib/theme";
 import { FavoritesProvider } from "../lib/favorites";
 import { CustomChannelsProvider } from "../lib/custom-channels";
+import { AdminProvider } from "../lib/admin";
 
 function NotFoundComponent() {
   return (
@@ -83,11 +85,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:description", content: "Watch beIN Sports, Algeria TV, MBC, France TV live — free, HD, zero ads. Built for Algeria." },
       { property: "og:type", content: "website" },
       { property: "og:url", content: "https://auratvdz.lovable.app" },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/86a5a06b-031f-4ac9-983d-cec0d52c751b/id-preview-5c4c47a8--5e919ac5-5ede-4361-b9c1-bc5b694f362f.lovable.app-1781263599454.png" },
+      { property: "og:image", content: "https://auratvdz.lovable.app/og-image.png" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "AuraTV — Live Sports & TV Streaming" },
       { name: "twitter:description", content: "Watch beIN Sports, Algeria TV, MBC, France TV live — free, HD, zero ads. Built for Algeria." },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/86a5a06b-031f-4ac9-983d-cec0d52c751b/id-preview-5c4c47a8--5e919ac5-5ede-4361-b9c1-bc5b694f362f.lovable.app-1781263599454.png" },
+      { name: "twitter:image", content: "https://auratvdz.lovable.app/og-image.png" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
       { name: "apple-mobile-web-app-title", content: "AuraTV" },
@@ -130,10 +132,13 @@ function RootComponent() {
         <I18nProvider>
           <FavoritesProvider>
             <CustomChannelsProvider>
-              <Outlet />
-              <TelegramPopup />
-              <InstallBanner />
-              <MobileTabBar />
+              <AdminProvider>
+                <Outlet />
+                <TelegramPopup />
+                <InstallBanner />
+                <MobileTabBar />
+                <AdminHotkey />
+              </AdminProvider>
             </CustomChannelsProvider>
           </FavoritesProvider>
         </I18nProvider>
