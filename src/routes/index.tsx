@@ -138,27 +138,40 @@ function Home() {
       {/* Live ticker bar */}
       <div className="sticky top-[65px] z-30 border-b border-white/10 bg-black/70 backdrop-blur-xl">
         <div className="mx-auto flex h-11 max-w-7xl items-center gap-4 overflow-hidden px-4 text-xs sm:px-6">
-          <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
-            <span className="live-dot" /> {t("ticker.live")} {liveMatches.length}
-          </div>
-          <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
-          <div className="hidden shrink-0 text-muted-foreground sm:block">
-            <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
-          </div>
-          <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
-            <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
-            {nextMatch ? (
-              <span className="truncate">
-                <span className="font-semibold text-foreground">{nextMatch.homeTeam}</span> vs{" "}
-                <span className="font-semibold text-foreground">{nextMatch.awayTeam}</span>
-                <span className="ml-2 text-primary">{nextMatch.time}</span>
-              </span>
-            ) : (
-              <span className="truncate">—</span>
-            )}
-          </div>
+          {liveMatches.length === 0 && !nextMatch ? (
+            <div className="flex w-full items-center justify-center gap-2 font-semibold uppercase tracking-widest text-muted-foreground">
+              <span className="h-2 w-2 rounded-full bg-muted-foreground/60" />
+              No streams live right now — check back later
+            </div>
+          ) : (
+            <>
+              <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
+                <span className="live-dot" />
+                {liveMatches.length > 0 ? `${t("ticker.live")} ${liveMatches.length}` : "No live matches"}
+              </div>
+              <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
+              <div className="hidden shrink-0 text-muted-foreground sm:block">
+                <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
+              </div>
+              <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
+                <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
+                {nextMatch ? (
+                  <span className="truncate">
+                    <span className="font-semibold text-foreground">{nextMatch.homeTeam}</span> vs{" "}
+                    <span className="font-semibold text-foreground">{nextMatch.awayTeam}</span>
+                    <span className="ml-2 font-bold text-primary tabular-nums">
+                      {nextCountdown ?? nextMatch.time ?? "soon"}
+                    </span>
+                  </span>
+                ) : (
+                  <span className="truncate">No upcoming matches</span>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
+
 
       {/* HERO — left-aligned, stadium bg, floating match card right */}
       <section className="relative overflow-hidden">
