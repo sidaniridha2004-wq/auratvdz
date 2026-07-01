@@ -19,10 +19,11 @@ import {
   getSubCategories,
 } from "@/lib/yacine.functions";
 import { getMatches } from "@/lib/matches.functions";
-import { getAuraChannels } from "@/lib/auratv-channels.functions";
+import { M3U_CHANNELS } from "@/lib/m3u-channels";
 
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
+import { ChannelLogo } from "@/components/ChannelLogo";
 
 export const Route = createFileRoute("/")({
   component: Home,
@@ -56,20 +57,19 @@ function Home() {
   const fetchMatches = useServerFn(getMatches);
   const fetchSubs = useServerFn(getSubCategories);
   const fetchChannels = useServerFn(getCategoryChannels);
-  const fetchAura = useServerFn(getAuraChannels);
 
-  const { data: auraChannels, isLoading: auraLoading } = useQuery({
-    queryKey: ["aura-channels"],
-    queryFn: () => fetchAura(),
-    staleTime: 10 * 60_000,
-  });
   const [auraQ, setAuraQ] = useState("");
   const filteredAura = useMemo(() => {
-    const list = auraChannels ?? [];
-    if (!auraQ.trim()) return list;
+    if (!auraQ.trim()) return M3U_CHANNELS;
     const n = auraQ.toLowerCase();
-    return list.filter((c) => c.name.toLowerCase().includes(n) || c.key.toLowerCase().includes(n));
-  }, [auraChannels, auraQ]);
+    return M3U_CHANNELS.filter(
+      (c) =>
+        c.name.toLowerCase().includes(n) ||
+        c.group.toLowerCase().includes(n) ||
+        c.slug.toLowerCase().includes(n),
+    );
+  }, [auraQ]);
+
 
 
   const { data: categories, isLoading: catsLoading } = useQuery({
