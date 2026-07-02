@@ -18,7 +18,10 @@ interface Props {
 }
 
 const MAX_AUTO_RETRIES = 3;
-const LOAD_TIMEOUT_MS = 8000;
+// Streams pass through /api/public/stream (which may cold-start) and some HLS
+// manifests + init segments are slow to arrive on mobile networks. Keep this
+// generous — a false "unavailable" error is worse than a longer spinner.
+const LOAD_TIMEOUT_MS = 25000;
 
 interface Level {
   index: number;
