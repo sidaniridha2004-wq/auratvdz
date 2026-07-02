@@ -134,7 +134,9 @@ function RootComponent() {
           <FavoritesProvider>
             <CustomChannelsProvider>
               <AdminProvider>
-                <Outlet />
+                <div className="pb-20 sm:pb-0">
+                  <Outlet />
+                </div>
                 <TelegramPopup />
                 <InstallBanner />
                 <MobileTabBar />
