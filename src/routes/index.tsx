@@ -213,32 +213,41 @@ function Home() {
         </div>
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24">
           <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
-            <div className="flex flex-col items-start gap-6 text-left animate-fade-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-muted-foreground backdrop-blur">
-                <Sparkles className="h-3 w-3 text-accent" /> {t("hero.badge")}
+            <div className="flex flex-col items-start gap-7 text-left animate-fade-up">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 backdrop-blur">
+                {liveMatches.length > 0 ? (
+                  <>
+                    <span className="live-dot" />
+                    <span className="eyebrow !text-red-300">On air · {liveMatches.length} live</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 text-accent" />
+                    <span className="eyebrow">{t("hero.badge")}</span>
+                  </>
+                )}
               </div>
-              <h1 className="font-display text-[2.75rem] font-black leading-[0.95] sm:text-6xl lg:text-7xl">
-                Live sport,
+              <h1 className="font-display text-[2.9rem] font-black leading-[0.9] sm:text-6xl lg:text-[5.25rem]">
+                The stadium,
                 <br />
-                <span className="text-aurora">every channel,</span>
-                <br />
-                <span className="text-foreground/90">one tap away.</span>
+                <span className="text-signal">on your screen.</span>
               </h1>
-              <p className="max-w-xl text-base text-muted-foreground sm:text-lg">
-                {t("hero.tagline")}
+              <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground sm:text-[17px]">
+                Every match, every league, every channel — streamed in HD.
+                No ads. No paywalls. Just tap and watch.
               </p>
               <div className="flex flex-wrap gap-3">
                 <Link
                   to="/"
                   hash="matches"
-                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground shadow-glow transition hover:scale-[1.03]"
+                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-glow transition hover:brightness-110"
                 >
                   <Flame className="h-4 w-4 transition group-hover:rotate-12" /> {t("hero.today")}
                 </Link>
                 <Link
                   to="/"
                   hash="channels"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-foreground backdrop-blur transition hover:bg-white/10"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-foreground backdrop-blur transition hover:bg-white/[0.09]"
                 >
                   <Radio className="h-4 w-4" /> {t("hero.browse")}
                 </Link>
