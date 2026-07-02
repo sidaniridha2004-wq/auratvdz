@@ -28,8 +28,8 @@ export const Route = createFileRoute("/admin")({
 // The password lives in the browser only long enough to authorize the current
 // admin session's writes; we forward it to server fns that re-check it against
 // process.env.ADMIN_PASSWORD before doing anything with the service-role key.
+// No hardcoded fallback — an operator must set ADMIN_PASSWORD server-side.
 const PW_KEY = "auratv:admin:pw";
-const ADMIN_WRITE_PASSWORD = "AuraTV@2026!";
 const PAGE_SIZE = 20;
 
 const ALL_CATEGORIES = [
