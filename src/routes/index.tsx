@@ -143,7 +143,6 @@ function Home() {
     return list.filter((c) => c.name.toLowerCase().includes(n));
   }, [beinQ, resolvedBySlug]);
 
-  const filteredChannels = useMemo(() => {
   // When the user types a query, we search across EVERY channel (excluding
   // the beIN MAX row which has its own section) — not just the active
   // category chip. When the query is empty, we show the active category only.
