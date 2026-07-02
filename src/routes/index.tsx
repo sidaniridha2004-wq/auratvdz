@@ -385,37 +385,56 @@ function Home() {
         </div>
         <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">{t("section.channels")}</h2>
 
-        <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-          <div className="flex gap-2 pb-2">
-            {groupNames.map((g) => {
-              const active = g === currentGroup;
-              return (
-                <button key={g} onClick={() => setActiveGroup(g)}
-                        className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-                          active ? "bg-primary text-primary-foreground shadow-glow"
-                                 : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
-                        }`}>
-                  {g}
-                  <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-primary-foreground/20" : "bg-white/10"}`}>
-                    {groups[g].length}
-                  </span>
-                </button>
-              );
-            })}
+        {/* Persistent global search — searches ALL channels regardless of category */}
+        <div className="mb-5 flex flex-wrap items-center gap-3">
+          <div className="relative w-full flex-1 min-w-[220px]">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search.channels") + " — searches all categories"}
+                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
+            {isSearching && (
+              <button
+                onClick={() => setQ("")}
+                aria-label="Clear search"
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted-foreground hover:bg-white/10 hover:text-foreground"
+              >
+                ✕
+              </button>
+            )}
           </div>
         </div>
 
+        {/* Category chips — hidden while searching so results feel truly global */}
+        {!isSearching && (
+          <div className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="flex gap-2 pb-2">
+              {groupNames.map((g) => {
+                const active = g === currentGroup;
+                return (
+                  <button key={g} onClick={() => setActiveGroup(g)}
+                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                            active ? "bg-primary text-primary-foreground shadow-glow"
+                                   : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+                          }`}>
+                    {g}
+                    <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-primary-foreground/20" : "bg-white/10"}`}>
+                      {groups[g].length}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="mb-5 mt-6 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-xl font-bold">{currentGroup}</h3>
+            <h3 className="font-display text-xl font-bold">
+              {isSearching ? `Search results` : currentGroup}
+            </h3>
             <p className="text-sm text-muted-foreground">
               {filteredChannels.length} channel{filteredChannels.length === 1 ? "" : "s"}
+              {isSearching && ` matching "${q}"`}
             </p>
-          </div>
-          <div className="relative w-full shrink-0 sm:w-72">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search.channels")}
-                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
           </div>
         </div>
 
