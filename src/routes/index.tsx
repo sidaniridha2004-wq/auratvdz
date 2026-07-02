@@ -229,9 +229,9 @@ function Home() {
           <div className="absolute inset-0 bg-gradient-to-r from-background via-background/85 to-background/30" />
           <div className="absolute inset-0 bg-gradient-to-t from-background to-transparent" />
         </div>
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.2fr_1fr]">
-            <div className="flex flex-col items-start gap-7 text-left animate-fade-up">
+        <div className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-24">
+          <div className="grid items-center gap-6 sm:gap-10 lg:grid-cols-[1.2fr_1fr]">
+            <div className="flex flex-col items-start gap-4 text-left animate-fade-up sm:gap-7">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.03] px-3 py-1 backdrop-blur">
                 {liveMatches.length > 0 ? (
                   <>
@@ -245,32 +245,33 @@ function Home() {
                   </>
                 )}
               </div>
-              <h1 className="font-display text-[2.9rem] font-black leading-[0.9] sm:text-6xl lg:text-[5.25rem]">
+              <h1 className="font-display text-[2rem] font-black leading-[0.95] sm:text-6xl lg:text-[5.25rem]">
                 The stadium,
                 <br />
                 <span className="text-signal">on your screen.</span>
               </h1>
-              <p className="max-w-lg text-[15px] leading-relaxed text-muted-foreground sm:text-[17px]">
+              <p className="max-w-lg text-[13px] leading-relaxed text-muted-foreground sm:text-[17px]">
                 Every match, every league, every channel — streamed in HD.
                 No ads. No paywalls. Just tap and watch.
               </p>
-              <div className="flex flex-wrap gap-3">
+              <div className="flex flex-wrap gap-2 sm:gap-3">
                 <Link
                   to="/"
                   hash="matches"
-                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-glow transition hover:brightness-110"
+                  className="group inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-xs font-bold text-primary-foreground shadow-glow transition hover:brightness-110 sm:px-6 sm:py-3.5 sm:text-sm"
                 >
                   <Flame className="h-4 w-4 transition group-hover:rotate-12" /> {t("hero.today")}
                 </Link>
                 <Link
                   to="/"
                   hash="channels"
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-6 py-3.5 text-sm font-semibold text-foreground backdrop-blur transition hover:bg-white/[0.09]"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-4 py-2.5 text-xs font-semibold text-foreground backdrop-blur transition hover:bg-white/[0.09] sm:px-6 sm:py-3.5 sm:text-sm"
                 >
                   <Radio className="h-4 w-4" /> {t("hero.browse")}
                 </Link>
               </div>
             </div>
+
 
             {matchesLoading ? (
               <div className="relative conic-border rounded-3xl">
