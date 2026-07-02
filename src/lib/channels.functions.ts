@@ -28,11 +28,33 @@ const patchSchema = z.object({
   is_active: z.boolean().optional(),
 });
 
-const ADMIN_PW = "AuraTV@2026!";
+// Timing-safe comparison; fail closed if ADMIN_PASSWORD env is unset.
+// No hardcoded fallback — a backdoor constant here would ship in source
+// history and be permanently accepted regardless of secret rotation.
 function requirePassword(pw: string) {
-  const expected = process.env.ADMIN_PASSWORD || ADMIN_PW;
-  if (pw !== expected && pw !== ADMIN_PW) throw new Error("Unauthorized");
+  const expected = process.env.ADMIN_PASSWORD;
+  if (!expected || expected.length === 0) {
+    throw new Error("Admin password is not configured on the server");
+  }
+  const a = new TextEncoder().encode(pw);
+  const b = new TextEncoder().encode(expected);
+  if (a.length !== b.length) throw new Error("Unauthorized");
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
+  if (diff !== 0) throw new Error("Unauthorized");
 }
+
+/** Verify the admin password. Used by the admin sign-in form. */
+export const adminVerifyPassword = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => z.object({ password: z.string() }).parse(input))
+  .handler(async ({ data }) => {
+    try {
+      requirePassword(data.password);
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const };
+    }
+  });
 
 /** Public list — used by the homepage and admin panel. */
 export const listChannels = createServerFn({ method: "GET" }).handler(async () => {

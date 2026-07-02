@@ -28,8 +28,8 @@ export const Route = createFileRoute("/admin")({
 // The password lives in the browser only long enough to authorize the current
 // admin session's writes; we forward it to server fns that re-check it against
 // process.env.ADMIN_PASSWORD before doing anything with the service-role key.
+// No hardcoded fallback — an operator must set ADMIN_PASSWORD server-side.
 const PW_KEY = "auratv:admin:pw";
-const ADMIN_WRITE_PASSWORD = "AuraTV@2026!";
 const PAGE_SIZE = 20;
 
 const ALL_CATEGORIES = [
@@ -123,9 +123,9 @@ function AdminPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
   const getAdminPassword = () => {
     try {
-      return adminPw || sessionStorage.getItem(PW_KEY) || ADMIN_WRITE_PASSWORD;
+      return adminPw || sessionStorage.getItem(PW_KEY) || "";
     } catch {
-      return adminPw || ADMIN_WRITE_PASSWORD;
+      return adminPw;
     }
   };
 
@@ -185,9 +185,9 @@ function AdminPage() {
     return (
       <div className="min-h-screen bg-hero flex items-center justify-center px-4">
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (login(pw)) {
+            if (await login(pw)) {
               try { sessionStorage.setItem(PW_KEY, pw); } catch {}
               setAdminPw(pw);
               setErr(false);
