@@ -15,11 +15,18 @@ function resolveChannel(name: string, bySlug: Map<string, M3uChannel>): Resolved
   if (!name) return null;
   const slug = resolveMatchChannelSlug(name);
   if (slug) {
+    // Only surface a play link if the channel is currently active in the
+    // database. If an admin hid it, treat the match as having no channel —
+    // do NOT fall back to static m3u data or the yacine mirror.
     const dbCh = bySlug.get(slug);
+    if (!dbCh) return null;
     const staticCh = findChannelBySlug(slug);
-    const label = dbCh?.name || staticCh?.name;
-    const logo = dbCh?.logo || staticCh?.logo;
-    if (label) return { kind: "m3u", slug, label, logo };
+    return {
+      kind: "m3u",
+      slug,
+      label: dbCh.name || staticCh?.name || slug,
+      logo: dbCh.logo || staticCh?.logo,
+    };
   }
   const m = name.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
   if (m) {
