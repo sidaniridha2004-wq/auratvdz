@@ -80,8 +80,15 @@ function AdminPage() {
   // Retain the password in sessionStorage so refresh doesn't drop it.
   const [adminPw, setAdminPw] = useState<string>("");
   useEffect(() => {
-    try { setAdminPw(sessionStorage.getItem(PW_KEY) ?? ""); } catch {}
-  }, [isAdmin]);
+    try {
+      const stored = sessionStorage.getItem(PW_KEY) ?? "";
+      setAdminPw(stored);
+      // If session says we're admin but the password is missing (stored
+      // before PW_KEY existed, or cleared), force re-login so writes
+      // don't fail with Unauthorized.
+      if (isAdmin && !stored) logout();
+    } catch {}
+  }, [isAdmin, logout]);
 
   const rows: Row[] = useMemo(() => dbRows.map((r) => ({
     slug: r.slug,
