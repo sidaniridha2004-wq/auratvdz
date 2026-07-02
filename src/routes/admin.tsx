@@ -472,3 +472,210 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
     </label>
   );
 }
+
+// ---------- Now on TV editor ----------
+
+interface NowRow {
+  slug: string;
+  name: string;
+  logo_url: string;
+  category: string;
+}
+
+function NowOnTvEditor({
+  getPassword,
+  channelRows,
+}: {
+  getPassword: () => string;
+  channelRows: NowRow[];
+}) {
+  const qc = useQueryClient();
+  const { rows, isLoading } = useNowOnTv();
+  const insertFn = useServerFn(adminInsertNowOnTv);
+  const updateFn = useServerFn(adminUpdateNowOnTv);
+  const deleteFn = useServerFn(adminDeleteNowOnTv);
+
+  const [busy, setBusy] = useState(false);
+  const [newSlug, setNewSlug] = useState<string>(channelRows[0]?.slug ?? "");
+  const [newTitle, setNewTitle] = useState("");
+  const [newSubtitle, setNewSubtitle] = useState("");
+
+  useEffect(() => {
+    if (!newSlug && channelRows[0]) setNewSlug(channelRows[0].slug);
+  }, [channelRows, newSlug]);
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: NOW_ON_TV_QUERY_KEY });
+
+  const doInsert = async () => {
+    if (!newSlug || !newTitle.trim()) {
+      alert("Pick a channel and enter a title.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const nextOrder = (rows[rows.length - 1]?.sort_order ?? 0) + 10;
+      await insertFn({
+        data: {
+          password: getPassword(),
+          item: {
+            channel_slug: newSlug,
+            title: newTitle.trim(),
+            subtitle: newSubtitle.trim(),
+            sort_order: nextOrder,
+            is_active: true,
+          },
+        },
+      });
+      setNewTitle("");
+      setNewSubtitle("");
+      await invalidate();
+    } catch (e) {
+      alert(`Add failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doPatch = async (id: string, patch: Partial<{ title: string; subtitle: string; sort_order: number; is_active: boolean; channel_slug: string }>) => {
+    setBusy(true);
+    try {
+      await updateFn({ data: { password: getPassword(), id, patch } });
+      await invalidate();
+    } catch (e) {
+      alert(`Update failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doDelete = async (id: string) => {
+    if (!confirm("Remove this item from the Now on TV strip?")) return;
+    setBusy(true);
+    try {
+      await deleteFn({ data: { password: getPassword(), id } });
+      await invalidate();
+    } catch (e) {
+      alert(`Delete failed: ${(e as Error).message}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
+      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <div className="eyebrow">Homepage</div>
+          <h2 className="mt-1 font-display text-2xl font-bold">Now on TV strip</h2>
+          <p className="text-sm text-muted-foreground">
+            Curate what visitors see at the top of the homepage.
+            {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
+          </p>
+        </div>
+      </div>
+
+      {/* Add form */}
+      <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+        <div className="grid gap-3 md:grid-cols-[220px_1fr_1fr_auto]">
+          <select
+            value={newSlug}
+            onChange={(e) => setNewSlug(e.target.value)}
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
+          >
+            {channelRows.map((c) => (
+              <option key={c.slug} value={c.slug}>{c.name}</option>
+            ))}
+          </select>
+          <input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            placeholder="Title (e.g. Real Madrid vs Barcelona)"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <input
+            value={newSubtitle}
+            onChange={(e) => setNewSubtitle(e.target.value)}
+            placeholder="Subtitle (optional)"
+            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
+          />
+          <button
+            onClick={doInsert}
+            disabled={busy}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" /> Add
+          </button>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">Loading strip…</div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">
+          Nothing on the strip yet — add your first item above.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r) => {
+            const ch = channelRows.find((c) => c.slug === r.channel_slug);
+            return (
+              <div
+                key={r.id}
+                className={`grid grid-cols-1 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 md:grid-cols-[auto_180px_1fr_1fr_90px_auto] ${r.is_active ? "" : "opacity-50"}`}
+              >
+                <ChannelLogo src={ch?.logo_url} name={ch?.name ?? r.channel_slug} group={ch?.category} size={36} />
+                <select
+                  value={r.channel_slug}
+                  onChange={(e) => doPatch(r.id, { channel_slug: e.target.value })}
+                  disabled={busy}
+                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs outline-none focus:border-primary"
+                >
+                  {channelRows.map((c) => (
+                    <option key={c.slug} value={c.slug}>{c.name}</option>
+                  ))}
+                </select>
+                <input
+                  defaultValue={r.title}
+                  onBlur={(e) => e.target.value !== r.title && doPatch(r.id, { title: e.target.value })}
+                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
+                />
+                <input
+                  defaultValue={r.subtitle}
+                  onBlur={(e) => e.target.value !== r.subtitle && doPatch(r.id, { subtitle: e.target.value })}
+                  placeholder="Subtitle"
+                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
+                />
+                <input
+                  type="number"
+                  defaultValue={r.sort_order}
+                  onBlur={(e) => {
+                    const v = Number(e.target.value);
+                    if (Number.isFinite(v) && v !== r.sort_order) doPatch(r.id, { sort_order: v });
+                  }}
+                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
+                  title="Sort order (lower first)"
+                />
+                <div className="flex items-center gap-1 justify-self-end">
+                  <button
+                    onClick={() => doPatch(r.id, { is_active: !r.is_active })}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40"
+                  >
+                    {r.is_active ? <><EyeOff className="h-3 w-3" /> Hide</> : <><Eye className="h-3 w-3" /> Show</>}
+                  </button>
+                  <button
+                    onClick={() => doDelete(r.id)}
+                    disabled={busy}
+                    className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20 disabled:opacity-40"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
