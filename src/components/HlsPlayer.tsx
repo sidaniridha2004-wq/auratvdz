@@ -102,9 +102,15 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     };
     const onStall = () => {
       console.warn(`[player] stall waiting at t=${video.currentTime.toFixed(2)}s`);
+      if (!cancelled) setBuffering(true);
     };
+    const onPlaying = () => { if (!cancelled) setBuffering(false); };
+    const onCanPlay = () => { if (!cancelled) setBuffering(false); };
     video.addEventListener("loadeddata", onLoaded);
     video.addEventListener("waiting", onStall);
+    video.addEventListener("stalled", onStall);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("canplay", onCanPlay);
 
     // Hard timeout on initial load — only errors if we still have no data.
     loadTimer = setTimeout(() => {
