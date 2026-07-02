@@ -86,10 +86,15 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     setActiveHeight(null);
 
     let cancelled = false;
+    let loadTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearLoadTimer = () => {
+      if (loadTimer) { clearTimeout(loadTimer); loadTimer = undefined; }
+    };
     const onLoaded = () => {
       if (!cancelled) {
         setLoading(false);
         retriesRef.current = 0;
+        clearLoadTimer();
       }
     };
     const onStall = () => {
@@ -98,9 +103,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     video.addEventListener("loadeddata", onLoaded);
     video.addEventListener("waiting", onStall);
 
-    // 8s hard timeout on initial load
-    const loadTimer = setTimeout(() => {
-      if (cancelled || !loading) return;
+    // Hard timeout on initial load — only errors if we still have no data.
+    loadTimer = setTimeout(() => {
+      if (cancelled) return;
       if (video.readyState < 2) {
         setError("Stream temporarily unavailable — try another server");
         setLoading(false);
