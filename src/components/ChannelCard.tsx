@@ -12,7 +12,11 @@ interface Props {
   href:
     | { to: "/watch/live/$slug"; params: { slug: string } }
     | { to: "/watch/tv/$key"; params: { key: string }; search?: { name?: string } }
-    | { to: "/watch/$channelId"; params: { channelId: string }; search?: { name?: string; logo?: string } };
+    | {
+        to: "/watch/$channelId";
+        params: { channelId: string };
+        search?: { name?: string; logo?: string };
+      };
   featured?: boolean;
   category?: ChannelCategory;
 }
@@ -28,19 +32,34 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
   // with stopPropagation so tapping ★ never triggers navigation.
   const link =
     href.to === "/watch/live/$slug" ? (
-      <Link to="/watch/live/$slug" params={href.params} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
+      <Link
+        to="/watch/live/$slug"
+        params={href.params}
+        className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={`Play ${name}`}
+      />
     ) : href.to === "/watch/tv/$key" ? (
-      <Link to="/watch/tv/$key" params={href.params} search={href.search} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
+      <Link
+        to="/watch/tv/$key"
+        params={href.params}
+        search={href.search}
+        className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={`Play ${name}`}
+      />
     ) : (
-      <Link to="/watch/$channelId" params={href.params} search={href.search} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
+      <Link
+        to="/watch/$channelId"
+        params={href.params}
+        search={href.search}
+        className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        aria-label={`Play ${name}`}
+      />
     );
 
   return (
     <div
       className={`group card-hover relative flex cursor-pointer flex-col overflow-hidden rounded-2xl border bg-card-gradient shadow-card ${
-        featured
-          ? "border-primary/30"
-          : "border-white/[0.06]"
+        featured ? "border-primary/30" : "border-white/[0.06]"
       }`}
       title={`Play ${name}`}
     >
@@ -57,10 +76,19 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
           }}
         />
         {/* Subtle scanline / vignette */}
-        <div aria-hidden className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]" />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_55%,rgba(0,0,0,0.55)_100%)]"
+        />
 
         <div className="relative z-[1] flex h-full items-center justify-center p-5">
-          <ChannelLogo src={logo} name={name} group={group} size={80} className="drop-shadow-[0_6px_20px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-105" />
+          <ChannelLogo
+            src={logo}
+            name={name}
+            group={group}
+            size={80}
+            className="drop-shadow-[0_6px_20px_rgba(0,0,0,0.5)] transition-transform duration-500 group-hover:scale-105"
+          />
         </div>
 
         {/* Favorite — top-right, above link */}
@@ -95,10 +123,14 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
       <div className="relative z-[5] flex flex-col gap-1.5 border-t border-white/[0.05] bg-black/30 p-3 pointer-events-none">
         <div className="truncate text-[14px] font-bold leading-tight text-foreground">{name}</div>
         <div className="flex items-center justify-between gap-2">
-          <span className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${meta.bg} ${meta.text}`}>
+          <span
+            className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] ${meta.bg} ${meta.text}`}
+          >
             {meta.label}
           </span>
-          <span className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">{group}</span>
+          <span className="truncate text-[10px] uppercase tracking-widest text-muted-foreground">
+            {group}
+          </span>
         </div>
       </div>
     </div>

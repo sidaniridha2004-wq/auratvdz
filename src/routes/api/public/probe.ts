@@ -25,9 +25,8 @@ export const Route = createFileRoute("/api/public/probe")({
         const arb = url.searchParams.get("url");
         const slug = url.searchParams.get("slug");
         const { M3U_CHANNELS } = await import("@/lib/m3u-channels");
-        const { probeOne, getSnapshot, sweepAll, triggerSweepIfStale } = await import(
-          "@/lib/probe-store.server"
-        );
+        const { probeOne, getSnapshot, sweepAll, triggerSweepIfStale } =
+          await import("@/lib/probe-store.server");
 
         if (arb) {
           const r = await probeOne(arb);

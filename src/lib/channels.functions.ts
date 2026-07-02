@@ -79,10 +79,7 @@ export const adminUpdateChannel = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requirePassword(data.password);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("channels")
-      .update(data.patch)
-      .eq("slug", data.slug);
+    const { error } = await supabaseAdmin.from("channels").update(data.patch).eq("slug", data.slug);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
@@ -90,7 +87,9 @@ export const adminUpdateChannel = createServerFn({ method: "POST" })
 /** Bulk set is_active for a list of slugs. */
 export const adminSetActive = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ password: z.string(), slugs: z.array(z.string()), is_active: z.boolean() }).parse(input),
+    z
+      .object({ password: z.string(), slugs: z.array(z.string()), is_active: z.boolean() })
+      .parse(input),
   )
   .handler(async ({ data }) => {
     requirePassword(data.password);

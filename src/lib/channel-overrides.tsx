@@ -29,11 +29,15 @@ function readJSON<T>(key: string, fallback: T): T {
 }
 
 export function writeOverrides(next: OverrideMap) {
-  try { localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next)); } catch {}
+  try {
+    localStorage.setItem(OVERRIDES_KEY, JSON.stringify(next));
+  } catch {}
   window.dispatchEvent(new Event(OVERRIDES_EVENT));
 }
 export function writeHidden(next: string[]) {
-  try { localStorage.setItem(HIDDEN_KEY, JSON.stringify(next)); } catch {}
+  try {
+    localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+  } catch {}
   window.dispatchEvent(new Event(OVERRIDES_EVENT));
 }
 
@@ -64,18 +68,16 @@ export function useResolvedChannels(): M3uChannel[] {
   const { overrides, hidden } = useChannelOverrides();
   return useMemo(() => {
     const hide = new Set(hidden);
-    return M3U_CHANNELS
-      .filter((c) => !hide.has(c.slug))
-      .map((c) => {
-        const o = overrides[c.slug];
-        if (!o) return c;
-        return {
-          ...c,
-          name: o.name ?? c.name,
-          group: o.category ?? c.group,
-          logo: o.logo ?? c.logo,
-          url: o.url ?? c.url,
-        };
-      });
+    return M3U_CHANNELS.filter((c) => !hide.has(c.slug)).map((c) => {
+      const o = overrides[c.slug];
+      if (!o) return c;
+      return {
+        ...c,
+        name: o.name ?? c.name,
+        group: o.category ?? c.group,
+        logo: o.logo ?? c.logo,
+        url: o.url ?? c.url,
+      };
+    });
   }, [overrides, hidden]);
 }

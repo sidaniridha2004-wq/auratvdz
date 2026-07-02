@@ -9,7 +9,7 @@ const KEY = "auratv:install-dismissed";
 export function InstallBanner() {
   const { t } = useI18n();
   const [visible, setVisible] = useState(false);
-  const [deferred, setDeferred] = useState<Event & { prompt?: () => void } | null>(null);
+  const [deferred, setDeferred] = useState<(Event & { prompt?: () => void }) | null>(null);
 
   useEffect(() => {
     try {

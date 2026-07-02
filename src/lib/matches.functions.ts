@@ -54,10 +54,17 @@ const PAGE_URLS = {
 } as const;
 
 function decodeEntities(s: string): string {
-  return s.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-          .replace(/&quot;/g, '"').replace(/&#039;/g, "'").replace(/&nbsp;/g, " ");
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+    .replace(/&nbsp;/g, " ");
 }
-function stripTags(s: string): string { return decodeEntities(s.replace(/<[^>]+>/g, "")).trim(); }
+function stripTags(s: string): string {
+  return decodeEntities(s.replace(/<[^>]+>/g, "")).trim();
+}
 function pickImg(block: string): string {
   const m = block.match(/data-src=['"]([^'"]+)['"]/);
   if (m) return m[1];
@@ -66,10 +73,22 @@ function pickImg(block: string): string {
 }
 
 function parseStatus(label: string, dateClass: string, score: string): Match["status"] {
-  if (dateClass.includes("live") || label.includes("جارية") || label.includes("مباشر")) return "live";
-  if (dateClass.includes("finished") || label.includes("إنتهت") || label.includes("انتهت") || label.includes("انتهى") || label.includes("منتهية"))
+  if (dateClass.includes("live") || label.includes("جارية") || label.includes("مباشر"))
+    return "live";
+  if (
+    dateClass.includes("finished") ||
+    label.includes("إنتهت") ||
+    label.includes("انتهت") ||
+    label.includes("انتهى") ||
+    label.includes("منتهية")
+  )
     return "finished";
-  if (dateClass.includes("soon") || label.includes("لم") || label.includes("قريب") || label.includes("قادم"))
+  if (
+    dateClass.includes("soon") ||
+    label.includes("لم") ||
+    label.includes("قريب") ||
+    label.includes("قادم")
+  )
     return "soon";
   if (score && /\d+\s*-\s*\d+/.test(score) && score.replace(/\s/g, "") !== "0-0") return "finished";
   return "unknown";
@@ -87,8 +106,13 @@ function fallbackTextParse(block: string): { home?: string; away?: string; score
   const scoreM = text.match(/(\d+)\s*[-–:]\s*(\d+)/);
   if (scoreM) out.score = `${scoreM[1]}-${scoreM[2]}`;
   // Names on either side of "vs" or "ضد"
-  const teamM = text.match(/([\u0600-\u06FF\w][\u0600-\u06FF\w \.'-]{2,40})\s+(?:vs|ضد|VS)\s+([\u0600-\u06FF\w][\u0600-\u06FF\w \.'-]{2,40})/);
-  if (teamM) { out.home = teamM[1].trim(); out.away = teamM[2].trim(); }
+  const teamM = text.match(
+    /([\u0600-\u06FF\w][\u0600-\u06FF\w \.'-]{2,40})\s+(?:vs|ضد|VS)\s+([\u0600-\u06FF\w][\u0600-\u06FF\w \.'-]{2,40})/,
+  );
+  if (teamM) {
+    out.home = teamM[1].trim();
+    out.away = teamM[2].trim();
+  }
   return out;
 }
 
@@ -102,15 +126,23 @@ function parseMatches(html: string, day: Day): Match[] {
 
     const classStr = block.match(/^\s*([^'">]*)/)?.[1] ?? "";
 
-    const teamLogos = [...block.matchAll(/<div\s+class=['"]team-logo[^'"]*['"][^>]*>([\s\S]*?)<\/div>/g)].map((m) => pickImg(m[1]));
-    const teamNames = [...block.matchAll(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/g)].map((m) => stripTags(m[1]));
+    const teamLogos = [
+      ...block.matchAll(/<div\s+class=['"]team-logo[^'"]*['"][^>]*>([\s\S]*?)<\/div>/g),
+    ].map((m) => pickImg(m[1]));
+    const teamNames = [
+      ...block.matchAll(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/g),
+    ].map((m) => stripTags(m[1]));
     let homeTeam = teamNames[0] ?? "";
     let awayTeam = teamNames[1] ?? "";
     const homeLogo = teamLogos[0] ?? "";
     const awayLogo = teamLogos[1] ?? "";
 
-    const time = stripTags(block.match(/<div\s+class=['"]match-time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    let score = stripTags(block.match(/<div\s+class=['"]result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+    const time = stripTags(
+      block.match(/<div\s+class=['"]match-time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+    );
+    let score = stripTags(
+      block.match(/<div\s+class=['"]result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+    );
     const dateMatch = block.match(/<div\s+class=['"]date([^'"]*)['"][^>]*>([\s\S]*?)<\/div>/);
     const statusLabel = stripTags(dateMatch?.[2] ?? "");
 
@@ -123,10 +155,14 @@ function parseMatches(html: string, day: Day): Match[] {
     }
     // Alt score selector
     if (!score) {
-      score = stripTags(block.match(/<div\s+class=['"]match-score[^'"]*['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+      score = stripTags(
+        block.match(/<div\s+class=['"]match-score[^'"]*['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+      );
     }
 
-    const infoItems = [...block.matchAll(/<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((m) => stripTags(m[1]));
+    const infoItems = [
+      ...block.matchAll(/<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g),
+    ].map((m) => stripTags(m[1]));
     const [channel = "", commentator = "", competition = ""] = infoItems;
 
     const url = block.match(/<a[^>]+href=['"]([^'"]+\/matches\/[^'"]+)['"]/)?.[1] ?? "";
@@ -134,10 +170,20 @@ function parseMatches(html: string, day: Day): Match[] {
 
     if (!homeTeam || !awayTeam) continue;
     matches.push({
-      id, homeTeam, homeLogo, awayTeam, awayLogo,
-      time, kickoffIso: parseKickoff(time, day), score,
+      id,
+      homeTeam,
+      homeLogo,
+      awayTeam,
+      awayLogo,
+      time,
+      kickoffIso: parseKickoff(time, day),
+      score,
       status: parseStatus(statusLabel, classStr, score),
-      statusLabel, channel, commentator, competition, url,
+      statusLabel,
+      channel,
+      commentator,
+      competition,
+      url,
     });
   }
   return matches;

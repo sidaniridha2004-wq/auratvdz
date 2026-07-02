@@ -22,11 +22,26 @@ export function Footer() {
             Quick links
           </div>
           <ul className="space-y-2 text-sm">
-            <li><Link to="/" hash="matches" className="hover:text-foreground text-muted-foreground">{t("nav.matches")}</Link></li>
-            <li><Link to="/" hash="channels" className="hover:text-foreground text-muted-foreground">{t("nav.channels")}</Link></li>
-            <li><Link to="/" hash="favorites" className="hover:text-foreground text-muted-foreground">{t("nav.favorites")}</Link></li>
-            <li><Link to="/status" className="hover:text-foreground text-muted-foreground">{t("nav.status")}</Link></li>
-            
+            <li>
+              <Link to="/" hash="matches" className="hover:text-foreground text-muted-foreground">
+                {t("nav.matches")}
+              </Link>
+            </li>
+            <li>
+              <Link to="/" hash="channels" className="hover:text-foreground text-muted-foreground">
+                {t("nav.channels")}
+              </Link>
+            </li>
+            <li>
+              <Link to="/" hash="favorites" className="hover:text-foreground text-muted-foreground">
+                {t("nav.favorites")}
+              </Link>
+            </li>
+            <li>
+              <Link to="/status" className="hover:text-foreground text-muted-foreground">
+                {t("nav.status")}
+              </Link>
+            </li>
           </ul>
         </div>
         <div>
@@ -39,7 +54,9 @@ export function Footer() {
                 key={l}
                 onClick={() => setLang(l)}
                 className={`px-3 py-1.5 text-xs font-semibold uppercase transition ${
-                  lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  lang === l
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {l}
@@ -59,7 +76,9 @@ export function Footer() {
             className="mt-3 inline-flex flex-col text-xs"
           >
             <span className="font-semibold text-primary hover:underline">@Aura_TV on Telegram</span>
-            <span className="text-muted-foreground">Join for stream updates, new channels & fix alerts.</span>
+            <span className="text-muted-foreground">
+              Join for stream updates, new channels & fix alerts.
+            </span>
           </a>
         </div>
       </div>

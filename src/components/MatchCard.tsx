@@ -44,7 +44,11 @@ function useLocalKickoff(iso: string | null) {
     if (Number.isNaN(d.getTime())) return setOut(null);
     setOut({
       time: new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d),
-      date: new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" }).format(d),
+      date: new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+      }).format(d),
     });
   }, [iso]);
   return out;
@@ -110,8 +114,12 @@ export function MatchCard({ match }: { match: Match }) {
       <div className="relative flex items-center justify-between gap-3" dir="rtl">
         <div className="flex flex-1 flex-col items-center gap-2 text-center">
           {match.homeLogo ? (
-            <img src={match.homeLogo} alt={match.homeTeam} loading="lazy"
-                 className="h-14 w-14 object-contain drop-shadow-[0_0_10px_rgba(56,189,248,0.25)] transition duration-300 group-hover:scale-110" />
+            <img
+              src={match.homeLogo}
+              alt={match.homeTeam}
+              loading="lazy"
+              className="h-14 w-14 object-contain drop-shadow-[0_0_10px_rgba(56,189,248,0.25)] transition duration-300 group-hover:scale-110"
+            />
           ) : (
             <div className="h-14 w-14 rounded-full bg-muted" />
           )}
@@ -125,14 +133,20 @@ export function MatchCard({ match }: { match: Match }) {
             </div>
           ) : countdown ? (
             <>
-              <div className="font-display text-3xl font-black tabular-nums text-orange-300">{countdown}</div>
-              <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">Starts in</div>
+              <div className="font-display text-3xl font-black tabular-nums text-orange-300">
+                {countdown}
+              </div>
+              <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+                Starts in
+              </div>
             </>
           ) : (
             <div className="font-display text-4xl font-black text-muted-foreground/70">VS</div>
           )}
           {local?.date && match.status !== "live" && !countdown && (
-            <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">{local.date}</div>
+            <div className="mt-1 text-[10px] uppercase tracking-widest text-muted-foreground">
+              {local.date}
+            </div>
           )}
           {match.status === "live" && (
             <div className="mt-1 text-[10px] font-semibold uppercase tracking-widest text-emerald-300">
@@ -143,8 +157,12 @@ export function MatchCard({ match }: { match: Match }) {
 
         <div className="flex flex-1 flex-col items-center gap-2 text-center">
           {match.awayLogo ? (
-            <img src={match.awayLogo} alt={match.awayTeam} loading="lazy"
-                 className="h-14 w-14 object-contain drop-shadow-[0_0_10px_rgba(167,139,250,0.25)] transition duration-300 group-hover:scale-110" />
+            <img
+              src={match.awayLogo}
+              alt={match.awayTeam}
+              loading="lazy"
+              className="h-14 w-14 object-contain drop-shadow-[0_0_10px_rgba(167,139,250,0.25)] transition duration-300 group-hover:scale-110"
+            />
           ) : (
             <div className="h-14 w-14 rounded-full bg-muted" />
           )}
@@ -156,7 +174,11 @@ export function MatchCard({ match }: { match: Match }) {
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2 text-muted-foreground">
             {ch?.kind === "m3u" && ch.logo ? (
-              <ChannelLogo src={ch.logo} name={ch.label} className="h-6 w-6 rounded bg-black/30 p-0.5" />
+              <ChannelLogo
+                src={ch.logo}
+                name={ch.label}
+                className="h-6 w-6 rounded bg-black/30 p-0.5"
+              />
             ) : (
               <Tv className="h-4 w-4 shrink-0 text-primary" />
             )}
@@ -167,7 +189,9 @@ export function MatchCard({ match }: { match: Match }) {
               <PlayCircle className="h-4 w-4" /> Play
             </div>
           ) : (
-            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">No channel</span>
+            <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              No channel
+            </span>
           )}
         </div>
         {match.commentator && (
@@ -183,13 +207,22 @@ export function MatchCard({ match }: { match: Match }) {
   if (!ch) return inner;
   if (ch.kind === "m3u") {
     return (
-      <Link to="/watch/live/$slug" params={{ slug: ch.slug }} className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      <Link
+        to="/watch/live/$slug"
+        params={{ slug: ch.slug }}
+        className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
         {inner}
       </Link>
     );
   }
   return (
-    <Link to="/watch/$channelId" params={{ channelId: String(ch.id) }} search={{ name: ch.label }} className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <Link
+      to="/watch/$channelId"
+      params={{ channelId: String(ch.id) }}
+      search={{ name: ch.label }}
+      className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    >
       {inner}
     </Link>
   );

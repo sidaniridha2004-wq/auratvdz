@@ -12,9 +12,28 @@ export function MobileTabBar() {
 
   const items = [
     { to: "/", hash: "", icon: Home, label: t("nav.home"), active: isHome },
-    { to: "/", hash: "matches", icon: Calendar, label: t("nav.matches"), active: hash === "matches" },
-    { to: "/", hash: "channels", icon: Radio, label: t("nav.channels"), active: hash === "channels" },
-    { to: "/", hash: "favorites", icon: Star, label: t("nav.favorites"), active: hash === "favorites", badge: count },
+    {
+      to: "/",
+      hash: "matches",
+      icon: Calendar,
+      label: t("nav.matches"),
+      active: hash === "matches",
+    },
+    {
+      to: "/",
+      hash: "channels",
+      icon: Radio,
+      label: t("nav.channels"),
+      active: hash === "channels",
+    },
+    {
+      to: "/",
+      hash: "favorites",
+      icon: Star,
+      label: t("nav.favorites"),
+      active: hash === "favorites",
+      badge: count,
+    },
   ] as const;
 
   return (

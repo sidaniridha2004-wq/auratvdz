@@ -21,8 +21,15 @@ export const Route = createFileRoute("/watch/tv/$key")({
         <SiteHeader />
         <div className="mx-auto max-w-3xl px-6 py-24 text-center">
           <p className="text-destructive">{error.message}</p>
-          <button onClick={() => { router.invalidate(); reset(); }}
-                  className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground">Retry</button>
+          <button
+            onClick={() => {
+              router.invalidate();
+              reset();
+            }}
+            className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+          >
+            Retry
+          </button>
         </div>
       </div>
     );
@@ -30,7 +37,9 @@ export const Route = createFileRoute("/watch/tv/$key")({
   notFoundComponent: () => (
     <div className="min-h-screen bg-hero">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">Channel not found.</div>
+      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
+        Channel not found.
+      </div>
     </div>
   ),
 });
@@ -63,7 +72,11 @@ function WatchTv() {
   const preferredHeight = preferredHeightFor(key, display);
 
   const fetchStreams = useServerFn(getAuraChannelStreams);
-  const { data: rawStreams, isLoading, error } = useQuery({
+  const {
+    data: rawStreams,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["aura-streams", key],
     queryFn: () => fetchStreams({ data: { key } }),
     staleTime: 5 * 60_000,
@@ -91,13 +104,18 @@ function WatchTv() {
   }, [rawStreams, isCustom, custom]);
 
   const loading = isCustom ? false : isLoading;
-  const showEmpty = (!loading && !isCustom && (error || sources.length === 0)) || (isCustom && sources.length === 0);
+  const showEmpty =
+    (!loading && !isCustom && (error || sources.length === 0)) ||
+    (isCustom && sources.length === 0);
 
   return (
     <div className="min-h-screen bg-hero">
       <SiteHeader />
       <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground">
+        <Link
+          to="/"
+          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
+        >
           <ArrowLeft className="h-4 w-4" /> Home
         </Link>
 
@@ -121,8 +139,12 @@ function WatchTv() {
               No working streams for this channel.
             </div>
           ) : (
-            <HlsPlayer key={key} sources={sources} preferredHeight={preferredHeight}
-                       mirrors={sources.map((s) => s.url)} />
+            <HlsPlayer
+              key={key}
+              sources={sources}
+              preferredHeight={preferredHeight}
+              mirrors={sources.map((s) => s.url)}
+            />
           )}
         </div>
       </div>

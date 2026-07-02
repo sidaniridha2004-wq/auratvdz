@@ -12,7 +12,8 @@ const EN: Dict = {
   "nav.status": "Status",
   "nav.settings": "Settings",
   "nav.watch_live": "Watch live",
-  "hero.tagline": "Watch beIN Sports, Algeria TV, MBC, France TV — live, free, HD. Built for Algeria.",
+  "hero.tagline":
+    "Watch beIN Sports, Algeria TV, MBC, France TV — live, free, HD. Built for Algeria.",
   "hero.today": "Today's matches",
   "hero.browse": "Browse channels",
   "hero.badge": "LIVE · HD\u00A0",
@@ -69,7 +70,8 @@ const FR: Dict = {
   "nav.status": "État",
   "nav.settings": "Réglages",
   "nav.watch_live": "Regarder en direct",
-  "hero.tagline": "Regardez beIN Sports, Algeria TV, MBC, France TV — en direct, gratuit, HD. Fait pour l'Algérie.",
+  "hero.tagline":
+    "Regardez beIN Sports, Algeria TV, MBC, France TV — en direct, gratuit, HD. Fait pour l'Algérie.",
   "hero.today": "Matchs du jour",
   "hero.browse": "Parcourir les chaînes",
   "hero.badge": "LIVE · HD\u00A0",
@@ -126,7 +128,8 @@ const AR: Dict = {
   "nav.status": "الحالة",
   "nav.settings": "الإعدادات",
   "nav.watch_live": "شاهد مباشرة",
-  "hero.tagline": "شاهد beIN Sports وقنوات الجزائر وMBC وقنوات فرنسا مباشرة، مجاناً وبجودة عالية. مصنوع للجزائر.",
+  "hero.tagline":
+    "شاهد beIN Sports وقنوات الجزائر وMBC وقنوات فرنسا مباشرة، مجاناً وبجودة عالية. مصنوع للجزائر.",
   "hero.today": "مباريات اليوم",
   "hero.browse": "استعرض القنوات",
   "hero.badge": "LIVE · HD\u00A0",
@@ -228,7 +231,12 @@ export function useI18n(): Ctx {
   const c = useContext(I18nCtx);
   if (!c) {
     // Fallback: usable outside provider (SSR shell).
-    return { lang: "en", setLang: () => {}, dir: "ltr", t: (k) => EN[k as string] ?? (k as string) };
+    return {
+      lang: "en",
+      setLang: () => {},
+      dir: "ltr",
+      t: (k) => EN[k as string] ?? (k as string),
+    };
   }
   return c;
 }

@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 
 const KEY = "auratv:favorites";
 
@@ -29,7 +37,9 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
   const toggle = useCallback(
     (slug: string) => {
-      persist(favorites.includes(slug) ? favorites.filter((s) => s !== slug) : [...favorites, slug]);
+      persist(
+        favorites.includes(slug) ? favorites.filter((s) => s !== slug) : [...favorites, slug],
+      );
     },
     [favorites, persist],
   );

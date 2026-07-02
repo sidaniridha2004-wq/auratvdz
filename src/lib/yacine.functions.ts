@@ -127,7 +127,11 @@ export const probeStream = createServerFn({ method: "GET" })
       let current = safe;
       let r: Response | null = null;
       for (let hop = 0; hop < 5; hop++) {
-        r = await fetch(current.toString(), { headers, signal: controller.signal, redirect: "manual" });
+        r = await fetch(current.toString(), {
+          headers,
+          signal: controller.signal,
+          redirect: "manual",
+        });
         if (![301, 302, 303, 307, 308].includes(r.status)) break;
         const loc = r.headers.get("location");
         if (!loc) break;
@@ -141,7 +145,6 @@ export const probeStream = createServerFn({ method: "GET" })
       const text = (await r.text()).slice(0, 200);
       const looksLikeHls = text.includes("#EXTM3U");
       return { ok: looksLikeHls, status: r.status };
-
     } catch {
       return { ok: false, status: 0 };
     } finally {

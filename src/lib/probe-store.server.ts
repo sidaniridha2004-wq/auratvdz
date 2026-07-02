@@ -32,7 +32,12 @@ export async function probeOne(url: string, name = "", slug = ""): Promise<Probe
     safe = assertSafeUrl(url);
   } catch (e) {
     return {
-      slug, name, url, ok: false, status: 0, ms: 0,
+      slug,
+      name,
+      url,
+      ok: false,
+      status: 0,
+      ms: 0,
       reason: e instanceof Error ? e.message : "unsafe url",
       checkedAt: Date.now(),
     };
@@ -54,23 +59,55 @@ export async function probeOne(url: string, name = "", slug = ""): Promise<Probe
       r = null;
     }
     if (!r) {
-      return { slug, name, url, ok: false, status: 0, ms: Date.now() - t0, reason: "too many redirects", checkedAt: Date.now() };
+      return {
+        slug,
+        name,
+        url,
+        ok: false,
+        status: 0,
+        ms: Date.now() - t0,
+        reason: "too many redirects",
+        checkedAt: Date.now(),
+      };
     }
     const ms = Date.now() - t0;
     if (!r.ok) {
-      return { slug, name, url, ok: false, status: r.status, ms, reason: `HTTP ${r.status}`, checkedAt: Date.now() };
+      return {
+        slug,
+        name,
+        url,
+        ok: false,
+        status: r.status,
+        ms,
+        reason: `HTTP ${r.status}`,
+        checkedAt: Date.now(),
+      };
     }
     const text = (await r.text()).slice(0, 512);
     const looksLikeHls = text.includes("#EXTM3U");
     return {
-      slug, name, url, ok: looksLikeHls, status: r.status, ms,
+      slug,
+      name,
+      url,
+      ok: looksLikeHls,
+      status: r.status,
+      ms,
       reason: looksLikeHls ? undefined : "not a valid HLS manifest",
       checkedAt: Date.now(),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     const reason = /abort/i.test(msg) ? `timeout after ${PROBE_TIMEOUT_MS}ms` : msg;
-    return { slug, name, url, ok: false, status: 0, ms: Date.now() - t0, reason, checkedAt: Date.now() };
+    return {
+      slug,
+      name,
+      url,
+      ok: false,
+      status: 0,
+      ms: Date.now() - t0,
+      reason,
+      checkedAt: Date.now(),
+    };
   } finally {
     clearTimeout(timer);
   }

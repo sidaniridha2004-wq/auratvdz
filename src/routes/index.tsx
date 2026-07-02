@@ -37,7 +37,10 @@ function ErrorView({ message, reset }: { message: string; reset: () => void }) {
       <div>
         <p className="text-destructive">{message}</p>
         <button
-          onClick={() => { router.invalidate(); reset(); }}
+          onClick={() => {
+            router.invalidate();
+            reset();
+          }}
           className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
         >
           Retry
@@ -49,7 +52,14 @@ function ErrorView({ message, reset }: { message: string; reset: () => void }) {
 
 type Day = "yesterday" | "today" | "tomorrow";
 
-const BEIN_MAX_SLUGS = ["bein-max-1", "bein-max-2", "bein-max-3", "bein-max-4", "bein-max-5", "bein-max-6"];
+const BEIN_MAX_SLUGS = [
+  "bein-max-1",
+  "bein-max-2",
+  "bein-max-3",
+  "bein-max-4",
+  "bein-max-5",
+  "bein-max-6",
+];
 
 function Home() {
   const { t } = useI18n();
@@ -88,7 +98,9 @@ function Home() {
   const featured = useMemo(() => {
     if (liveMatches.length > 0) return liveMatches[0];
     const upcoming = matches
-      .filter((m) => m.status === "soon" && m.kickoffIso && new Date(m.kickoffIso).getTime() > Date.now())
+      .filter(
+        (m) => m.status === "soon" && m.kickoffIso && new Date(m.kickoffIso).getTime() > Date.now(),
+      )
       .sort((a, b) => new Date(a.kickoffIso!).getTime() - new Date(b.kickoffIso!).getTime());
     return upcoming[0] ?? null;
   }, [matches, liveMatches]);
@@ -159,16 +171,17 @@ function Home() {
       const n = q.toLowerCase();
       const all = Object.values(groups).flat() as M3uChannel[];
       return all.filter(
-        (c) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n) || c.group.toLowerCase().includes(n),
+        (c) =>
+          c.name.toLowerCase().includes(n) ||
+          c.slug.toLowerCase().includes(n) ||
+          c.group.toLowerCase().includes(n),
       );
     }
     return groups[currentGroup] ?? [];
   }, [groups, currentGroup, q, isSearching]);
 
   const favoriteChannels = useMemo(() => {
-    return favorites
-      .map((slug) => resolvedBySlug.get(slug))
-      .filter(Boolean) as M3uChannel[];
+    return favorites.map((slug) => resolvedBySlug.get(slug)).filter(Boolean) as M3uChannel[];
   }, [favorites, resolvedBySlug]);
 
   return (
@@ -187,11 +200,14 @@ function Home() {
             <>
               <div className="flex shrink-0 items-center gap-2 font-bold uppercase tracking-widest text-red-400">
                 <span className="live-dot" />
-                {liveMatches.length > 0 ? `${t("ticker.live")} ${liveMatches.length}` : "No live matches"}
+                {liveMatches.length > 0
+                  ? `${t("ticker.live")} ${liveMatches.length}`
+                  : "No live matches"}
               </div>
               <div className="hidden h-4 w-px shrink-0 bg-white/10 sm:block" />
               <div className="hidden shrink-0 text-muted-foreground sm:block">
-                <span className="font-bold text-foreground">{totalMatches}</span> {t("ticker.today_matches")}
+                <span className="font-bold text-foreground">{totalMatches}</span>{" "}
+                {t("ticker.today_matches")}
               </div>
               <div className="ml-auto flex min-w-0 shrink items-center gap-2 text-muted-foreground">
                 <span className="shrink-0 uppercase tracking-widest">{t("ticker.next")}:</span>
@@ -214,7 +230,6 @@ function Home() {
 
       <NowOnTvStrip />
 
-
       {/* HERO — left-aligned, stadium bg, floating match card right */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 -z-10">
@@ -236,7 +251,9 @@ function Home() {
                 {liveMatches.length > 0 ? (
                   <>
                     <span className="live-dot" />
-                    <span className="eyebrow !text-red-300">On air · {liveMatches.length} live</span>
+                    <span className="eyebrow !text-red-300">
+                      On air · {liveMatches.length} live
+                    </span>
                   </>
                 ) : (
                   <>
@@ -251,8 +268,8 @@ function Home() {
                 <span className="text-signal">on your screen.</span>
               </h1>
               <p className="max-w-lg text-[13px] leading-relaxed text-muted-foreground sm:text-[17px]">
-                Every match, every league, every channel — streamed in HD.
-                No ads. No paywalls. Just tap and watch.
+                Every match, every league, every channel — streamed in HD. No ads. No paywalls. Just
+                tap and watch.
               </p>
               <div className="flex flex-wrap gap-2 sm:gap-3">
                 <Link
@@ -271,7 +288,6 @@ function Home() {
                 </Link>
               </div>
             </div>
-
 
             {matchesLoading ? (
               <div className="relative conic-border rounded-3xl">
@@ -297,7 +313,9 @@ function Home() {
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
               <Calendar className="h-3.5 w-3.5" /> {t("section.fixtures")}
             </div>
-            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">{t("section.schedule")}</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">
+              {t("section.schedule")}
+            </h2>
           </div>
           <div className="flex rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
             {(["yesterday", "today", "tomorrow"] as Day[]).map((d) => (
@@ -305,7 +323,9 @@ function Home() {
                 key={d}
                 onClick={() => setDay(d)}
                 className={`rounded-full px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest transition sm:px-4 ${
-                  day === d ? "bg-primary text-primary-foreground shadow-glow" : "text-muted-foreground hover:text-foreground"
+                  day === d
+                    ? "bg-primary text-primary-foreground shadow-glow"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {t(`day.${d}`)}
@@ -316,7 +336,9 @@ function Home() {
 
         {matchesLoading ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />)}
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-56 animate-pulse rounded-2xl bg-card" />
+            ))}
           </div>
         ) : matches.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
@@ -330,13 +352,17 @@ function Home() {
                   <span className="live-dot" /> Live now · {liveMatches.length}
                 </div>
                 <div className="mb-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {liveMatches.map((m) => <MatchCard key={m.id} match={m} />)}
+                  {liveMatches.map((m) => (
+                    <MatchCard key={m.id} match={m} />
+                  ))}
                 </div>
               </>
             )}
             {otherMatches.length > 0 && (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {otherMatches.map((m) => <MatchCard key={m.id} match={m} />)}
+                {otherMatches.map((m) => (
+                  <MatchCard key={m.id} match={m} />
+                ))}
               </div>
             )}
           </>
@@ -348,7 +374,9 @@ function Home() {
         <div className="mb-6 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
           <Star className="h-3.5 w-3.5 fill-current" /> {t("section.favorites")}
         </div>
-        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">{t("section.favorites")}</h2>
+        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">
+          {t("section.favorites")}
+        </h2>
         {favoriteChannels.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
             {t("favorites.empty")}
@@ -356,8 +384,14 @@ function Home() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {favoriteChannels.map((c) => (
-              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
-                           href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} />
+              <ChannelCard
+                key={c.slug}
+                slug={c.slug}
+                name={c.name}
+                group={c.group}
+                logo={c.logo}
+                href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
+              />
             ))}
           </div>
         )}
@@ -370,18 +404,31 @@ function Home() {
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
               <Sparkles className="h-3.5 w-3.5" /> Featured · Primary server
             </div>
-            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">{t("section.bein_primary")}</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">
+              {t("section.bein_primary")}
+            </h2>
           </div>
           <div className="relative w-full shrink-0 sm:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={beinQ} onChange={(e) => setBeinQ(e.target.value)} placeholder={t("search.channels")}
-                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
+            <input
+              value={beinQ}
+              onChange={(e) => setBeinQ(e.target.value)}
+              placeholder={t("search.channels")}
+              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-4 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]"
+            />
           </div>
         </div>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {beinChannels.map((c) => (
-            <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
-                         href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} featured />
+            <ChannelCard
+              key={c.slug}
+              slug={c.slug}
+              name={c.name}
+              group={c.group}
+              logo={c.logo}
+              href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
+              featured
+            />
           ))}
         </div>
       </section>
@@ -391,14 +438,20 @@ function Home() {
         <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
           <Radio className="h-3.5 w-3.5" /> {t("section.live_tv")}
         </div>
-        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">{t("section.channels")}</h2>
+        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">
+          {t("section.channels")}
+        </h2>
 
         {/* Persistent global search — searches ALL channels regardless of category */}
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <div className="relative w-full flex-1 min-w-[220px]">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t("search.channels") + " — searches all categories"}
-                   className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder={t("search.channels") + " — searches all categories"}
+              className="w-full rounded-full border border-white/10 bg-white/5 py-2.5 pl-9 pr-9 text-sm outline-none placeholder:text-muted-foreground transition focus:border-primary focus:bg-white/[0.08]"
+            />
             {isSearching && (
               <button
                 onClick={() => setQ("")}
@@ -418,13 +471,19 @@ function Home() {
               {groupNames.map((g) => {
                 const active = g === currentGroup;
                 return (
-                  <button key={g} onClick={() => setActiveGroup(g)}
-                          className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
-                            active ? "bg-primary text-primary-foreground shadow-glow"
-                                   : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
-                          }`}>
+                  <button
+                    key={g}
+                    onClick={() => setActiveGroup(g)}
+                    className={`shrink-0 whitespace-nowrap rounded-full px-4 py-2 text-sm font-medium transition ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-glow"
+                        : "border border-white/10 bg-white/[0.04] text-muted-foreground hover:bg-white/[0.08] hover:text-foreground"
+                    }`}
+                  >
                     {g}
-                    <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-primary-foreground/20" : "bg-white/10"}`}>
+                    <span
+                      className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] ${active ? "bg-primary-foreground/20" : "bg-white/10"}`}
+                    >
                       {groups[g].length}
                     </span>
                   </button>
@@ -453,9 +512,15 @@ function Home() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {filteredChannels.map((c) => (
-              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
-                           href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
-                           category={categoryFor(c.group, c.name)} />
+              <ChannelCard
+                key={c.slug}
+                slug={c.slug}
+                name={c.name}
+                group={c.group}
+                logo={c.logo}
+                href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
+                category={categoryFor(c.group, c.name)}
+              />
             ))}
           </div>
         )}
@@ -466,14 +531,19 @@ function Home() {
             <h3 className="mb-4 font-display text-2xl font-bold">My Channels</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {customChannels.map((c) => (
-                <ChannelCard key={c.id} slug={c.id} name={c.name} group="My Channels" logo={c.logo}
-                             href={{ to: "/watch/tv/$key", params: { key: c.id }, search: { name: c.name } }}
-                             category={c.category} />
+                <ChannelCard
+                  key={c.id}
+                  slug={c.id}
+                  name={c.name}
+                  group="My Channels"
+                  logo={c.logo}
+                  href={{ to: "/watch/tv/$key", params: { key: c.id }, search: { name: c.name } }}
+                  category={c.category}
+                />
               ))}
             </div>
           </div>
         )}
-
       </section>
 
       <Footer />

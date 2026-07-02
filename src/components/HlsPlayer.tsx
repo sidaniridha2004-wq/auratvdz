@@ -58,7 +58,8 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
   })();
   const [sourceIdx, setSourceIdx] = useState<number>(initialSourceIdx);
   const baseSrc = sources && sources.length ? sources[sourceIdx]?.url : src;
-  const effectiveSrc = mirrorIdx >= 0 && mirrors && mirrors[mirrorIdx] ? mirrors[mirrorIdx] : baseSrc;
+  const effectiveSrc =
+    mirrorIdx >= 0 && mirrors && mirrors[mirrorIdx] ? mirrors[mirrorIdx] : baseSrc;
 
   const [levels, setLevels] = useState<Level[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1);
@@ -91,7 +92,10 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     let cancelled = false;
     let loadTimer: ReturnType<typeof setTimeout> | undefined;
     const clearLoadTimer = () => {
-      if (loadTimer) { clearTimeout(loadTimer); loadTimer = undefined; }
+      if (loadTimer) {
+        clearTimeout(loadTimer);
+        loadTimer = undefined;
+      }
     };
     const onLoaded = () => {
       if (!cancelled) {
@@ -104,8 +108,12 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       console.warn(`[player] stall waiting at t=${video.currentTime.toFixed(2)}s`);
       if (!cancelled) setBuffering(true);
     };
-    const onPlaying = () => { if (!cancelled) setBuffering(false); };
-    const onCanPlay = () => { if (!cancelled) setBuffering(false); };
+    const onPlaying = () => {
+      if (!cancelled) setBuffering(false);
+    };
+    const onCanPlay = () => {
+      if (!cancelled) setBuffering(false);
+    };
     video.addEventListener("loadeddata", onLoaded);
     video.addEventListener("waiting", onStall);
     video.addEventListener("stalled", onStall);
@@ -180,13 +188,25 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         if (lvl) setActiveHeight(lvl.height ?? null);
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        console.warn(`[player] hls ${data.fatal ? "FATAL" : "warn"} type=${data.type} details=${data.details}`);
+        console.warn(
+          `[player] hls ${data.fatal ? "FATAL" : "warn"} type=${data.type} details=${data.details}`,
+        );
         if (!data.fatal) return;
         const type = data.type;
         if (type === Hls.ErrorTypes.NETWORK_ERROR) {
-          try { hls.startLoad(); return; } catch { scheduleRetry("Network error reaching the stream."); }
+          try {
+            hls.startLoad();
+            return;
+          } catch {
+            scheduleRetry("Network error reaching the stream.");
+          }
         } else if (type === Hls.ErrorTypes.MEDIA_ERROR) {
-          try { hls.recoverMediaError(); return; } catch { scheduleRetry("Playback decoder error."); }
+          try {
+            hls.recoverMediaError();
+            return;
+          } catch {
+            scheduleRetry("Playback decoder error.");
+          }
         } else {
           scheduleRetry("Stream temporarily unavailable — try another server");
         }
@@ -231,12 +251,16 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     setCurrentLevel(idx);
     setMenuOpen(false);
   };
-  const pickSource = (idx: number) => { setSourceIdx(idx); setMenuOpen(false); };
+  const pickSource = (idx: number) => {
+    setSourceIdx(idx);
+    setMenuOpen(false);
+  };
 
   const sourceMode = !!(sources && sources.length);
   const activeSourceLabel = sourceMode ? sources![sourceIdx]?.label : null;
   const autoLabel = activeHeight ? `Auto · ${activeHeight}p` : "Auto";
-  const currentLabel = currentLevel === -1 ? autoLabel : (levels.find((l) => l.index === currentLevel)?.label ?? "—");
+  const currentLabel =
+    currentLevel === -1 ? autoLabel : (levels.find((l) => l.index === currentLevel)?.label ?? "—");
 
   return (
     <div className="space-y-3">
@@ -264,27 +288,41 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
                 </div>
                 {sourceMode ? (
                   sources!.map((s, i) => (
-                    <button key={`${s.label}-${i}`} onClick={() => pickSource(i)}
-                            className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${sourceIdx === i ? "bg-primary/20" : ""}`}>
+                    <button
+                      key={`${s.label}-${i}`}
+                      onClick={() => pickSource(i)}
+                      className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${sourceIdx === i ? "bg-primary/20" : ""}`}
+                    >
                       <span>{s.label}</span>
                       {sourceIdx === i && <Check className="h-3.5 w-3.5 text-primary" />}
                     </button>
                   ))
                 ) : (
                   <>
-                    <button onClick={() => pickLevel(-1)}
-                            className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === -1 ? "bg-primary/20" : ""}`}>
-                      <span className="flex items-center gap-2"><Wifi className="h-3.5 w-3.5" /> Auto</span>
+                    <button
+                      onClick={() => pickLevel(-1)}
+                      className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === -1 ? "bg-primary/20" : ""}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <Wifi className="h-3.5 w-3.5" /> Auto
+                      </span>
                       {currentLevel === -1 && <Check className="h-3.5 w-3.5 text-primary" />}
                     </button>
                     <div className="my-1 h-px bg-white/10" />
-                    {[...levels].sort((a, b) => b.height - a.height).map((l) => (
-                      <button key={l.index} onClick={() => pickLevel(l.index)}
-                              className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === l.index ? "bg-primary/20" : ""}`}>
-                        <span>{l.label}</span>
-                        {currentLevel === l.index && <Check className="h-3.5 w-3.5 text-primary" />}
-                      </button>
-                    ))}
+                    {[...levels]
+                      .sort((a, b) => b.height - a.height)
+                      .map((l) => (
+                        <button
+                          key={l.index}
+                          onClick={() => pickLevel(l.index)}
+                          className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === l.index ? "bg-primary/20" : ""}`}
+                        >
+                          <span>{l.label}</span>
+                          {currentLevel === l.index && (
+                            <Check className="h-3.5 w-3.5 text-primary" />
+                          )}
+                        </button>
+                      ))}
                   </>
                 )}
               </div>
@@ -300,7 +338,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               <div className="text-xs uppercase tracking-[0.22em] text-white/70">
-                {retrying ? `Reconnecting… ${retriesRef.current}/${MAX_AUTO_RETRIES}` : "Loading stream"}
+                {retrying
+                  ? `Reconnecting… ${retriesRef.current}/${MAX_AUTO_RETRIES}`
+                  : "Loading stream"}
               </div>
             </div>
           </div>
@@ -323,7 +363,6 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
           </div>
         )}
 
-
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20 text-destructive">
@@ -336,14 +375,25 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
-              <button onClick={tryMirror} className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90">
+              <button
+                onClick={tryMirror}
+                className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+              >
                 <Zap className="h-4 w-4" /> Try Mirror Server
               </button>
-              <button onClick={manualRetry} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-foreground hover:bg-white/10">
+              <button
+                onClick={manualRetry}
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-foreground hover:bg-white/10"
+              >
                 <RefreshCw className="h-4 w-4" /> Try again
               </button>
               {rawUrl && (
-                <a href={rawUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
+                <a
+                  href={rawUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
+                >
                   <ExternalLink className="h-4 w-4" /> Open in VLC
                 </a>
               )}

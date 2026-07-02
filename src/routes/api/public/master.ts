@@ -51,8 +51,7 @@ function resolveQuality(name: string): { height: number; bandwidth: number; labe
     360: 800_000,
     240: 400_000,
   };
-  const bandwidth =
-    map[height] ?? Math.max(300_000, Math.round((height / 1080) * 5_000_000));
+  const bandwidth = map[height] ?? Math.max(300_000, Math.round((height / 1080) * 5_000_000));
   const width = Math.round((height * 16) / 9);
   return { height, bandwidth, label: `${height}p (${width}x${height})` };
 }

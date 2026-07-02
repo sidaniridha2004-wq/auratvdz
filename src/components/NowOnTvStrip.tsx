@@ -25,10 +25,8 @@ export function useNowOnTv() {
   useEffect(() => {
     const ch = supabase
       .channel("now-on-tv-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "now_on_tv" },
-        () => qc.invalidateQueries({ queryKey: NOW_ON_TV_QUERY_KEY }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "now_on_tv" }, () =>
+        qc.invalidateQueries({ queryKey: NOW_ON_TV_QUERY_KEY }),
       )
       .subscribe();
     return () => {
@@ -96,9 +94,13 @@ export function NowOnTvStrip() {
                     className="shrink-0"
                   />
                   <div className="min-w-0 leading-tight">
-                    <div className="truncate text-[13px] font-semibold text-foreground">{item.title}</div>
+                    <div className="truncate text-[13px] font-semibold text-foreground">
+                      {item.title}
+                    </div>
                     {item.subtitle && (
-                      <div className="truncate text-[11px] text-muted-foreground">{item.subtitle}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {item.subtitle}
+                      </div>
                     )}
                   </div>
                   <PlayCircle className="h-4 w-4 shrink-0 text-primary opacity-70 transition group-hover:opacity-100" />

@@ -71,7 +71,9 @@ export function SiteHeader() {
                 key={l}
                 onClick={() => setLang(l)}
                 className={`px-2 py-1.5 transition ${
-                  lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  lang === l
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {l}

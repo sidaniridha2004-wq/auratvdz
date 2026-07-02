@@ -72,10 +72,7 @@ export const adminUpdateNowOnTv = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     requirePassword(data.password);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin
-      .from("now_on_tv")
-      .update(data.patch)
-      .eq("id", data.id);
+    const { error } = await supabaseAdmin.from("now_on_tv").update(data.patch).eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

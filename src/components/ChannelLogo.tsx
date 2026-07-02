@@ -19,7 +19,9 @@ export function ChannelLogo({ src, name, group, className = "", size = 48 }: Pro
   const [broken, setBroken] = useState(!src);
   // Reset the broken flag when the source URL changes so a fresh URL
   // (e.g. after an admin logo edit) gets a chance to load.
-  useEffect(() => { setBroken(!src); }, [src]);
+  useEffect(() => {
+    setBroken(!src);
+  }, [src]);
   const color = categoryColorForGroup(group ?? "");
   const style = { width: size, height: size };
 

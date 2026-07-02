@@ -38,10 +38,8 @@ export function useChannels() {
   useEffect(() => {
     const ch = supabase
       .channel("channels-live")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "channels" },
-        () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY }),
+      .on("postgres_changes", { event: "*", schema: "public", table: "channels" }, () =>
+        qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY }),
       )
       .subscribe();
     return () => {
@@ -57,10 +55,7 @@ export function useChannels() {
   }, [qc]);
 
   const rows = query.data ?? [];
-  const active = useMemo(
-    () => rows.filter((r) => r.is_active).map(rowToChannel),
-    [rows],
-  );
+  const active = useMemo(() => rows.filter((r) => r.is_active).map(rowToChannel), [rows]);
   const bySlug = useMemo(() => {
     const m = new Map<string, M3uChannel>();
     for (const c of active) m.set(c.slug, c);

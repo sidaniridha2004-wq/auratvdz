@@ -62,7 +62,9 @@ function StatusPage() {
             <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
               Uptime
             </div>
-            <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">{t("status.title")}</h1>
+            <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">
+              {t("status.title")}
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">{t("status.subtitle")}</p>
           </div>
           <button
@@ -70,7 +72,8 @@ function StatusPage() {
             disabled={isFetching}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
           >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} /> {t("status.refresh")}
+            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />{" "}
+            {t("status.refresh")}
           </button>
         </div>
 
@@ -87,12 +90,15 @@ function StatusPage() {
           if (checked === 0) return null;
           const allOk = down === 0;
           return (
-            <div className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${allOk ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-orange-500/30 bg-orange-500/10 text-orange-300"}`}>
-              {allOk ? "🟢 All systems operational" : `🟡 Some streams may be unavailable — ${down} channel${down === 1 ? "" : "s"} down`}
+            <div
+              className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${allOk ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-orange-500/30 bg-orange-500/10 text-orange-300"}`}
+            >
+              {allOk
+                ? "🟢 All systems operational"
+                : `🟡 Some streams may be unavailable — ${down} channel${down === 1 ? "" : "s"} down`}
             </div>
           );
         })()}
-
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
@@ -133,9 +139,17 @@ function StatusPage() {
             </thead>
             <tbody>
               {isLoading ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                    Loading…
+                  </td>
+                </tr>
               ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No channels match.</td></tr>
+                <tr>
+                  <td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">
+                    No channels match.
+                  </td>
+                </tr>
               ) : (
                 rows.map((r) => (
                   <tr key={r.slug} className="border-t border-white/5">
@@ -181,7 +195,8 @@ function StatusPage() {
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: "ok" | "bad" }) {
-  const c = tone === "ok" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : "text-foreground";
+  const c =
+    tone === "ok" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : "text-foreground";
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <div className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</div>
