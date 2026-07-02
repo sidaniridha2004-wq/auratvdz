@@ -10,6 +10,7 @@ import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
 import { MatchCard } from "@/components/MatchCard";
 import { ChannelCard } from "@/components/ChannelCard";
+import { NowOnTvStrip } from "@/components/NowOnTvStrip";
 import { Footer } from "@/components/Footer";
 import { useFavorites } from "@/lib/favorites";
 import { useCustomChannels } from "@/lib/custom-channels";
