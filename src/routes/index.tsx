@@ -144,11 +144,20 @@ function Home() {
   }, [beinQ, resolvedBySlug]);
 
   const filteredChannels = useMemo(() => {
-    const src = groups[currentGroup] ?? [];
-    if (!q.trim()) return src;
-    const n = q.toLowerCase();
-    return src.filter((c: M3uChannel) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n));
-  }, [groups, currentGroup, q]);
+  // When the user types a query, we search across EVERY channel (excluding
+  // the beIN MAX row which has its own section) — not just the active
+  // category chip. When the query is empty, we show the active category only.
+  const isSearching = q.trim().length > 0;
+  const filteredChannels = useMemo(() => {
+    if (isSearching) {
+      const n = q.toLowerCase();
+      const all = Object.values(groups).flat() as M3uChannel[];
+      return all.filter(
+        (c) => c.name.toLowerCase().includes(n) || c.slug.toLowerCase().includes(n) || c.group.toLowerCase().includes(n),
+      );
+    }
+    return groups[currentGroup] ?? [];
+  }, [groups, currentGroup, q, isSearching]);
 
   const favoriteChannels = useMemo(() => {
     return favorites
