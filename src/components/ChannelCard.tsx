@@ -53,7 +53,7 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
           aria-hidden
           className="absolute inset-0 opacity-80 transition duration-500 group-hover:opacity-100"
           style={{
-            background: `radial-gradient(ellipse 80% 70% at 50% 40%, ${meta.dot ?? "rgba(255,255,255,0.06)"} 0%, transparent 65%)`,
+            background: `radial-gradient(ellipse 80% 70% at 50% 40%, ${meta.color} 0%, transparent 65%)`,
           }}
         />
         {/* Subtle scanline / vignette */}
