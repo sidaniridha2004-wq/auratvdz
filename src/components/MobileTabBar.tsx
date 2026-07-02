@@ -18,21 +18,24 @@ export function MobileTabBar() {
   ] as const;
 
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-background/80 backdrop-blur-xl sm:hidden">
+    <nav
+      className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl sm:hidden"
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="grid grid-cols-4">
         {items.map((it) => (
           <Link
             key={it.label}
             to={it.to}
             hash={it.hash || undefined}
-            className={`relative flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium ${
+            className={`relative flex flex-col items-center gap-1 py-3 text-[11px] font-medium ${
               it.active ? "text-primary" : "text-muted-foreground"
             }`}
           >
-            <it.icon className="h-5 w-5" />
+            <it.icon className="h-6 w-6" />
             <span>{it.label}</span>
             {"badge" in it && it.badge ? (
-              <span className="absolute right-4 top-1 rounded-full bg-primary px-1.5 text-[9px] font-bold text-primary-foreground">
+              <span className="absolute right-3 top-2 rounded-full bg-primary px-1.5 text-[9px] font-bold text-primary-foreground">
                 {it.badge}
               </span>
             ) : null}
