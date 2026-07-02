@@ -39,6 +39,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
   const [retryNonce, setRetryNonce] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [mirrorIdx, setMirrorIdx] = useState(-1); // -1 = original
+  // Mid-play buffering (network stall) — surfaces a subtle overlay so the
+  // viewer sees "we're reconnecting" instead of a frozen frame.
+  const [buffering, setBuffering] = useState(false);
 
   const initialSourceIdx = (() => {
     if (!sources || sources.length === 0) return 0;
