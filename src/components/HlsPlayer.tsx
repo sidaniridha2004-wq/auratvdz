@@ -200,6 +200,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         clearTimeout(loadTimer);
         video.removeEventListener("loadeddata", onLoaded);
         video.removeEventListener("waiting", onStall);
+        video.removeEventListener("stalled", onStall);
+        video.removeEventListener("playing", onPlaying);
+        video.removeEventListener("canplay", onCanPlay);
         video.removeEventListener("error", onErr);
       };
     } else {
@@ -212,6 +215,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       clearTimeout(loadTimer);
       video.removeEventListener("loadeddata", onLoaded);
       video.removeEventListener("waiting", onStall);
+      video.removeEventListener("stalled", onStall);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("canplay", onCanPlay);
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
