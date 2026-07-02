@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
-import { M3U_CHANNELS, findChannelBySlug } from "@/lib/m3u-channels";
+import { findChannelBySlug } from "@/lib/m3u-channels";
 import { useChannels } from "@/lib/channels-client";
 import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
