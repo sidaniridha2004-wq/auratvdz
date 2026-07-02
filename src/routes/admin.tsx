@@ -123,9 +123,9 @@ function AdminPage() {
   const invalidate = () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
   const getAdminPassword = () => {
     try {
-      return adminPw || sessionStorage.getItem(PW_KEY) || ADMIN_WRITE_PASSWORD;
+      return adminPw || sessionStorage.getItem(PW_KEY) || "";
     } catch {
-      return adminPw || ADMIN_WRITE_PASSWORD;
+      return adminPw;
     }
   };
 
