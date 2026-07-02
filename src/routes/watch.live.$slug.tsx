@@ -4,7 +4,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { HlsPlayer } from "@/components/HlsPlayer";
 import { ChannelLogo } from "@/components/ChannelLogo";
 import { findChannelBySlug } from "@/lib/m3u-channels";
-import { useChannelsBySlug } from "@/lib/channels-client";
+import { useChannels } from "@/lib/channels-client";
 
 export const Route = createFileRoute("/watch/live/$slug")({
   component: WatchLive,
@@ -32,7 +32,7 @@ export const Route = createFileRoute("/watch/live/$slug")({
     <div className="min-h-screen bg-hero">
       <SiteHeader />
       <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
-        Channel not found.
+        Channel not found or currently unavailable.
       </div>
     </div>
   ),
@@ -40,13 +40,27 @@ export const Route = createFileRoute("/watch/live/$slug")({
 
 function WatchLive() {
   const { slug } = Route.useParams();
-  const bySlug = useChannelsBySlug();
+  const { bySlug, isLoading } = useChannels();
   const staticCh = findChannelBySlug(slug);
   const dbCh = bySlug.get(slug);
-  const ch = dbCh ?? staticCh;
-  if (!ch) throw notFound();
-  // Prefer the DB logo (kept fresh via admin edits); fall back to static.
-  const logo = dbCh?.logo || staticCh?.logo;
+
+  // Wait for the channel list before deciding — otherwise a hidden channel
+  // could briefly play from the static fallback while the query loads.
+  if (isLoading && !dbCh) {
+    return (
+      <div className="min-h-screen bg-hero">
+        <SiteHeader />
+        <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
+          Loading channel…
+        </div>
+      </div>
+    );
+  }
+  // If the admin has hidden or removed this channel, refuse to play — never
+  // fall back to the static m3u list here.
+  if (!dbCh) throw notFound();
+  const ch = dbCh;
+  const logo = dbCh.logo || staticCh?.logo;
 
   const isBeinMax = /bein\s*sports?\s*max/i.test(ch.name);
   const preferredHeight = isBeinMax ? 720 : undefined;
