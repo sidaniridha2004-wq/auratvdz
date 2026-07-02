@@ -205,6 +205,8 @@ function Home() {
         </div>
       </div>
 
+      <NowOnTvStrip />
+
 
       {/* HERO — left-aligned, stadium bg, floating match card right */}
       <section className="relative overflow-hidden">
