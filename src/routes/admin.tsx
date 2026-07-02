@@ -13,6 +13,12 @@ import {
   adminInsertChannel,
   adminDeleteChannel,
 } from "@/lib/channels.functions";
+import {
+  adminInsertNowOnTv,
+  adminUpdateNowOnTv,
+  adminDeleteNowOnTv,
+} from "@/lib/now-on-tv.functions";
+import { useNowOnTv, NOW_ON_TV_QUERY_KEY } from "@/components/NowOnTvStrip";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/admin")({
