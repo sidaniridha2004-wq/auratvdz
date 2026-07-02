@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
 import { Search, Radio, Calendar, Flame, Star, Sparkles } from "lucide-react";
 import { getMatches } from "@/lib/matches.functions";
-import { M3U_CHANNELS, findChannelBySlug } from "@/lib/m3u-channels";
+import { findChannelBySlug } from "@/lib/m3u-channels";
 import { useChannels } from "@/lib/channels-client";
 import { categoryFor } from "@/lib/channel-category";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -115,14 +115,12 @@ function Home() {
   // admin edits show up here immediately without a page reload. If the
   // fetch hasn't landed yet we fall back to the static M3U catalogue so
   // the homepage never renders empty on first paint.
-  const { channels: dbChannels, bySlug: dbBySlug } = useChannels();
-  const resolved: M3uChannel[] = dbChannels.length > 0 ? dbChannels : M3U_CHANNELS;
-  const resolvedBySlug = useMemo(() => {
-    if (dbChannels.length > 0) return dbBySlug;
-    const m = new Map<string, M3uChannel>();
-    for (const c of M3U_CHANNELS) m.set(c.slug, c);
-    return m;
-  }, [dbChannels.length, dbBySlug]);
+  // Supabase is the single source of truth — no static fallback, so logo
+  // edits from /admin are always what the homepage renders. While the first
+  // fetch is in flight the sections below render skeletons instead.
+  const { channels: dbChannels, bySlug: dbBySlug, isLoading: channelsLoading } = useChannels();
+  const resolved: M3uChannel[] = dbChannels;
+  const resolvedBySlug = dbBySlug;
 
   // Channel groups (excluding beIN MAX — has its own dedicated section)
   const groups = useMemo(() => {
@@ -435,5 +433,3 @@ function Home() {
     </div>
   );
 }
-
-export { M3U_CHANNELS };
