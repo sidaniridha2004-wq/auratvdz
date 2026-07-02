@@ -6,6 +6,7 @@ import { adminVerifyPassword } from "@/lib/channels.functions";
 // itself is validated server-side against process.env.ADMIN_PASSWORD — we
 // never hardcode it in client-bundled source.
 const KEY = "auratv:admin";
+const PW_KEY = "auratv:admin:pw";
 
 interface Ctx {
   isAdmin: boolean;
@@ -17,14 +18,26 @@ const AdminCtx = createContext<Ctx | null>(null);
 export function AdminProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    try { if (sessionStorage.getItem(KEY) === "1") setIsAdmin(true); } catch {}
+    try {
+      // Only trust the admin flag if the password is still cached — otherwise
+      // subsequent write calls would fail with Unauthorized.
+      if (sessionStorage.getItem(KEY) === "1" && sessionStorage.getItem(PW_KEY)) {
+        setIsAdmin(true);
+      } else {
+        sessionStorage.removeItem(KEY);
+        sessionStorage.removeItem(PW_KEY);
+      }
+    } catch {}
   }, []);
   const login = useCallback(async (pw: string) => {
     try {
       const res = await adminVerifyPassword({ data: { password: pw } });
       if (res.ok) {
         setIsAdmin(true);
-        try { sessionStorage.setItem(KEY, "1"); } catch {}
+        try {
+          sessionStorage.setItem(KEY, "1");
+          sessionStorage.setItem(PW_KEY, pw);
+        } catch {}
         return true;
       }
     } catch {}
@@ -32,7 +45,10 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   }, []);
   const logout = useCallback(() => {
     setIsAdmin(false);
-    try { sessionStorage.removeItem(KEY); } catch {}
+    try {
+      sessionStorage.removeItem(KEY);
+      sessionStorage.removeItem(PW_KEY);
+    } catch {}
   }, []);
   const value = useMemo(() => ({ isAdmin, login, logout }), [isAdmin, login, logout]);
   return <AdminCtx.Provider value={value}>{children}</AdminCtx.Provider>;
