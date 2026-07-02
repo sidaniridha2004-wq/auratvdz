@@ -1,13 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { adminVerifyPassword } from "@/lib/channels.functions";
 
 // Session-scoped admin flag. Uses sessionStorage so it survives navigation
-// within the same tab but resets on close/refresh-to-new-tab.
+// within the same tab but resets on close/refresh-to-new-tab. The password
+// itself is validated server-side against process.env.ADMIN_PASSWORD — we
+// never hardcode it in client-bundled source.
 const KEY = "auratv:admin";
-const PASSWORD = "AuraTV@2026!";
 
 interface Ctx {
   isAdmin: boolean;
-  login: (pw: string) => boolean;
+  login: (pw: string) => Promise<boolean>;
   logout: () => void;
 }
 const AdminCtx = createContext<Ctx | null>(null);
@@ -17,12 +19,15 @@ export function AdminProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try { if (sessionStorage.getItem(KEY) === "1") setIsAdmin(true); } catch {}
   }, []);
-  const login = useCallback((pw: string) => {
-    if (pw === PASSWORD) {
-      setIsAdmin(true);
-      try { sessionStorage.setItem(KEY, "1"); } catch {}
-      return true;
-    }
+  const login = useCallback(async (pw: string) => {
+    try {
+      const res = await adminVerifyPassword({ data: { password: pw } });
+      if (res.ok) {
+        setIsAdmin(true);
+        try { sessionStorage.setItem(KEY, "1"); } catch {}
+        return true;
+      }
+    } catch {}
     return false;
   }, []);
   const logout = useCallback(() => {
@@ -35,6 +40,6 @@ export function AdminProvider({ children }: { children: ReactNode }) {
 
 export function useAdmin(): Ctx {
   const c = useContext(AdminCtx);
-  if (!c) return { isAdmin: false, login: () => false, logout: () => {} };
+  if (!c) return { isAdmin: false, login: async () => false, logout: () => {} };
   return c;
 }
