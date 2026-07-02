@@ -48,10 +48,10 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
 
       {/* LOGO PLATE — full-width, generous, cinematic */}
       <div className="relative aspect-[16/10] w-full overflow-hidden bg-black">
-        {/* Category-tinted radial wash */}
+        {/* Category-tinted radial wash — kept subtle so logos stay legible */}
         <div
           aria-hidden
-          className="absolute inset-0 opacity-80 transition duration-500 group-hover:opacity-100"
+          className="absolute inset-0 opacity-20 transition duration-500 group-hover:opacity-35"
           style={{
             background: `radial-gradient(ellipse 80% 70% at 50% 40%, ${meta.color} 0%, transparent 65%)`,
           }}
