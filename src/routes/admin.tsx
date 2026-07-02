@@ -385,6 +385,7 @@ function AdminPage() {
           </div>
         </div>
       </div>
+      <NowOnTvEditor getPassword={getAdminPassword} channelRows={rows} />
       <Footer />
 
       {editing && (
