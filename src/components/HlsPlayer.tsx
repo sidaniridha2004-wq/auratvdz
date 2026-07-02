@@ -146,6 +146,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, (_e, data) => {
+        clearLoadTimer();
         const ls: Level[] = (data.levels || []).map((l, i) => ({
           index: i,
           height: l.height ?? 0,
