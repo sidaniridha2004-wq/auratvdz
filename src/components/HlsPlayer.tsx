@@ -39,6 +39,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
   const [retryNonce, setRetryNonce] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const [mirrorIdx, setMirrorIdx] = useState(-1); // -1 = original
+  // Mid-play buffering (network stall) — surfaces a subtle overlay so the
+  // viewer sees "we're reconnecting" instead of a frozen frame.
+  const [buffering, setBuffering] = useState(false);
 
   const initialSourceIdx = (() => {
     if (!sources || sources.length === 0) return 0;
@@ -99,9 +102,15 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     };
     const onStall = () => {
       console.warn(`[player] stall waiting at t=${video.currentTime.toFixed(2)}s`);
+      if (!cancelled) setBuffering(true);
     };
+    const onPlaying = () => { if (!cancelled) setBuffering(false); };
+    const onCanPlay = () => { if (!cancelled) setBuffering(false); };
     video.addEventListener("loadeddata", onLoaded);
     video.addEventListener("waiting", onStall);
+    video.addEventListener("stalled", onStall);
+    video.addEventListener("playing", onPlaying);
+    video.addEventListener("canplay", onCanPlay);
 
     // Hard timeout on initial load — only errors if we still have no data.
     loadTimer = setTimeout(() => {
@@ -191,6 +200,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         clearTimeout(loadTimer);
         video.removeEventListener("loadeddata", onLoaded);
         video.removeEventListener("waiting", onStall);
+        video.removeEventListener("stalled", onStall);
+        video.removeEventListener("playing", onPlaying);
+        video.removeEventListener("canplay", onCanPlay);
         video.removeEventListener("error", onErr);
       };
     } else {
@@ -203,6 +215,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       clearTimeout(loadTimer);
       video.removeEventListener("loadeddata", onLoaded);
       video.removeEventListener("waiting", onStall);
+      video.removeEventListener("stalled", onStall);
+      video.removeEventListener("playing", onPlaying);
+      video.removeEventListener("canplay", onCanPlay);
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
@@ -282,16 +297,32 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
           <div className="absolute inset-0 overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-white/5" />
             <div className="absolute inset-y-0 -left-full w-1/2 animate-[shimmer_1.6s_infinite] bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
               <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-              {retrying && (
-                <div className="text-xs uppercase tracking-widest text-muted-foreground">
-                  Reconnecting… {retriesRef.current}/{MAX_AUTO_RETRIES}
-                </div>
-              )}
+              <div className="text-xs uppercase tracking-[0.22em] text-white/70">
+                {retrying ? `Reconnecting… ${retriesRef.current}/${MAX_AUTO_RETRIES}` : "Loading stream"}
+              </div>
             </div>
           </div>
         )}
+
+        {/* Mid-play buffering overlay — non-blocking, sits over the last frame */}
+        {!loading && !error && buffering && (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[2px]">
+            <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white shadow-glow">
+              <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Buffering…
+            </div>
+          </div>
+        )}
+
+        {/* LIVE badge — top-left, only when actually playing */}
+        {!loading && !error && (
+          <div className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur">
+            <span className="live-dot" /> Live
+          </div>
+        )}
+
 
         {error && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center">

@@ -56,6 +56,39 @@ export type Database = {
         }
         Relationships: []
       }
+      now_on_tv: {
+        Row: {
+          channel_slug: string
+          created_at: string
+          id: string
+          is_active: boolean
+          sort_order: number
+          subtitle: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          channel_slug: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          subtitle?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          channel_slug?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sort_order?: number
+          subtitle?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
