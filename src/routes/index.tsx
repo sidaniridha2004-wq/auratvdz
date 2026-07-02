@@ -291,13 +291,13 @@ function Home() {
       </section>
 
       {/* MATCHES */}
-      <section id="matches" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+      <section id="matches" className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-20">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
               <Calendar className="h-3.5 w-3.5" /> {t("section.fixtures")}
             </div>
-            <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{t("section.schedule")}</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">{t("section.schedule")}</h2>
           </div>
           <div className="flex rounded-full border border-white/10 bg-white/5 p-1 backdrop-blur">
             {(["yesterday", "today", "tomorrow"] as Day[]).map((d) => (
@@ -344,11 +344,11 @@ function Home() {
       </section>
 
       {/* FAVORITES */}
-      <section id="favorites" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+      <section id="favorites" className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-20">
         <div className="mb-6 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
           <Star className="h-3.5 w-3.5 fill-current" /> {t("section.favorites")}
         </div>
-        <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">{t("section.favorites")}</h2>
+        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">{t("section.favorites")}</h2>
         {favoriteChannels.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-12 text-center text-muted-foreground">
             {t("favorites.empty")}
@@ -364,13 +364,13 @@ function Home() {
       </section>
 
       {/* beIN SPORTS MAX — Primary (merged) */}
-      <section className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+      <section className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-20">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-yellow-300">
               <Sparkles className="h-3.5 w-3.5" /> Featured · Primary server
             </div>
-            <h2 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{t("section.bein_primary")}</h2>
+            <h2 className="mt-2 font-display text-2xl font-bold sm:text-4xl">{t("section.bein_primary")}</h2>
           </div>
           <div className="relative w-full shrink-0 sm:w-72">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -387,11 +387,11 @@ function Home() {
       </section>
 
       {/* CHANNELS */}
-      <section id="channels" className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6">
+      <section id="channels" className="relative mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-20">
         <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
           <Radio className="h-3.5 w-3.5" /> {t("section.live_tv")}
         </div>
-        <h2 className="mb-6 font-display text-3xl font-bold sm:text-4xl">{t("section.channels")}</h2>
+        <h2 className="mb-6 font-display text-2xl font-bold sm:text-4xl">{t("section.channels")}</h2>
 
         {/* Persistent global search — searches ALL channels regardless of category */}
         <div className="mb-5 flex flex-wrap items-center gap-3">
