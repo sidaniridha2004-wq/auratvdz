@@ -433,5 +433,3 @@ function Home() {
     </div>
   );
 }
-
-export { M3U_CHANNELS };
