@@ -23,6 +23,8 @@ const cache = new Map<string, ProbeResult>();
 let sweeping = false;
 let lastSweep = 0;
 
+const MAX_REDIRECTS = 5;
+
 export async function probeOne(url: string, name = "", slug = ""): Promise<ProbeResult> {
   const t0 = Date.now();
   let safe: URL;
@@ -38,7 +40,22 @@ export async function probeOne(url: string, name = "", slug = ""): Promise<Probe
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
   try {
-    const r = await fetch(safe.toString(), { signal: ctrl.signal, redirect: "follow" });
+    // Walk redirects manually and re-validate every hop with assertSafeUrl —
+    // otherwise a public URL could 30x to a private/metadata IP and bypass
+    // the initial SSRF check.
+    let current = safe;
+    let r: Response | null = null;
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      r = await fetch(current.toString(), { signal: ctrl.signal, redirect: "manual" });
+      if (![301, 302, 303, 307, 308].includes(r.status)) break;
+      const loc = r.headers.get("location");
+      if (!loc) break;
+      current = assertSafeUrl(new URL(loc, current).toString());
+      r = null;
+    }
+    if (!r) {
+      return { slug, name, url, ok: false, status: 0, ms: Date.now() - t0, reason: "too many redirects", checkedAt: Date.now() };
+    }
     const ms = Date.now() - t0;
     if (!r.ok) {
       return { slug, name, url, ok: false, status: r.status, ms, reason: `HTTP ${r.status}`, checkedAt: Date.now() };
