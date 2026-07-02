@@ -185,9 +185,9 @@ function AdminPage() {
     return (
       <div className="min-h-screen bg-hero flex items-center justify-center px-4">
         <form
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault();
-            if (login(pw)) {
+            if (await login(pw)) {
               try { sessionStorage.setItem(PW_KEY, pw); } catch {}
               setAdminPw(pw);
               setErr(false);
