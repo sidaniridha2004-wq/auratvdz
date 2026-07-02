@@ -51,9 +51,9 @@ export function AdminHotkey() {
           </div>
         ) : (
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              if (login(pw)) { setOpen(false); setPw(""); setErr(false); navigate({ to: "/admin" }); }
+              if (await login(pw)) { setOpen(false); setPw(""); setErr(false); navigate({ to: "/admin" }); }
               else setErr(true);
             }}
             className="mt-4 space-y-3"
