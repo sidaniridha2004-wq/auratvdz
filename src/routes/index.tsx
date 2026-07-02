@@ -19,8 +19,14 @@ import { useI18n } from "@/lib/i18n";
 import stadiumBg from "@/assets/stadium-night.jpg";
 import type { M3uChannel } from "@/lib/m3u-channels";
 
+const homeSearchSchema = z.object({
+  group: z.string().optional(),
+  q: z.string().optional(),
+});
+
 export const Route = createFileRoute("/")({
   component: Home,
+  validateSearch: homeSearchSchema,
   errorComponent: ({ error, reset }) => <ErrorView message={error.message} reset={reset} />,
 });
 
