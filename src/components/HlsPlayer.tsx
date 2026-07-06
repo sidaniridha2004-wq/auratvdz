@@ -68,8 +68,10 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     return ranked[0]?.i ?? 0;
   })();
   const [sourceIdx, setSourceIdx] = useState<number>(initialSourceIdx);
+  const [useRaw, setUseRaw] = useState(false);
   const baseSrc = sources && sources.length ? sources[sourceIdx]?.url : src;
-  const effectiveSrc = mirrorIdx >= 0 && mirrors && mirrors[mirrorIdx] ? mirrors[mirrorIdx] : baseSrc;
+  const proxiedSrc = mirrorIdx >= 0 && mirrors && mirrors[mirrorIdx] ? mirrors[mirrorIdx] : baseSrc;
+  const effectiveSrc = (useRaw && rawUrl) ? rawUrl : proxiedSrc;
 
   const [levels, setLevels] = useState<Level[]>([]);
   const [currentLevel, setCurrentLevel] = useState<number>(-1);
@@ -245,6 +247,11 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
 
     const scheduleRetry = (reason: string) => {
       if (cancelled) return;
+      if (!useRaw && rawUrl) {
+        setUseRaw(true);
+        setRetryNonce((n) => n + 1);
+        return;
+      }
       if (retriesRef.current < MAX_AUTO_RETRIES) {
         retriesRef.current += 1;
         setRetrying(true);

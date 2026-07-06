@@ -9,7 +9,7 @@ import { assertSafeUrl } from "@/lib/ssrf-guard";
 // upstream 30x to a private/metadata IP that the original URL would have
 // failed the SSRF check on.
 const MAX_REDIRECTS = 5;
-const UPSTREAM_TIMEOUT_MS = 15_000;
+const UPSTREAM_TIMEOUT_MS = 5_000;
 
 function rid() {
   return Math.random().toString(36).slice(2, 8);
