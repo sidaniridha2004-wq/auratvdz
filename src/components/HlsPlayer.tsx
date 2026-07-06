@@ -271,6 +271,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         enableWorker: true,
         capLevelToPlayerSize: true,
         maxBufferLength: 30,
+        progressive: true,
         abrEwmaDefaultEstimate: 400000, // Assume 400kbps connection initially to force fastest/lowest quality stream to load first
       });
       hlsRef.current = hls;
