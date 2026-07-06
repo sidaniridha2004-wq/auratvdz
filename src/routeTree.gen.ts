@@ -10,8 +10,8 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as StatusRouteImport } from './routes/status'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
 import { Route as SettingsChannelsRouteImport } from './routes/settings.channels'
@@ -86,8 +86,8 @@ const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/status': typeof StatusRoute
   '/download': typeof DownloadRoute
+  '/status': typeof StatusRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
@@ -100,8 +100,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/status': typeof StatusRoute
   '/download': typeof DownloadRoute
+  '/status': typeof StatusRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
@@ -115,8 +115,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
-  '/status': typeof StatusRoute
   '/download': typeof DownloadRoute
+  '/status': typeof StatusRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
@@ -131,8 +131,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
-    | '/status'
     | '/download'
+    | '/status'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
@@ -145,8 +145,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
-    | '/status'
     | '/download'
+    | '/status'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
@@ -159,8 +159,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/admin'
-    | '/status'
     | '/download'
+    | '/status'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
@@ -174,8 +174,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
-  StatusRoute: typeof StatusRoute
   DownloadRoute: typeof DownloadRoute
+  StatusRoute: typeof StatusRoute
   SettingsChannelsRoute: typeof SettingsChannelsRoute
   WatchChannelIdRoute: typeof WatchChannelIdRoute
   ApiPublicAuratvMasterRoute: typeof ApiPublicAuratvMasterRoute
@@ -195,18 +195,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin': {
-      id: '/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof AdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/download': {
       id: '/download'
       path: '/download'
       fullPath: '/download'
       preLoaderRoute: typeof DownloadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -278,8 +278,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
-  StatusRoute: StatusRoute,
   DownloadRoute: DownloadRoute,
+  StatusRoute: StatusRoute,
   SettingsChannelsRoute: SettingsChannelsRoute,
   WatchChannelIdRoute: WatchChannelIdRoute,
   ApiPublicAuratvMasterRoute: ApiPublicAuratvMasterRoute,
@@ -292,13 +292,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

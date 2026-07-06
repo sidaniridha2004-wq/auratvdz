@@ -59,7 +59,7 @@ const faqs = [
   },
   {
     q: "Why do I need to allow unknown sources?",
-    a: 'Because the app is not distributed through the Google Play Store, Android requires you to manually allow installation from outside the store. This is safe — the APK is hosted directly on our official GitHub page.',
+    a: "Because the app is not distributed through the Google Play Store, Android requires you to manually allow installation from outside the store. This is safe — the APK is hosted directly on our official GitHub page.",
   },
   {
     q: "Will I get updates automatically?",
@@ -88,11 +88,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
           className={`h-4 w-4 shrink-0 text-white/50 transition-transform duration-300 ${open ? "rotate-180" : ""}`}
         />
       </div>
-      {open && (
-        <div className="px-6 pb-5 text-sm text-white/60 leading-relaxed border-t border-white/8 pt-4">
-          {a}
-        </div>
-      )}
+      {open && <div className="px-6 pb-5 text-sm text-white/60 leading-relaxed border-t border-white/8 pt-4">{a}</div>}
     </div>
   );
 }
@@ -159,9 +155,7 @@ export default function DownloadPage() {
           </button>
         </div>
 
-        <p className="mt-4 text-xs text-white/35">
-          Android 6.0+ required · APK ~15 MB · Always free
-        </p>
+        <p className="mt-4 text-xs text-white/35">Android 6.0+ required · APK ~15 MB · Always free</p>
 
         {/* phone mockup */}
         <div className="relative mx-auto mt-16 max-w-[240px]">
@@ -213,10 +207,7 @@ export default function DownloadPage() {
         <p className="mb-10 text-center text-sm text-white/50">Ready in under a minute</p>
         <div className="space-y-4">
           {steps.map(({ number, title, description }) => (
-            <div
-              key={number}
-              className="flex gap-5 rounded-2xl border border-white/8 bg-white/4 px-6 py-5"
-            >
+            <div key={number} className="flex gap-5 rounded-2xl border border-white/8 bg-white/4 px-6 py-5">
               <span className="mt-0.5 shrink-0 text-3xl font-black text-primary/30 leading-none">{number}</span>
               <div>
                 <h3 className="font-semibold text-white">{title}</h3>
@@ -231,7 +222,9 @@ export default function DownloadPage() {
       <section className="mx-auto max-w-3xl px-4 py-4">
         <div className="flex flex-col items-center gap-3 rounded-2xl border border-yellow-500/20 bg-yellow-500/5 px-6 py-6 text-center sm:flex-row sm:text-left">
           <div className="flex shrink-0 gap-0.5 text-yellow-400">
-            {[1, 2, 3, 4, 5].map((i) => <Star key={i} className="h-5 w-5 fill-current" />)}
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Star key={i} className="h-5 w-5 fill-current" />
+            ))}
           </div>
           <div>
             <p className="font-semibold text-white">Loved by thousands of viewers</p>
