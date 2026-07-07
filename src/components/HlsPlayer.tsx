@@ -482,7 +482,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
                 </button>
                 {rawUrl && (
                   <a href={rawUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary">
-                    <ExternalLink className="h-4 w-4" /> VLC
+                    <ExternalLink className="h-4 w-4" /> Open Stream
                   </a>
                 )}
               </div>
