@@ -7,7 +7,7 @@ import { useChannelsBySlug } from "@/lib/channels-client";
 import { ChannelLogo } from "./ChannelLogo";
 
 type Resolved =
-  | { kind: "m3u"; slug: string; label: string; logo?: string; url?: string }
+  | { kind: "m3u"; slug: string; label: string; logo?: string }
   | { kind: "yacine"; id: number; label: string }
   | null;
 
@@ -46,7 +46,6 @@ function resolveChannel(match: Match, bySlug: Map<string, M3uChannel>): Resolved
       slug,
       label: dbCh.name || staticCh?.name || slug,
       logo: dbCh.logo || staticCh?.logo,
-      url: dbCh.url || staticCh?.url,
     };
   }
   const m = match.channel.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
@@ -203,13 +202,6 @@ export function MatchCard({ match }: { match: Match }) {
 
   if (!ch) return inner;
   if (ch.kind === "m3u") {
-    if (ch.url?.startsWith("http://")) {
-      return (
-        <a href={ch.url} target="_blank" rel="noopener noreferrer" className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
-          {inner}
-        </a>
-      );
-    }
     return (
       <Link to="/watch/live/$slug" params={{ slug: ch.slug }} className="block h-full rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         {inner}

@@ -477,7 +477,7 @@ function Home() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {favoriteChannels.map((c) => (
-              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo} url={c.url}
+              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
                            href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} />
             ))}
           </div>
@@ -511,7 +511,7 @@ function Home() {
                 <div key={i} className="h-32 animate-pulse rounded-2xl bg-white/[0.03]" />
               ))
             : beinChannels.map((c) => (
-                <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo} url={c.url}
+                <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
                              href={{ to: "/watch/live/$slug", params: { slug: c.slug } }} featured />
               ))}
         </div>
@@ -610,7 +610,7 @@ function Home() {
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
             {filteredChannels.map((c) => (
-              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo} url={c.url}
+              <ChannelCard key={c.slug} slug={c.slug} name={c.name} group={c.group} logo={c.logo}
                            href={{ to: "/watch/live/$slug", params: { slug: c.slug } }}
                            category={categoryFor(c.group, c.name)} />
             ))}
@@ -623,7 +623,7 @@ function Home() {
             <h3 className="mb-4 font-display text-2xl font-bold">My Channels</h3>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {customChannels.map((c) => (
-                <ChannelCard key={c.id} slug={c.id} name={c.name} group="My Channels" logo={c.logo} url={c.sources[0]?.url}
+                <ChannelCard key={c.id} slug={c.id} name={c.name} group="My Channels" logo={c.logo}
                              href={{ to: "/watch/tv/$key", params: { key: c.id }, search: { name: c.name } }}
                              category={c.category} />
               ))}
