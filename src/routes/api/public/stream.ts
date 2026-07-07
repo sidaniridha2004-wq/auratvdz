@@ -77,6 +77,8 @@ export const Route = createFileRoute("/api/public/stream")({
         const target = url.searchParams.get("url");
         const referer = url.searchParams.get("referer") ?? "";
         const ua = url.searchParams.get("ua") ?? "";
+        const origin = url.searchParams.get("origin") ?? "";
+        const cookie = url.searchParams.get("cookie") ?? "";
         if (!target) return new Response("missing url", { status: 400 });
 
         let parsed: URL;
@@ -89,6 +91,8 @@ export const Route = createFileRoute("/api/public/stream")({
         const headers: Record<string, string> = {};
         if (referer) headers["referer"] = referer;
         if (ua) headers["user-agent"] = ua;
+        if (origin) headers["origin"] = origin;
+        if (cookie) headers["cookie"] = cookie;
         const range = request.headers.get("range");
         if (range) headers["range"] = range;
 
@@ -141,16 +145,21 @@ export const Route = createFileRoute("/api/public/stream")({
               if (!trimmed || trimmed.startsWith("#")) {
                 return line.replace(/URI="([^"]+)"/g, (_m, u: string) => {
                   const abs = new URL(u, finalUrl).toString();
-                  const proxied = `/api/public/stream?url=${encodeURIComponent(abs)}${
-                    referer ? `&referer=${encodeURIComponent(referer)}` : ""
-                  }${ua ? `&ua=${encodeURIComponent(ua)}` : ""}`;
+                  let proxied = `/api/public/stream?url=${encodeURIComponent(abs)}`;
+                  if (referer) proxied += `&referer=${encodeURIComponent(referer)}`;
+                  if (ua) proxied += `&ua=${encodeURIComponent(ua)}`;
+                  if (origin) proxied += `&origin=${encodeURIComponent(origin)}`;
+                  if (cookie) proxied += `&cookie=${encodeURIComponent(cookie)}`;
                   return `URI="${proxied}"`;
                 });
               }
               const abs = new URL(trimmed, finalUrl).toString();
-              return `/api/public/stream?url=${encodeURIComponent(abs)}${
-                referer ? `&referer=${encodeURIComponent(referer)}` : ""
-              }${ua ? `&ua=${encodeURIComponent(ua)}` : ""}`;
+              let proxied = `/api/public/stream?url=${encodeURIComponent(abs)}`;
+              if (referer) proxied += `&referer=${encodeURIComponent(referer)}`;
+              if (ua) proxied += `&ua=${encodeURIComponent(ua)}`;
+              if (origin) proxied += `&origin=${encodeURIComponent(origin)}`;
+              if (cookie) proxied += `&cookie=${encodeURIComponent(cookie)}`;
+              return proxied;
             })
             .join("\n");
 
