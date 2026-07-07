@@ -9,6 +9,7 @@ interface Props {
   name: string;
   group: string;
   logo?: string;
+  url?: string;
   href:
     | { to: "/watch/live/$slug"; params: { slug: string } }
     | { to: "/watch/tv/$key"; params: { key: string }; search?: { name?: string } }
@@ -17,7 +18,7 @@ interface Props {
   category?: ChannelCategory;
 }
 
-export function ChannelCard({ slug, name, group, logo, href, featured, category }: Props) {
+export function ChannelCard({ slug, name, group, logo, url, href, featured, category }: Props) {
   const { isFav, toggle } = useFavorites();
   const cat = category ?? categoryFor(group, name);
   const meta = CATEGORY_META[cat];
@@ -26,14 +27,16 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
   // Entire card is the play surface — a single absolutely-positioned <Link>
   // covering the card catches every click. The favorite star sits above it
   // with stopPropagation so tapping ★ never triggers navigation.
-  const link =
-    href.to === "/watch/live/$slug" ? (
-      <Link to="/watch/live/$slug" params={href.params} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
-    ) : href.to === "/watch/tv/$key" ? (
-      <Link to="/watch/tv/$key" params={href.params} search={href.search} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
-    ) : (
-      <Link to="/watch/$channelId" params={href.params} search={href.search} className="absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary" aria-label={`Play ${name}`} />
-    );
+  const linkClass = "absolute inset-0 z-10 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
+  const link = url?.startsWith("http://") ? (
+    <a href={url} target="_blank" rel="noopener noreferrer" className={linkClass} aria-label={`Play ${name} externally`} />
+  ) : href.to === "/watch/live/$slug" ? (
+    <Link to="/watch/live/$slug" params={href.params} className={linkClass} aria-label={`Play ${name}`} />
+  ) : href.to === "/watch/tv/$key" ? (
+    <Link to="/watch/tv/$key" params={href.params} search={href.search} className={linkClass} aria-label={`Play ${name}`} />
+  ) : (
+    <Link to="/watch/$channelId" params={href.params} search={href.search} className={linkClass} aria-label={`Play ${name}`} />
+  );
 
   return (
     <div
