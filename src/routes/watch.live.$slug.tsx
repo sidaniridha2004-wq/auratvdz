@@ -66,7 +66,25 @@ function WatchLive() {
 
   const isBeinMax = /bein\s*sports?\s*max/i.test(ch.name);
   const preferredHeight = isBeinMax ? 720 : undefined;
-  const proxied = `/api/public/stream?url=${encodeURIComponent(ch.url)}`;
+  
+  let rawStreamUrl = ch.url;
+  let proxied = "";
+  if (ch.url) {
+    const parts = ch.url.split("|");
+    rawStreamUrl = parts[0];
+    let proxyUrl = `/api/public/stream?url=${encodeURIComponent(rawStreamUrl)}`;
+    
+    // Parse standard IPTV pipe headers (e.g. |User-Agent=...|Origin=...|Referer=...)
+    for (let i = 1; i < parts.length; i++) {
+      const [k, v] = parts[i].split("=");
+      if (!k || !v) continue;
+      const key = k.toLowerCase();
+      if (key === "user-agent") proxyUrl += `&ua=${encodeURIComponent(v)}`;
+      if (key === "origin") proxyUrl += `&origin=${encodeURIComponent(v)}`;
+      if (key === "referer") proxyUrl += `&referer=${encodeURIComponent(v)}`;
+    }
+    proxied = proxyUrl;
+  }
 
   useEffect(() => {
     return () => {
@@ -102,7 +120,12 @@ function WatchLive() {
         </div>
 
         <div className="mt-6">
-          <HlsPlayer key={slug} src={proxied} rawUrl={ch.url} preferredHeight={preferredHeight} />
+          <HlsPlayer
+            key={slug}
+            src={proxied}
+            rawUrl={rawStreamUrl}
+            preferredHeight={preferredHeight}
+          />
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground">
