@@ -155,8 +155,7 @@ export const adminDeleteChannel = createServerFn({ method: "POST" })
     const { error } = await supabase
       .from("channels")
       .delete()
-      .eq("slug", data.slug)
-      .eq("is_custom", true);
+      .eq("slug", data.slug);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

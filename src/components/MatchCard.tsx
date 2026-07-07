@@ -11,9 +11,29 @@ type Resolved =
   | { kind: "yacine"; id: number; label: string }
   | null;
 
-function resolveChannel(name: string, bySlug: Map<string, M3uChannel>): Resolved {
-  if (!name) return null;
-  const slug = resolveMatchChannelSlug(name);
+function resolveChannel(match: Match, bySlug: Map<string, M3uChannel>): Resolved {
+  if (!match.channel) return null;
+  
+  // First, check if the admin manually assigned a channel to this match using matchAlias
+  let slug = "";
+  for (const [k, v] of bySlug.entries()) {
+    if (v.matchAlias) {
+      const aliases = v.matchAlias.split(",").map((a: string) => a.trim().toLowerCase());
+      const matchNameLower = match.channel.toLowerCase();
+      const matchIdLower = match.id.toLowerCase();
+      
+      if (aliases.some((a: string) => matchNameLower.includes(a) || a === matchIdLower)) {
+        slug = k;
+        break;
+      }
+    }
+  }
+  
+  // If no database alias found, try the static resolver
+  if (!slug) {
+    slug = resolveMatchChannelSlug(match.channel) || "";
+  }
+  
   if (slug) {
     // Only surface a play link if the channel is currently active in the
     // database. If an admin hid it, treat the match as having no channel —
@@ -28,7 +48,7 @@ function resolveChannel(name: string, bySlug: Map<string, M3uChannel>): Resolved
       logo: dbCh.logo || staticCh?.logo,
     };
   }
-  const m = name.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
+  const m = match.channel.toLowerCase().match(/(?:bein[^0-9]*max|ماكس|max)\s*([1-6])/);
   if (m) {
     const n = parseInt(m[1], 10);
     return { kind: "yacine", id: 1470 + n, label: `beIN MAX ${n}` };
@@ -91,7 +111,7 @@ function StatusBadge({ m, localTime }: { m: Match; localTime: string | null }) {
 
 export function MatchCard({ match }: { match: Match }) {
   const bySlug = useChannelsBySlug();
-  const ch = resolveChannel(match.channel, bySlug);
+  const ch = resolveChannel(match, bySlug);
   const local = useLocalKickoff(match.kickoffIso);
   const countdown = useCountdown(match.status === "soon" ? match.kickoffIso : null);
   const showScore = match.status !== "soon" && match.score && match.score !== "0-0";
