@@ -127,9 +127,11 @@ function parseMatches(html: string, day: Day): Match[] {
   let idx = 0;
   while ((m = blockRe.exec(html)) !== null) {
     idx++;
-    const classStr = m[2] ?? "";
-    const fixtureIdAttr = m[4] ?? "";
-    const block = m[5] ?? "";
+    const divAttrs = m[1] ?? "";
+    const classStr = /class=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
+    const fixtureIdAttr = /\bid=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
+    const block = m[3] ?? "";
+
 
     const anchor = m[0].match(/<a\b[^>]*>/)?.[0] ?? "";
     const attr = (name: string) => {
