@@ -9,7 +9,10 @@ import { assertSafeUrl } from "@/lib/ssrf-guard";
 // upstream 30x to a private/metadata IP that the original URL would have
 // failed the SSRF check on.
 const MAX_REDIRECTS = 5;
-const UPSTREAM_TIMEOUT_MS = 5_000;
+// Deliberately generous — some HLS manifests + init segments are slow to
+// arrive on mobile networks or during cold-started serverless invocations.
+// A false "unavailable" error is worse than a longer spinner.
+const UPSTREAM_TIMEOUT_MS = 15_000;
 
 function rid() {
   return Math.random().toString(36).slice(2, 8);
@@ -27,7 +30,7 @@ async function safeFetch(
   startUrl: URL,
   headers: Record<string, string>,
   logId: string,
-): Promise<Response> {
+): Promise<{ response: Response; finalUrl: URL }> {
   let current = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const controller = new AbortController();
@@ -51,9 +54,9 @@ async function safeFetch(
     console.log(
       `[stream ${logId}] hop=${hop} status=${r.status} ${Date.now() - t0}ms ${shortUrl(current.toString())}`,
     );
-    if (![301, 302, 303, 307, 308].includes(r.status)) return r;
+    if (![301, 302, 303, 307, 308].includes(r.status)) return { response: r, finalUrl: current };
     const loc = r.headers.get("location");
-    if (!loc) return r;
+    if (!loc) return { response: r, finalUrl: current };
     // Re-validate every hop — assertSafeUrl throws on private/metadata IPs
     current = assertSafeUrl(new URL(loc, current).toString());
   }
@@ -101,8 +104,11 @@ export const Route = createFileRoute("/api/public/stream")({
         console.log(`[stream ${logId}] start ${shortUrl(parsed.toString())} range=${range ?? "-"}`);
 
         let upstream: Response;
+        let finalUrl: URL;
         try {
-          upstream = await safeFetch(parsed, headers, logId);
+          const result = await safeFetch(parsed, headers, logId);
+          upstream = result.response;
+          finalUrl = result.finalUrl;
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           console.error(`[stream ${logId}] upstream FAIL ${Date.now() - t0}ms ${msg}`);
@@ -115,6 +121,8 @@ export const Route = createFileRoute("/api/public/stream")({
         const ct = upstream.headers.get("content-type") ?? "";
         const isPlaylist =
           ct.includes("mpegurl") ||
+          finalUrl.pathname.endsWith(".m3u8") ||
+          finalUrl.pathname.endsWith(".m3u") ||
           parsed.pathname.endsWith(".m3u8") ||
           parsed.pathname.endsWith(".m3u");
 
@@ -136,7 +144,6 @@ export const Route = createFileRoute("/api/public/stream")({
               headers: { "access-control-allow-origin": "*" },
             });
           }
-          const finalUrl = parsed;
           const lineCount = text.split("\n").length;
           const rewritten = text
             .split("\n")
