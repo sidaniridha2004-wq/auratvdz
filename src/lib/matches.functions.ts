@@ -122,7 +122,7 @@ function statusFromCode(code: string, cls: string): Match["status"] {
 function parseMatches(html: string, day: Day): Match[] {
   // New STING-web markup: each match is a <div class="STING-web-Match ..." id="..."><a ...>...</a></div>
   const matches: Match[] = [];
-  const blockRe = /<div\s+class=(['"])([^'"]*STING-web-Match(?:\s[^'"]*)?)\1[^>]*?(?:id=(['"])([^'"]*)\3)?[^>]*>([\s\S]*?)<\/a>\s*<\/div>/g;
+  const blockRe = /<div\s+([^>]*class=(['"])[^'"]*STING-web-Match(?:\s[^'"]*)?\2[^>]*)>([\s\S]*?)<\/a>\s*<\/div>/g;
   let m: RegExpExecArray | null;
   let idx = 0;
   while ((m = blockRe.exec(html)) !== null) {
