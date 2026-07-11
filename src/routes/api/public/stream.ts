@@ -30,7 +30,7 @@ async function safeFetch(
   startUrl: URL,
   headers: Record<string, string>,
   logId: string,
-): Promise<Response> {
+): Promise<{ response: Response; finalUrl: URL }> {
   let current = startUrl;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const controller = new AbortController();
@@ -54,9 +54,9 @@ async function safeFetch(
     console.log(
       `[stream ${logId}] hop=${hop} status=${r.status} ${Date.now() - t0}ms ${shortUrl(current.toString())}`,
     );
-    if (![301, 302, 303, 307, 308].includes(r.status)) return r;
+    if (![301, 302, 303, 307, 308].includes(r.status)) return { response: r, finalUrl: current };
     const loc = r.headers.get("location");
-    if (!loc) return r;
+    if (!loc) return { response: r, finalUrl: current };
     // Re-validate every hop — assertSafeUrl throws on private/metadata IPs
     current = assertSafeUrl(new URL(loc, current).toString());
   }
