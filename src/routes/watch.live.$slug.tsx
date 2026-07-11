@@ -75,13 +75,17 @@ function WatchLive() {
     let proxyUrl = `/api/public/stream?url=${encodeURIComponent(rawStreamUrl)}`;
     
     // Parse standard IPTV pipe headers (e.g. |User-Agent=...|Origin=...|Referer=...)
+    // Use indexOf-based split so values containing "=" (query strings, tokens) survive.
     for (let i = 1; i < parts.length; i++) {
-      const [k, v] = parts[i].split("=");
-      if (!k || !v) continue;
-      const key = k.toLowerCase();
-      if (key === "user-agent") proxyUrl += `&ua=${encodeURIComponent(v)}`;
-      if (key === "origin") proxyUrl += `&origin=${encodeURIComponent(v)}`;
-      if (key === "referer") proxyUrl += `&referer=${encodeURIComponent(v)}`;
+      const seg = parts[i];
+      const eq = seg.indexOf("=");
+      if (eq <= 0) continue;
+      const key = seg.slice(0, eq).toLowerCase();
+      const value = seg.slice(eq + 1);
+      if (!value) continue;
+      if (key === "user-agent") proxyUrl += `&ua=${encodeURIComponent(value)}`;
+      if (key === "origin") proxyUrl += `&origin=${encodeURIComponent(value)}`;
+      if (key === "referer") proxyUrl += `&referer=${encodeURIComponent(value)}`;
     }
     proxied = proxyUrl;
   }
