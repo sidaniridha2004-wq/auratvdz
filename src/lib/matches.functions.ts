@@ -47,10 +47,10 @@ function parseKickoff(time: string, day: Day): string | null {
 }
 
 const PAGE_URLS = {
-  today: "https://livefootballfree.net/today-matches/",
-  yesterday: "https://livefootballfree.net/yesterday-matches/",
-  tomorrow: "https://livefootballfree.net/tomorrow-matches/",
-  home: "https://livefootballfree.net/",
+  today: "https://live-internet-football.com/matches-today/",
+  yesterday: "https://live-internet-football.com/matches-yesterday/",
+  tomorrow: "https://live-internet-football.com/matches-tomorrow/",
+  home: "https://live-internet-football.com/",
 } as const;
 
 function decodeEntities(s: string): string {
@@ -113,8 +113,19 @@ function fallbackTextParse(block: string): { home?: string; away?: string; score
 function statusFromCode(code: string, cls: string): Match["status"] {
   const c = (code || "").toUpperCase();
   const k = (cls || "").toUpperCase();
-  if (c === "LIVE" || c === "1H" || c === "2H" || c === "HT" || c === "ET" || c === "P" || c === "BT" || k.includes("LIVE")) return "live";
-  if (c === "FT" || c === "AET" || c === "PEN" || c === "END" || c === "AWD" || c === "WO" || k.includes("END")) return "finished";
+  if (
+    c === "LIVE" ||
+    c === "1H" ||
+    c === "2H" ||
+    c === "HT" ||
+    c === "ET" ||
+    c === "P" ||
+    c === "BT" ||
+    k.includes("LIVE")
+  )
+    return "live";
+  if (c === "FT" || c === "AET" || c === "PEN" || c === "END" || c === "AWD" || c === "WO" || k.includes("END"))
+    return "finished";
   if (c === "NS" || c === "TBD" || k.includes("SOON") || k.includes("NOT")) return "soon";
   return "unknown";
 }
@@ -132,7 +143,6 @@ function parseMatches(html: string, day: Day): Match[] {
     const fixtureIdAttr = /\bid=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
     const block = m[3] ?? "";
 
-
     const anchor = m[0].match(/<a\b[^>]*>/)?.[0] ?? "";
     const attr = (name: string) => {
       const r = new RegExp(`${name}=(['"])([\\s\\S]*?)\\1`).exec(anchor);
@@ -141,12 +151,16 @@ function parseMatches(html: string, day: Day): Match[] {
     const homeTeam =
       attr("data-home") ||
       stripTags(
-        block.match(/class=['"]STING-web-Right-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+        block.match(
+          /class=['"]STING-web-Right-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/,
+        )?.[1] ?? "",
       );
     const awayTeam =
       attr("data-away") ||
       stripTags(
-        block.match(/class=['"]STING-web-Left-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+        block.match(
+          /class=['"]STING-web-Left-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/,
+        )?.[1] ?? "",
       );
     const competition =
       attr("data-league") ||
@@ -198,7 +212,6 @@ function parseMatches(html: string, day: Day): Match[] {
   }
   return matches;
 }
-
 
 async function fetchPage(url: string, attempt = 0): Promise<string> {
   const ctrl = new AbortController();
