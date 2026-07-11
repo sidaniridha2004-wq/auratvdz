@@ -110,51 +110,73 @@ function fallbackTextParse(block: string): { home?: string; away?: string; score
   return out;
 }
 
+function statusFromCode(code: string, cls: string): Match["status"] {
+  const c = (code || "").toUpperCase();
+  const k = (cls || "").toUpperCase();
+  if (c === "LIVE" || c === "1H" || c === "2H" || c === "HT" || c === "ET" || c === "P" || c === "BT" || k.includes("LIVE")) return "live";
+  if (c === "FT" || c === "AET" || c === "PEN" || c === "END" || c === "AWD" || c === "WO" || k.includes("END")) return "finished";
+  if (c === "NS" || c === "TBD" || k.includes("SOON") || k.includes("NOT")) return "soon";
+  return "unknown";
+}
+
 function parseMatches(html: string, day: Day): Match[] {
-  const parts = html.split(/<div\s+class=['"]match-container/);
+  // New STING-web markup: each match is a <div class="STING-web-Match ..." id="..."><a ...>...</a></div>
   const matches: Match[] = [];
-  for (let i = 1; i < parts.length; i++) {
-    const raw = parts[i];
-    const endIdx = raw.search(/<\/div>\s*<\/div>\s*<\/div>\s*<\/div>/);
-    const block = endIdx > 0 ? raw.slice(0, endIdx) : raw;
+  const blockRe = /<div\s+([^>]*class=(['"])[^'"]*STING-web-Match(?:\s[^'"]*)?\2[^>]*)>([\s\S]*?)<\/a>\s*<\/div>/g;
+  let m: RegExpExecArray | null;
+  let idx = 0;
+  while ((m = blockRe.exec(html)) !== null) {
+    idx++;
+    const divAttrs = m[1] ?? "";
+    const classStr = /class=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
+    const fixtureIdAttr = /\bid=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
+    const block = m[3] ?? "";
 
-    const classStr = block.match(/^\s*([^'">]*)/)?.[1] ?? "";
 
-    const teamLogos = [...block.matchAll(/<div\s+class=['"]team-logo[^'"]*['"][^>]*>([\s\S]*?)<\/div>/g)].map((m) =>
-      pickImg(m[1]),
-    );
-    const teamNames = [...block.matchAll(/<div\s+class=['"]team-name['"][^>]*>([\s\S]*?)<\/div>/g)].map((m) =>
-      stripTags(m[1]),
-    );
-    let homeTeam = teamNames[0] ?? "";
-    let awayTeam = teamNames[1] ?? "";
-    const homeLogo = teamLogos[0] ?? "";
-    const awayLogo = teamLogos[1] ?? "";
+    const anchor = m[0].match(/<a\b[^>]*>/)?.[0] ?? "";
+    const attr = (name: string) => {
+      const r = new RegExp(`${name}=(['"])([\\s\\S]*?)\\1`).exec(anchor);
+      return r ? decodeEntities(r[2]) : "";
+    };
+    const homeTeam =
+      attr("data-home") ||
+      stripTags(
+        block.match(/class=['"]STING-web-Right-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+      );
+    const awayTeam =
+      attr("data-away") ||
+      stripTags(
+        block.match(/class=['"]STING-web-Left-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "",
+      );
+    const competition =
+      attr("data-league") ||
+      stripTags(block.match(/class=['"]STING-web-Match-Info['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+    const startIso = attr("data-start");
 
-    const time = stripTags(block.match(/<div\s+class=['"]match-time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    let score = stripTags(block.match(/<div\s+class=['"]result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    const dateMatch = block.match(/<div\s+class=['"]date([^'"]*)['"][^>]*>([\s\S]*?)<\/div>/);
-    const statusLabel = stripTags(dateMatch?.[2] ?? "");
+    const logos = [...block.matchAll(/class=['"]STING-web-Team-Logo['"][^>]*>\s*<img[^>]+>/g)].map((mm) => {
+      const src = /(?:data-img|data-src|src)=['"]([^'"]+)['"]/.exec(mm[0]);
+      return src ? src[1] : "";
+    });
+    const homeLogo = logos[0] ?? "";
+    const awayLogo = logos[1] ?? "";
 
-    // Fallback secondary selectors
-    if (!homeTeam || !awayTeam || !score) {
-      const fb = fallbackTextParse(block);
-      if (!homeTeam && fb.home) homeTeam = fb.home;
-      if (!awayTeam && fb.away) awayTeam = fb.away;
-      if (!score && fb.score) score = fb.score;
+    const score = stripTags(block.match(/id=['"]STING-web-Result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+    const timeLabel = stripTags(block.match(/id=['"]STING-web-Match-Time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+    const statusCode = block.match(/data-status-code=['"]([^'"]*)['"]/)?.[1] ?? "";
+
+    let time = timeLabel;
+    if (startIso) {
+      const dt = new Date(startIso);
+      if (!isNaN(dt.getTime())) {
+        const dam = new Date(dt.getTime() + SOURCE_TZ_OFFSET_HOURS * 3600_000);
+        const hh = String(dam.getUTCHours()).padStart(2, "0");
+        const mm2 = String(dam.getUTCMinutes()).padStart(2, "0");
+        time = `${hh}:${mm2}`;
+      }
     }
-    // Alt score selector
-    if (!score) {
-      score = stripTags(block.match(/<div\s+class=['"]match-score[^'"]*['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    }
 
-    const infoItems = [...block.matchAll(/<li[^>]*>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((m) =>
-      stripTags(m[1]),
-    );
-    const [channel = "", commentator = "", competition = ""] = infoItems;
-
-    const url = block.match(/<a[^>]+href=['"]([^'"]+\/matches\/[^'"]+)['"]/)?.[1] ?? "";
-    const id = url.split("/matches/")[1]?.replace(/\/$/, "") ?? `${homeTeam}-${awayTeam}-${i}`;
+    const status = statusFromCode(statusCode, classStr);
+    const id = fixtureIdAttr || `${homeTeam}-${awayTeam}-${idx}`;
 
     if (!homeTeam || !awayTeam) continue;
     matches.push({
@@ -164,18 +186,19 @@ function parseMatches(html: string, day: Day): Match[] {
       awayTeam,
       awayLogo,
       time,
-      kickoffIso: parseKickoff(time, day),
+      kickoffIso: startIso || parseKickoff(time, day),
       score,
-      status: parseStatus(statusLabel, classStr, score),
-      statusLabel,
-      channel,
-      commentator,
+      status,
+      statusLabel: timeLabel,
+      channel: "",
+      commentator: "",
       competition,
-      url,
+      url: "",
     });
   }
   return matches;
 }
+
 
 async function fetchPage(url: string, attempt = 0): Promise<string> {
   const ctrl = new AbortController();
