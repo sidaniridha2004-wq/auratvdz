@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import * as cheerio from "cheerio";
+import { getSetting } from "./settings.functions";
 
 export interface Match {
   id: string;
@@ -302,12 +303,29 @@ export const getMatches = createServerFn({ method: "GET" })
   .inputValidator(z.object({ day: z.enum(["today", "yesterday", "tomorrow", "home"]).default("today") }))
   .handler(async ({ data }) => {
     try {
-      const html = await fetchPage(PAGE_URLS[data.day]);
+      // 1. Check for custom scraper URL from settings
+      let customUrl = await getSetting({ data: "scraper_url" });
+      
+      let targetUrl: string = PAGE_URLS[data.day];
+      let homeUrl: string = PAGE_URLS.home;
+      
+      if (customUrl) {
+        // Ensure trailing slash and generate URLs based on the custom base
+        customUrl = customUrl.replace(/\/?$/, '/');
+        homeUrl = customUrl;
+        if (data.day === "today") targetUrl = `${customUrl}matches-today/`;
+        else if (data.day === "yesterday") targetUrl = `${customUrl}matches-yesterday/`;
+        else if (data.day === "tomorrow") targetUrl = `${customUrl}matches-tomorrow/`;
+        else targetUrl = customUrl;
+      }
+
+      const html = await fetchPage(targetUrl);
       const primary = parseMatches(html, data.day);
+      
       // If primary parse gave nothing but the page loaded, try home fallback
       if (primary.length === 0 && data.day === "today") {
         try {
-          const fallbackHtml = await fetchPage(PAGE_URLS.home);
+          const fallbackHtml = await fetchPage(homeUrl);
           const fromHome = parseMatches(fallbackHtml, "today");
           if (fromHome.length > 0) return fromHome;
         } catch {}

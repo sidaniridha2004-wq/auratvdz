@@ -22,6 +22,7 @@ import { useNowOnTv, NOW_ON_TV_QUERY_KEY } from "@/components/NowOnTvStrip";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { getMatches } from "@/lib/matches.functions";
 import { adminSetMatchOverride } from "@/lib/match-override.functions";
+import { getSetting, updateSetting } from "@/lib/settings.functions";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
@@ -243,6 +244,7 @@ function AdminPage() {
       
       {/* Moved to the top so it's instantly visible! */}
       <div className="pt-6 space-y-8">
+        <ScraperSettingsEditor getPassword={getAdminPassword} />
         <ScrapedMatchesAdmin getPassword={getAdminPassword} channelRows={dbRows} />
         <NowOnTvEditor getPassword={getAdminPassword} channelRows={rows} />
       </div>
@@ -799,5 +801,76 @@ function ScrapedMatchesAdmin({
         </div>
       )}
     </section>
+  );
+}
+
+function ScraperSettingsEditor({ getPassword }: { getPassword: () => string }) {
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchSetting = useServerFn(getSetting);
+  const saveSetting = useServerFn(updateSetting);
+
+  useEffect(() => {
+    fetchSetting({ data: 'scraper_url' })
+      .then((val) => {
+        if (val) setUrl(val);
+        setLoading(false);
+      })
+      .catch((e) => {
+        console.error('Failed to load setting', e);
+        setLoading(false);
+      });
+  }, [fetchSetting]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await saveSetting({
+        data: { password: getPassword(), key: 'scraper_url', value: url },
+      });
+      alert('Settings saved successfully!');
+    } catch (e) {
+      alert(`Save failed: ${(e as Error).message}`);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="mx-auto max-w-6xl px-4 sm:px-6">
+      <div className="rounded-2xl border border-white/10 bg-card p-6 shadow-glow">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <h2 className="font-display text-xl font-bold flex items-center gap-2">
+              Scraper Settings
+            </h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              Configure the source website used for scraping match data.
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="e.g. https://live-internet-football.com/"
+            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
+            disabled={loading || saving}
+          />
+          <button
+            onClick={handleSave}
+            disabled={loading || saving}
+            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
