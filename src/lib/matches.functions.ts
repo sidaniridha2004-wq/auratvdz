@@ -158,14 +158,23 @@ function parseAyMatches(html: string, day: Day): Match[] {
     const homeBlock = teamBlocks[0] ?? block.match(/class=['"][^'"]*\bTM1\b[\s\S]*?(?=<div\s+class=['"]MT_Data['"])/)?.[0] ?? "";
     const awayBlock = teamBlocks[1] ?? block.match(/class=['"][^'"]*\bTM2\b[\s\S]*?(?=<\/div>\s*<\/div>\s*<\/div>\s*<div\s+class=['"]MT_Info['"])/)?.[0] ?? "";
 
-    const homeTeam = stripTags(homeBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
-    const awayTeam = stripTags(awayBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
+    const teamName = (teamBlock: string) =>
+      stripTags(
+        teamBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)(?:<\/div>|$)/)?.[2] ??
+          teamBlock.match(/<img[^>]+alt=(['"])([\s\S]*?)\1/)?.[2] ??
+          "",
+      );
+    const homeTeam = teamName(homeBlock);
+    const awayTeam = teamName(awayBlock);
     if (!homeTeam || !awayTeam) continue;
 
     const homeLogo = toAbsoluteUrl(pickImg(homeBlock), baseUrl);
     const awayLogo = toAbsoluteUrl(pickImg(awayBlock), baseUrl);
     const time = stripTags(block.match(/class=(['"])[^'"]*\bMT_Time\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/)?.[2] ?? "");
-    const score = stripTags(block.match(/class=(['"])[^'"]*\bMT_Result\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/)?.[2] ?? "").replace(/\s+/g, "");
+    const goals = [...block.matchAll(/class=(['"])[^'"]*\bRS-goals\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/g)].map((mm) =>
+      stripTags(mm[2] ?? ""),
+    );
+    const score = goals.length >= 2 ? `${goals[0]}-${goals[1]}` : "";
     const statusLabel = stripTags(block.match(/class=(['"])[^'"]*\bMT_Stat\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
     const infoItems = [...block.matchAll(/<li>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((mm) => stripTags(mm[1] ?? ""));
     const channel = infoItems[0] ?? "";
