@@ -72,6 +72,16 @@ function pickImg(block: string): string {
   return s?.[1] ?? "";
 }
 
+function toAbsoluteUrl(src: string, baseUrl: string): string {
+  const clean = decodeEntities(src).trim();
+  if (!clean || clean.startsWith("data:")) return "";
+  try {
+    return new URL(clean, baseUrl).toString();
+  } catch {
+    return clean;
+  }
+}
+
 function parseStatus(label: string, dateClass: string, score: string): Match["status"] {
   if (dateClass.includes("live") || label.includes("جارية") || label.includes("مباشر")) return "live";
   if (
@@ -130,7 +140,67 @@ function statusFromCode(code: string, cls: string): Match["status"] {
   return "unknown";
 }
 
+function parseAyMatches(html: string, day: Day): Match[] {
+  // Kooora/Alba theme markup used after live-internet-football.com redirects:
+  // <div class="AY_Match finished"><div class="AY_Inner">...</div><div class="MT_Info">...</div><a ...></a></div>
+  const matches: Match[] = [];
+  const baseUrl = PAGE_URLS[day] ?? PAGE_URLS.home;
+  const blockRe = /<div\s+([^>]*class=(['"])[^'"]*\bAY_Match\b[^'"]*\2[^>]*)>([\s\S]*?)(?=<div\s+[^>]*class=(['"])[^'"]*\bAY_Match\b|<\/div>\s*<\/div>\s*<div\s+class=(['"])AY_Block\5|<\/div>\s*<\/div>\s*<\/div><!-- SiteContent-->)/g;
+  let m: RegExpExecArray | null;
+  let idx = 0;
+  while ((m = blockRe.exec(html)) !== null) {
+    idx++;
+    const attrs = m[1] ?? "";
+    const classStr = /class=(['"])([^'"]*)\1/.exec(attrs)?.[2] ?? "";
+    const block = m[3] ?? "";
+    const teamBlocks = [...block.matchAll(/<div\s+[^>]*class=(['"])[^'"]*\bMT_Team\b[^'"]*\1[^>]*>([\s\S]*?)(?=<\/div>\s*<\/div>\s*<div\s+[^>]*class=(['"])[^'"]*\bMT_Team\b|<\/div>\s*<\/div>\s*<\/div>)/g)].map((mm) => mm[2] ?? "");
+
+    const homeBlock = teamBlocks[0] ?? block.match(/class=['"][^'"]*\bTM1\b[\s\S]*?(?=<div\s+class=['"]MT_Data['"])/)?.[0] ?? "";
+    const awayBlock = teamBlocks[1] ?? block.match(/class=['"][^'"]*\bTM2\b[\s\S]*?(?=<\/div>\s*<\/div>\s*<\/div>\s*<div\s+class=['"]MT_Info['"])/)?.[0] ?? "";
+
+    const homeTeam = stripTags(homeBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
+    const awayTeam = stripTags(awayBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
+    if (!homeTeam || !awayTeam) continue;
+
+    const homeLogo = toAbsoluteUrl(pickImg(homeBlock), baseUrl);
+    const awayLogo = toAbsoluteUrl(pickImg(awayBlock), baseUrl);
+    const time = stripTags(block.match(/class=(['"])[^'"]*\bMT_Time\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/)?.[2] ?? "");
+    const score = stripTags(block.match(/class=(['"])[^'"]*\bMT_Result\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/)?.[2] ?? "").replace(/\s+/g, "");
+    const statusLabel = stripTags(block.match(/class=(['"])[^'"]*\bMT_Stat\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
+    const infoItems = [...block.matchAll(/<li>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((mm) => stripTags(mm[1] ?? ""));
+    const channel = infoItems[0] ?? "";
+    const commentator = infoItems[1] ?? "";
+    const competition = infoItems[2] ?? "";
+    const anchor = block.match(/<a\b[^>]*>/)?.[0] ?? "";
+    const href = anchor.match(/href=(['"])([\s\S]*?)\1/)?.[2] ?? "";
+    const title = decodeEntities(anchor.match(/title=(['"])([\s\S]*?)\1/)?.[2] ?? "");
+    const date = title.match(/بتاريخ\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+    const kickoffIso = date && time ? `${date}T${time}:00+03:00` : parseKickoff(time, day);
+
+    matches.push({
+      id: `${homeTeam}-${awayTeam}-${date ?? day}-${idx}`,
+      homeTeam,
+      homeLogo,
+      awayTeam,
+      awayLogo,
+      time,
+      kickoffIso,
+      score,
+      status: parseStatus(statusLabel, classStr, score),
+      statusLabel,
+      channel,
+      commentator,
+      competition,
+      url: toAbsoluteUrl(href, baseUrl),
+    });
+  }
+  return matches;
+}
+
 function parseMatches(html: string, day: Day): Match[] {
+  const ayMatches = parseAyMatches(html, day);
+  if (ayMatches.length > 0) return ayMatches;
+
   // New STING-web markup: each match is a <div class="STING-web-Match ..." id="..."><a ...>...</a></div>
   const matches: Match[] = [];
   const blockRe = /<div\s+([^>]*class=(['"])[^'"]*STING-web-Match(?:\s[^'"]*)?\2[^>]*)>([\s\S]*?)<\/a>\s*<\/div>/g;
