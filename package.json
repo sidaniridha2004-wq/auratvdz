@@ -16,6 +16,7 @@
     "android": "npm run cap:sync && npm run cap:open"
   },
   "dependencies": {
+    "cheerio": "^1.0.0",
     "@capacitor/android": "^8.4.1",
     "@capacitor/app": "^8.1.0",
     "@capacitor/cli": "^8.4.1",

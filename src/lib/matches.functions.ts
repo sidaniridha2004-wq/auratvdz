@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import * as cheerio from "cheerio";
 
 export interface Match {
   id: string;
@@ -141,49 +142,47 @@ function statusFromCode(code: string, cls: string): Match["status"] {
 }
 
 function parseAyMatches(html: string, day: Day): Match[] {
-  // Kooora/Alba theme markup used after live-internet-football.com redirects:
-  // <div class="AY_Match finished"><div class="AY_Inner">...</div><div class="MT_Info">...</div><a ...></a></div>
   const matches: Match[] = [];
   const baseUrl = PAGE_URLS[day] ?? PAGE_URLS.home;
-  const blockRe = /<div\s+([^>]*class=(['"])[^'"]*\bAY_Match\b[^'"]*\2[^>]*)>([\s\S]*?)(?=<div\s+[^>]*class=(['"])[^'"]*\bAY_Match\b|<\/div>\s*<\/div>\s*<div\s+class=(['"])AY_Block\5|<\/div>\s*<\/div>\s*<\/div><!-- SiteContent-->)/g;
-  let m: RegExpExecArray | null;
-  let idx = 0;
-  while ((m = blockRe.exec(html)) !== null) {
-    idx++;
-    const attrs = m[1] ?? "";
-    const classStr = /class=(['"])([^'"]*)\1/.exec(attrs)?.[2] ?? "";
-    const block = m[3] ?? "";
-    const teamBlocks = [...block.matchAll(/<div\s+[^>]*class=(['"])[^'"]*\bMT_Team\b[^'"]*\1[^>]*>([\s\S]*?)(?=<\/div>\s*<\/div>\s*<div\s+[^>]*class=(['"])[^'"]*\bMT_Team\b|<\/div>\s*<\/div>\s*<\/div>)/g)].map((mm) => mm[2] ?? "");
+  const $ = cheerio.load(html);
 
-    const homeBlock = teamBlocks[0] ?? block.match(/class=['"][^'"]*\bTM1\b[\s\S]*?(?=<div\s+class=['"]MT_Data['"])/)?.[0] ?? "";
-    const awayBlock = teamBlocks[1] ?? block.match(/class=['"][^'"]*\bTM2\b[\s\S]*?(?=<\/div>\s*<\/div>\s*<\/div>\s*<div\s+class=['"]MT_Info['"])/)?.[0] ?? "";
+  $('.AY_Match').each((idx: any, el: any) => {
+    const $match = $(el);
+    const $homeTeam = $match.find('.TM1');
+    const $awayTeam = $match.find('.TM2');
 
-    const teamName = (teamBlock: string) =>
-      stripTags(
-        teamBlock.match(/class=(['"])[^'"]*\bTM_Name\b[^'"]*\1[^>]*>([\s\S]*?)(?:<\/div>|$)/)?.[2] ??
-          teamBlock.match(/<img[^>]+alt=(['"])([\s\S]*?)\1/)?.[2] ??
-          "",
-      );
-    const homeTeam = teamName(homeBlock);
-    const awayTeam = teamName(awayBlock);
-    if (!homeTeam || !awayTeam) continue;
+    const homeTeam = $homeTeam.find('.TM_Name').text().trim() || $homeTeam.find('img').attr('alt')?.trim() || '';
+    const awayTeam = $awayTeam.find('.TM_Name').text().trim() || $awayTeam.find('img').attr('alt')?.trim() || '';
+    if (!homeTeam || !awayTeam) return;
 
-    const homeLogo = toAbsoluteUrl(pickImg(homeBlock), baseUrl);
-    const awayLogo = toAbsoluteUrl(pickImg(awayBlock), baseUrl);
-    const time = stripTags(block.match(/class=(['"])[^'"]*\bMT_Time\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/)?.[2] ?? "");
-    const goals = [...block.matchAll(/class=(['"])[^'"]*\bRS-goals\b[^'"]*\1[^>]*>([\s\S]*?)<\/span>/g)].map((mm) =>
-      stripTags(mm[2] ?? ""),
-    );
+    const pickImg = ($team: cheerio.Cheerio<cheerio.Element>) => {
+      const $img = $team.find('img');
+      return $img.attr('data-src') || $img.attr('src') || "";
+    };
+
+    const homeLogo = toAbsoluteUrl(pickImg($homeTeam), baseUrl);
+    const awayLogo = toAbsoluteUrl(pickImg($awayTeam), baseUrl);
+
+    const time = $match.find('.MT_Time').text().trim();
+    
+    // Score
+    const goals = $match.find('.RS-goals').map((_: any, goalEl: any) => $(goalEl).text().trim()).get();
     const score = goals.length >= 2 ? `${goals[0]}-${goals[1]}` : "";
-    const statusLabel = stripTags(block.match(/class=(['"])[^'"]*\bMT_Stat\b[^'"]*\1[^>]*>([\s\S]*?)<\/div>/)?.[2] ?? "");
-    const infoItems = [...block.matchAll(/<li>\s*<span[^>]*>([\s\S]*?)<\/span>\s*<\/li>/g)].map((mm) => stripTags(mm[1] ?? ""));
+
+    const statusLabel = $match.find('.MT_Stat').text().trim();
+    const classStr = $match.attr('class') || '';
+
+    const infoItems = $match.find('.MT_Info li span').map((_: any, infoEl: any) => $(infoEl).text().trim()).get();
     const channel = infoItems[0] ?? "";
     const commentator = infoItems[1] ?? "";
     const competition = infoItems[2] ?? "";
-    const anchor = block.match(/<a\b[^>]*>/)?.[0] ?? "";
-    const href = anchor.match(/href=(['"])([\s\S]*?)\1/)?.[2] ?? "";
-    const title = decodeEntities(anchor.match(/title=(['"])([\s\S]*?)\1/)?.[2] ?? "");
-    const date = title.match(/بتاريخ\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+
+    const $anchor = $match.find('a').first();
+    const href = $anchor.attr('href') || "";
+    const title = $anchor.attr('title') || "";
+    
+    const dateM = title.match(/بتاريخ\s*(\d{4}-\d{2}-\d{2})/);
+    const date = dateM ? dateM[1] : null;
     const kickoffIso = date && time ? `${date}T${time}:00+03:00` : parseKickoff(time, day);
 
     matches.push({
@@ -202,7 +201,7 @@ function parseAyMatches(html: string, day: Day): Match[] {
       competition,
       url: toAbsoluteUrl(href, baseUrl),
     });
-  }
+  });
   return matches;
 }
 
@@ -210,52 +209,34 @@ function parseMatches(html: string, day: Day): Match[] {
   const ayMatches = parseAyMatches(html, day);
   if (ayMatches.length > 0) return ayMatches;
 
-  // New STING-web markup: each match is a <div class="STING-web-Match ..." id="..."><a ...>...</a></div>
   const matches: Match[] = [];
-  const blockRe = /<div\s+([^>]*class=(['"])[^'"]*STING-web-Match(?:\s[^'"]*)?\2[^>]*)>([\s\S]*?)<\/a>\s*<\/div>/g;
-  let m: RegExpExecArray | null;
-  let idx = 0;
-  while ((m = blockRe.exec(html)) !== null) {
-    idx++;
-    const divAttrs = m[1] ?? "";
-    const classStr = /class=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
-    const fixtureIdAttr = /\bid=(['"])([^'"]*)\1/.exec(divAttrs)?.[2] ?? "";
-    const block = m[3] ?? "";
+  const $ = cheerio.load(html);
+  
+  $('.STING-web-Match, [class*="STING-web-Match"]').each((idx: any, el: any) => {
+    const $match = $(el);
+    const $anchor = $match.find('a').first();
+    
+    const attr = (name: string) => $anchor.attr(name) || "";
+    
+    const homeTeam = attr("data-home") || $match.find('.STING-web-Right-Team .STING-web-Team-NAME').text().trim();
+    const awayTeam = attr("data-away") || $match.find('.STING-web-Left-Team .STING-web-Team-NAME').text().trim();
+    if (!homeTeam || !awayTeam) return;
 
-    const anchor = m[0].match(/<a\b[^>]*>/)?.[0] ?? "";
-    const attr = (name: string) => {
-      const r = new RegExp(`${name}=(['"])([\\s\\S]*?)\\1`).exec(anchor);
-      return r ? decodeEntities(r[2]) : "";
-    };
-    const homeTeam =
-      attr("data-home") ||
-      stripTags(
-        block.match(
-          /class=['"]STING-web-Right-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/,
-        )?.[1] ?? "",
-      );
-    const awayTeam =
-      attr("data-away") ||
-      stripTags(
-        block.match(
-          /class=['"]STING-web-Left-Team['"][\s\S]*?class=['"]STING-web-Team-NAME['"][^>]*>([\s\S]*?)<\/div>/,
-        )?.[1] ?? "",
-      );
-    const competition =
-      attr("data-league") ||
-      stripTags(block.match(/class=['"]STING-web-Match-Info['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
+    const competition = attr("data-league") || $match.find('.STING-web-Match-Info').text().trim();
     const startIso = attr("data-start");
 
-    const logos = [...block.matchAll(/class=['"]STING-web-Team-Logo['"][^>]*>\s*<img[^>]+>/g)].map((mm) => {
-      const src = /(?:data-img|data-src|src)=['"]([^'"]+)['"]/.exec(mm[0]);
-      return src ? src[1] : "";
-    });
-    const homeLogo = logos[0] ?? "";
-    const awayLogo = logos[1] ?? "";
+    const $logos = $match.find('.STING-web-Team-Logo img');
+    const getLogo = (index: number) => {
+      const $img = $logos.eq(index);
+      return $img.attr('data-img') || $img.attr('data-src') || $img.attr('src') || "";
+    };
+    const homeLogo = getLogo(0);
+    const awayLogo = getLogo(1);
 
-    const score = stripTags(block.match(/id=['"]STING-web-Result['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    const timeLabel = stripTags(block.match(/id=['"]STING-web-Match-Time['"][^>]*>([\s\S]*?)<\/div>/)?.[1] ?? "");
-    const statusCode = block.match(/data-status-code=['"]([^'"]*)['"]/)?.[1] ?? "";
+    const score = $match.find('#STING-web-Result, .STING-web-Result').text().trim();
+    const timeLabel = $match.find('#STING-web-Match-Time, .STING-web-Match-Time').text().trim();
+    const statusCode = $match.attr('data-status-code') || "";
+    const classStr = $match.attr('class') || "";
 
     let time = timeLabel;
     if (startIso) {
@@ -269,9 +250,9 @@ function parseMatches(html: string, day: Day): Match[] {
     }
 
     const status = statusFromCode(statusCode, classStr);
+    const fixtureIdAttr = $match.attr('id') || "";
     const id = fixtureIdAttr || `${homeTeam}-${awayTeam}-${idx}`;
 
-    if (!homeTeam || !awayTeam) continue;
     matches.push({
       id,
       homeTeam,
@@ -288,7 +269,7 @@ function parseMatches(html: string, day: Day): Match[] {
       competition,
       url: "",
     });
-  }
+  });
   return matches;
 }
 
