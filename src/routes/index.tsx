@@ -66,19 +66,18 @@ function Home() {
     staleTime: 2 * 60_000,
   });
 
-  // Filter by USER's LOCAL calendar day so TODAY/YESTERDAY/TOMORROW never mix.
+  // Filter by the source site's calendar day (+03), not the viewer's local timezone.
+  // Midnight matches from the source can otherwise shift to yesterday for users in UTC/+01.
   const matches = useMemo(() => {
     const list = rawMatches ?? [];
-    const now = new Date();
-    const target = new Date(now);
-    if (day === "yesterday") target.setDate(target.getDate() - 1);
-    if (day === "tomorrow") target.setDate(target.getDate() + 1);
-    const targetKey = target.toLocaleDateString();
+    const sourceNow = new Date(Date.now() + 3 * 3600_000);
+    const offset = day === "yesterday" ? -1 : day === "tomorrow" ? 1 : 0;
+    sourceNow.setUTCDate(sourceNow.getUTCDate() + offset);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const targetKey = `${sourceNow.getUTCFullYear()}-${pad(sourceNow.getUTCMonth() + 1)}-${pad(sourceNow.getUTCDate())}`;
     return list.filter((m) => {
       if (!m.kickoffIso) return true; // keep entries without a parseable kickoff
-      const d = new Date(m.kickoffIso);
-      if (Number.isNaN(d.getTime())) return true;
-      return d.toLocaleDateString() === targetKey;
+      return m.kickoffIso.slice(0, 10) === targetKey;
     });
   }, [rawMatches, day]);
 
