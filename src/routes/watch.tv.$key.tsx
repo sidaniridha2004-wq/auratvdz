@@ -86,7 +86,7 @@ function WatchTv() {
   const display = custom?.name ?? name ?? key;
   const preferredHeight = preferredHeightFor(key, display);
 
-  useEffect(() => () => exitImmersiveMode(), []);
+  useEffect(() => () => { void exitImmersiveMode(); }, []);
 
   // Channels the visitor added themselves play directly from their own URL.
   // Routing arbitrary user URLs through the server proxy would turn it back

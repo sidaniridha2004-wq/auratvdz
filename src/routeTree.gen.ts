@@ -9,9 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ThankYouRouteImport } from './routes/thank-you'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StatusRouteImport } from './routes/status'
+import { Route as PrivacyRouteImport } from './routes/privacy'
+import { Route as OgImageDotpngRouteImport } from './routes/og-image[.]png'
+import { Route as LiveRouteImport } from './routes/live'
+import { Route as Icon512DotpngRouteImport } from './routes/icon-512[.]png'
+import { Route as Icon192DotpngRouteImport } from './routes/icon-192[.]png'
+import { Route as FaqRouteImport } from './routes/faq'
 import { Route as DownloadRouteImport } from './routes/download'
+import { Route as DmcaRouteImport } from './routes/dmca'
+import { Route as ContactRouteImport } from './routes/contact'
+import { Route as CaseStudiesRouteImport } from './routes/case-studies'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
 import { Route as SettingsChannelsRouteImport } from './routes/settings.channels'
@@ -20,11 +32,52 @@ import { Route as WatchLiveSlugRouteImport } from './routes/watch.live.$slug'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
 import { Route as ApiPublicProbeRouteImport } from './routes/api/public/probe'
 import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
+import { Route as ApiPublicLegacyMasterRouteImport } from './routes/api/public/legacy-master'
 import { Route as ApiPublicAuratvMasterRouteImport } from './routes/api/public/auratv-master'
 
+const ThankYouRoute = ThankYouRouteImport.update({
+  id: '/thank-you',
+  path: '/thank-you',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatusRoute = StatusRouteImport.update({
   id: '/status',
   path: '/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OgImageDotpngRoute = OgImageDotpngRouteImport.update({
+  id: '/og-image.png',
+  path: '/og-image.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LiveRoute = LiveRouteImport.update({
+  id: '/live',
+  path: '/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Icon512DotpngRoute = Icon512DotpngRouteImport.update({
+  id: '/icon-512.png',
+  path: '/icon-512.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const Icon192DotpngRoute = Icon192DotpngRouteImport.update({
+  id: '/icon-192.png',
+  path: '/icon-192.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FaqRoute = FaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DownloadRoute = DownloadRouteImport.update({
@@ -32,9 +85,29 @@ const DownloadRoute = DownloadRouteImport.update({
   path: '/download',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DmcaRoute = DmcaRouteImport.update({
+  id: '/dmca',
+  path: '/dmca',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ContactRoute = ContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaseStudiesRoute = CaseStudiesRouteImport.update({
+  id: '/case-studies',
+  path: '/case-studies',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AboutRoute = AboutRouteImport.update({
+  id: '/about',
+  path: '/about',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -77,6 +150,11 @@ const ApiPublicMasterRoute = ApiPublicMasterRouteImport.update({
   path: '/api/public/master',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicLegacyMasterRoute = ApiPublicLegacyMasterRouteImport.update({
+  id: '/api/public/legacy-master',
+  path: '/api/public/legacy-master',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
   id: '/api/public/auratv-master',
   path: '/api/public/auratv-master',
@@ -85,12 +163,25 @@ const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/contact': typeof ContactRoute
+  '/dmca': typeof DmcaRoute
   '/download': typeof DownloadRoute
+  '/faq': typeof FaqRoute
+  '/icon-192.png': typeof Icon192DotpngRoute
+  '/icon-512.png': typeof Icon512DotpngRoute
+  '/live': typeof LiveRoute
+  '/og-image.png': typeof OgImageDotpngRoute
+  '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
+  '/thank-you': typeof ThankYouRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
+  '/api/public/legacy-master': typeof ApiPublicLegacyMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
@@ -99,12 +190,25 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/contact': typeof ContactRoute
+  '/dmca': typeof DmcaRoute
   '/download': typeof DownloadRoute
+  '/faq': typeof FaqRoute
+  '/icon-192.png': typeof Icon192DotpngRoute
+  '/icon-512.png': typeof Icon512DotpngRoute
+  '/live': typeof LiveRoute
+  '/og-image.png': typeof OgImageDotpngRoute
+  '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
+  '/thank-you': typeof ThankYouRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
+  '/api/public/legacy-master': typeof ApiPublicLegacyMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
@@ -114,12 +218,25 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/case-studies': typeof CaseStudiesRoute
+  '/contact': typeof ContactRoute
+  '/dmca': typeof DmcaRoute
   '/download': typeof DownloadRoute
+  '/faq': typeof FaqRoute
+  '/icon-192.png': typeof Icon192DotpngRoute
+  '/icon-512.png': typeof Icon512DotpngRoute
+  '/live': typeof LiveRoute
+  '/og-image.png': typeof OgImageDotpngRoute
+  '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
+  '/terms': typeof TermsRoute
+  '/thank-you': typeof ThankYouRoute
   '/settings/channels': typeof SettingsChannelsRoute
   '/watch/$channelId': typeof WatchChannelIdRoute
   '/api/public/auratv-master': typeof ApiPublicAuratvMasterRoute
+  '/api/public/legacy-master': typeof ApiPublicLegacyMasterRoute
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
@@ -130,12 +247,25 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/about'
     | '/admin'
+    | '/case-studies'
+    | '/contact'
+    | '/dmca'
     | '/download'
+    | '/faq'
+    | '/icon-192.png'
+    | '/icon-512.png'
+    | '/live'
+    | '/og-image.png'
+    | '/privacy'
     | '/status'
+    | '/terms'
+    | '/thank-you'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
+    | '/api/public/legacy-master'
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
@@ -144,12 +274,25 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/about'
     | '/admin'
+    | '/case-studies'
+    | '/contact'
+    | '/dmca'
     | '/download'
+    | '/faq'
+    | '/icon-192.png'
+    | '/icon-512.png'
+    | '/live'
+    | '/og-image.png'
+    | '/privacy'
     | '/status'
+    | '/terms'
+    | '/thank-you'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
+    | '/api/public/legacy-master'
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
@@ -158,12 +301,25 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
+    | '/about'
     | '/admin'
+    | '/case-studies'
+    | '/contact'
+    | '/dmca'
     | '/download'
+    | '/faq'
+    | '/icon-192.png'
+    | '/icon-512.png'
+    | '/live'
+    | '/og-image.png'
+    | '/privacy'
     | '/status'
+    | '/terms'
+    | '/thank-you'
     | '/settings/channels'
     | '/watch/$channelId'
     | '/api/public/auratv-master'
+    | '/api/public/legacy-master'
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
@@ -173,12 +329,25 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  CaseStudiesRoute: typeof CaseStudiesRoute
+  ContactRoute: typeof ContactRoute
+  DmcaRoute: typeof DmcaRoute
   DownloadRoute: typeof DownloadRoute
+  FaqRoute: typeof FaqRoute
+  Icon192DotpngRoute: typeof Icon192DotpngRoute
+  Icon512DotpngRoute: typeof Icon512DotpngRoute
+  LiveRoute: typeof LiveRoute
+  OgImageDotpngRoute: typeof OgImageDotpngRoute
+  PrivacyRoute: typeof PrivacyRoute
   StatusRoute: typeof StatusRoute
+  TermsRoute: typeof TermsRoute
+  ThankYouRoute: typeof ThankYouRoute
   SettingsChannelsRoute: typeof SettingsChannelsRoute
   WatchChannelIdRoute: typeof WatchChannelIdRoute
   ApiPublicAuratvMasterRoute: typeof ApiPublicAuratvMasterRoute
+  ApiPublicLegacyMasterRoute: typeof ApiPublicLegacyMasterRoute
   ApiPublicMasterRoute: typeof ApiPublicMasterRoute
   ApiPublicProbeRoute: typeof ApiPublicProbeRoute
   ApiPublicStreamRoute: typeof ApiPublicStreamRoute
@@ -188,11 +357,67 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/thank-you': {
+      id: '/thank-you'
+      path: '/thank-you'
+      fullPath: '/thank-you'
+      preLoaderRoute: typeof ThankYouRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/status': {
       id: '/status'
       path: '/status'
       fullPath: '/status'
       preLoaderRoute: typeof StatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/og-image.png': {
+      id: '/og-image.png'
+      path: '/og-image.png'
+      fullPath: '/og-image.png'
+      preLoaderRoute: typeof OgImageDotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/live': {
+      id: '/live'
+      path: '/live'
+      fullPath: '/live'
+      preLoaderRoute: typeof LiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/icon-512.png': {
+      id: '/icon-512.png'
+      path: '/icon-512.png'
+      fullPath: '/icon-512.png'
+      preLoaderRoute: typeof Icon512DotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/icon-192.png': {
+      id: '/icon-192.png'
+      path: '/icon-192.png'
+      fullPath: '/icon-192.png'
+      preLoaderRoute: typeof Icon192DotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faq': {
+      id: '/faq'
+      path: '/faq'
+      fullPath: '/faq'
+      preLoaderRoute: typeof FaqRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/download': {
@@ -202,11 +427,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dmca': {
+      id: '/dmca'
+      path: '/dmca'
+      fullPath: '/dmca'
+      preLoaderRoute: typeof DmcaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/contact': {
+      id: '/contact'
+      path: '/contact'
+      fullPath: '/contact'
+      preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/case-studies': {
+      id: '/case-studies'
+      path: '/case-studies'
+      fullPath: '/case-studies'
+      preLoaderRoute: typeof CaseStudiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/about': {
+      id: '/about'
+      path: '/about'
+      fullPath: '/about'
+      preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -265,6 +518,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicMasterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/legacy-master': {
+      id: '/api/public/legacy-master'
+      path: '/api/public/legacy-master'
+      fullPath: '/api/public/legacy-master'
+      preLoaderRoute: typeof ApiPublicLegacyMasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/auratv-master': {
       id: '/api/public/auratv-master'
       path: '/api/public/auratv-master'
@@ -277,12 +537,25 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  CaseStudiesRoute: CaseStudiesRoute,
+  ContactRoute: ContactRoute,
+  DmcaRoute: DmcaRoute,
   DownloadRoute: DownloadRoute,
+  FaqRoute: FaqRoute,
+  Icon192DotpngRoute: Icon192DotpngRoute,
+  Icon512DotpngRoute: Icon512DotpngRoute,
+  LiveRoute: LiveRoute,
+  OgImageDotpngRoute: OgImageDotpngRoute,
+  PrivacyRoute: PrivacyRoute,
   StatusRoute: StatusRoute,
+  TermsRoute: TermsRoute,
+  ThankYouRoute: ThankYouRoute,
   SettingsChannelsRoute: SettingsChannelsRoute,
   WatchChannelIdRoute: WatchChannelIdRoute,
   ApiPublicAuratvMasterRoute: ApiPublicAuratvMasterRoute,
+  ApiPublicLegacyMasterRoute: ApiPublicLegacyMasterRoute,
   ApiPublicMasterRoute: ApiPublicMasterRoute,
   ApiPublicProbeRoute: ApiPublicProbeRoute,
   ApiPublicStreamRoute: ApiPublicStreamRoute,
@@ -292,3 +565,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
