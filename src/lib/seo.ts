@@ -1,7 +1,7 @@
 import { SITE, absoluteUrl } from "@/lib/site";
 
 type Meta = { title?: string; name?: string; property?: string; content?: string };
-type LinkTag = { rel: string; href: string; type?: string; sizes?: string; crossOrigin?: string };
+type LinkTag = { rel: string; href: string; type?: string; sizes?: string; crossOrigin?: "anonymous" | "use-credentials" };
 type Script = { type?: string; children?: string; src?: string; async?: boolean };
 
 export interface PageSeo {
