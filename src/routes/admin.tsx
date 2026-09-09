@@ -1,46 +1,33 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, LogOut, Plus, Trash2, Eye, EyeOff, ArrowLeft, Search, Pencil, X, Save, Loader2 } from "lucide-react";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { Plus, Trash2, Eye, EyeOff, Search, Pencil, X, Loader2 } from "lucide-react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/Footer";
 import { ChannelLogo } from "@/components/ChannelLogo";
+import { Wordmark } from "@/components/Wordmark";
 import { useAdmin } from "@/lib/admin";
 import { useChannels, CHANNELS_QUERY_KEY } from "@/lib/channels-client";
-import {
-  adminUpdateChannel,
-  adminSetActive,
-  adminInsertChannel,
-  adminDeleteChannel,
-} from "@/lib/channels.functions";
-import {
-  adminInsertNowOnTv,
-  adminUpdateNowOnTv,
-  adminDeleteNowOnTv,
-} from "@/lib/now-on-tv.functions";
+import { adminUpdateChannel, adminSetActive, adminInsertChannel, adminDeleteChannel, type ChannelRow } from "@/lib/channels.functions";
+import { adminInsertNowOnTv, adminUpdateNowOnTv, adminDeleteNowOnTv } from "@/lib/now-on-tv.functions";
 import { useNowOnTv, NOW_ON_TV_QUERY_KEY } from "@/components/NowOnTvStrip";
-import { useQueryClient, useQuery } from "@tanstack/react-query";
-import { getMatches } from "@/lib/matches.functions";
+import { getMatches, type Match } from "@/lib/matches.functions";
 import { adminSetMatchOverride } from "@/lib/match-override.functions";
 import { getSetting, updateSetting } from "@/lib/settings.functions";
 
 export const Route = createFileRoute("/admin")({
   component: AdminPage,
   head: () => ({
-    meta: [
-      { title: "Admin — AuraTV" },
-      { name: "robots", content: "noindex, nofollow" },
-    ],
+    meta: [{ title: "Admin — AuraTV" }, { name: "robots", content: "noindex, nofollow" }],
   }),
 });
 
-// The password lives in the browser only long enough to authorize the current
-// admin session's writes; we forward it to server fns that re-check it against
-// process.env.ADMIN_PASSWORD before doing anything with the service-role key.
-// No hardcoded fallback — an operator must set ADMIN_PASSWORD server-side.
-const PW_KEY = "auratv:admin:pw";
-const PAGE_SIZE = 20;
+// The browser never holds the admin password after sign-in. `useAdmin()` keeps
+// a short-lived signed session token and every write sends that token, which
+// the server verifies before touching the service-role client.
 
+const PAGE_SIZE = 20;
 const ALL_CATEGORIES = [
   "beIN Sports MAX", "beIN Sports", "Canal+ France", "French TV", "Algeria TV",
   "MBC Entertainment", "MBC Movies", "MBC Drama", "MBC Kids", "MBC Regional",
@@ -48,21 +35,15 @@ const ALL_CATEGORIES = [
   "General", "Lifestyle & Doc", "Documentaries", "Maghreb",
 ];
 
-interface Row {
-  slug: string;
-  name: string;
-  category: string;
-  logo_url: string;
-  stream_url: string;
-  is_active: boolean;
-  is_custom: boolean;
-}
+type Row = Pick<ChannelRow, "slug" | "name" | "category" | "logo_url" | "stream_url" | "is_active" | "is_custom" | "match_alias">;
 type Patch = Partial<Pick<Row, "name" | "category" | "logo_url" | "stream_url" | "is_active">>;
 
+const errText = (e: unknown) => (e instanceof Error ? e.message : "Unknown error");
+
 function AdminPage() {
-  const { isAdmin, login, logout } = useAdmin();
+  const { isAdmin, ready, token, login, logout } = useAdmin();
   const [pw, setPw] = useState("");
-  const [err, setErr] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { rows: dbRows, isLoading, error } = useChannels();
@@ -73,164 +54,129 @@ function AdminPage() {
   const deleteFn = useServerFn(adminDeleteChannel);
 
   const [q, setQ] = useState("");
-  const [catFilter, setCatFilter] = useState<string>("all");
+  const [catFilter, setCatFilter] = useState("all");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [editing, setEditing] = useState<Row | null>(null);
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  // Retain the password in sessionStorage so refresh doesn't drop it.
-  const [adminPw, setAdminPw] = useState<string>("");
-  useEffect(() => {
-    try {
-      const stored = sessionStorage.getItem(PW_KEY) ?? "";
-      setAdminPw(stored);
-      // If session says we're admin but the password is missing (stored
-      // before PW_KEY existed, or cleared), force re-login so writes
-      // don't fail with Unauthorized.
-      if (isAdmin && !stored) logout();
-    } catch {}
-  }, [isAdmin, logout]);
-
-  const rows: Row[] = useMemo(() => dbRows.map((r) => ({
-    slug: r.slug,
-    name: r.name,
-    category: r.category,
-    logo_url: r.logo_url,
-    stream_url: r.stream_url,
-    is_active: r.is_active,
-    is_custom: r.is_custom,
-  })), [dbRows]);
+  const rows: Row[] = useMemo(
+    () =>
+      dbRows.map((r) => ({
+        slug: r.slug,
+        name: r.name,
+        category: r.category,
+        logo_url: r.logo_url,
+        stream_url: r.stream_url,
+        is_active: r.is_active,
+        is_custom: r.is_custom,
+        match_alias: r.match_alias,
+      })),
+    [dbRows],
+  );
 
   const filtered = useMemo(() => {
     const nq = q.trim().toLowerCase();
-    return rows.filter((r) => {
-      if (catFilter !== "all" && r.category !== catFilter) return false;
-      if (nq && !r.name.toLowerCase().includes(nq)) return false;
-      return true;
-    });
+    return rows.filter((r) => (catFilter === "all" || r.category === catFilter) && (!nq || r.name.toLowerCase().includes(nq)));
   }, [rows, q, catFilter]);
 
   const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageRows = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
-  useEffect(() => { if (page >= pageCount) setPage(0); }, [pageCount, page]);
+  useEffect(() => {
+    if (page >= pageCount) setPage(0);
+  }, [pageCount, page]);
 
   const activeCount = rows.filter((r) => r.is_active).length;
-  const hiddenCount = rows.length - activeCount;
-
   const allChecked = pageRows.length > 0 && pageRows.every((r) => selected.has(r.slug));
-  const togglePageSelected = () => {
+  const togglePageSelected = () =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (allChecked) pageRows.forEach((r) => next.delete(r.slug));
-      else pageRows.forEach((r) => next.add(r.slug));
+      pageRows.forEach((r) => (allChecked ? next.delete(r.slug) : next.add(r.slug)));
       return next;
     });
-  };
-  const toggleOne = (id: string) => {
+  const toggleOne = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
-  };
 
   const invalidate = () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
-  const getAdminPassword = () => {
+  const run = async (label: string, fn: () => Promise<unknown>) => {
+    setBusy(true);
+    setNotice(null);
     try {
-      return adminPw || sessionStorage.getItem(PW_KEY) || "";
-    } catch {
-      return adminPw;
+      await fn();
+      await invalidate();
+    } catch (e) {
+      setNotice(`${label} failed: ${errText(e)}`);
+    } finally {
+      setBusy(false);
     }
   };
 
-  const doSave = async (slug: string, patch: Patch) => {
-    setBusy(true);
-    try {
-      await updateFn({ data: { password: getAdminPassword(), slug, patch } });
-      await invalidate();
-    } catch (e) {
-      alert(`Save failed: ${(e as Error).message}`);
-    } finally { setBusy(false); }
-  };
-  const doToggle = async (r: Row) => {
-    await doSave(r.slug, { is_active: !r.is_active });
-  };
-  const doBulk = async (active: boolean) => {
+  const doSave = (slug: string, patch: Patch) => run("Save", () => updateFn({ data: { password: token, slug, patch } }));
+  const doBulk = (active: boolean) => {
     if (selected.size === 0) return;
-    setBusy(true);
-    try {
-      await bulkFn({ data: { password: getAdminPassword(), slugs: Array.from(selected), is_active: active } });
+    return run("Bulk update", async () => {
+      await bulkFn({ data: { password: token, slugs: Array.from(selected), is_active: active } });
       setSelected(new Set());
-      await invalidate();
-    } catch (e) {
-      alert(`Bulk update failed: ${(e as Error).message}`);
-    } finally { setBusy(false); }
+    });
   };
-  const doDelete = async (r: Row) => {
+  const doDelete = (r: Row) => {
     if (!confirm(`Delete ${r.name}? This cannot be undone.`)) return;
-    setBusy(true);
-    try {
-      await deleteFn({ data: { password: getAdminPassword(), slug: r.slug } });
-      await invalidate();
-    } catch (e) {
-      alert(`Delete failed: ${(e as Error).message}`);
-    } finally { setBusy(false); }
+    return run("Delete", () => deleteFn({ data: { password: token, slug: r.slug } }));
   };
-  const doInsert = async (patch: Patch & { slug?: string }) => {
+  const doInsert = (patch: Patch & { slug?: string }) => {
     const slug = (patch.slug || patch.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    if (!slug || !patch.name || !patch.stream_url) return alert("Name, stream URL, and slug are required.");
-    setBusy(true);
-    try {
-      await insertFn({ data: { password: getAdminPassword(), channel: {
-        slug,
-        name: patch.name,
-        category: patch.category ?? "General",
-        logo_url: patch.logo_url ?? "",
-        stream_url: patch.stream_url,
-      } } });
+    if (!slug || !patch.name || !patch.stream_url) return setNotice("Name and stream URL are required.");
+    return run("Insert", async () => {
+      await insertFn({
+        data: {
+          password: token,
+          channel: { slug, name: patch.name!, category: patch.category ?? "General", logo_url: patch.logo_url ?? "", stream_url: patch.stream_url! },
+        },
+      });
       setAdding(false);
-      await invalidate();
-    } catch (e) {
-      alert(`Insert failed: ${(e as Error).message}`);
-    } finally { setBusy(false); }
+    });
   };
+
+  if (!ready) return null;
 
   if (!isAdmin) {
     return (
-      <div className="min-h-screen bg-hero flex items-center justify-center px-4">
+      <div className="flex min-h-screen items-center justify-center px-4">
         <form
           onSubmit={async (e) => {
             e.preventDefault();
-            if (await login(pw)) {
-              try { sessionStorage.setItem(PW_KEY, pw); } catch {}
-              setAdminPw(pw);
-              setErr(false);
-            } else setErr(true);
+            setErr(null);
+            const ok = await login(pw);
+            setPw("");
+            if (!ok) setErr("Wrong password, or admin access is not configured on the server.");
           }}
-          className="w-full max-w-sm rounded-2xl border border-white/10 bg-card p-6 shadow-glow"
+          className="tile w-full max-w-sm p-6"
         >
-          <div className="flex items-center gap-2 mb-2">
-            <Lock className="h-5 w-5 text-primary" />
-            <h1 className="font-display text-xl font-bold">Admin sign-in</h1>
-          </div>
-          <p className="text-xs text-muted-foreground mb-4">Enter the admin password to continue.</p>
-          <input
-            type="password"
-            autoFocus
-            value={pw}
-            onChange={(e) => { setPw(e.target.value); setErr(false); }}
-            placeholder="Password"
-            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          {err && <div className="mt-2 text-xs font-semibold text-red-400">❌ Access denied</div>}
-          <button className="mt-4 w-full rounded-full bg-primary py-2 text-sm font-semibold text-primary-foreground">
+          <Wordmark />
+          <h1 className="mt-4 text-[1.4rem]">Editor sign-in</h1>
+          <p className="mt-1 text-[13px] text-muted-foreground">Restricted area. Attempts are logged.</p>
+          <label className="mt-4 block">
+            <span className="kicker mb-1.5 block">Password</span>
+            <input type="password" autoFocus autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} className="field" />
+          </label>
+          {err && (
+            <p role="alert" className="mt-2 text-[13px] text-primary">
+              {err}
+            </p>
+          )}
+          <button type="submit" className="btn btn-primary mt-4 w-full">
             Sign in
           </button>
-          <div className="mt-4 text-center">
-            <Link to="/" className="text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1">
-              <ArrowLeft className="h-3 w-3" /> Back to home
+          <div className="mt-4 text-center text-[13px]">
+            <Link to="/" className="text-muted-foreground underline">
+              Back to the site
             </Link>
           </div>
         </form>
@@ -239,167 +185,177 @@ function AdminPage() {
   }
 
   return (
-    <div className="min-h-screen bg-hero">
+    <div className="min-h-screen">
       <SiteHeader />
-      
-      {/* Moved to the top so it's instantly visible! */}
-      <div className="pt-6 space-y-8">
-        <ScraperSettingsEditor getPassword={getAdminPassword} />
-        <ScrapedMatchesAdmin getPassword={getAdminPassword} channelRows={dbRows} />
-        <NowOnTvEditor getPassword={getAdminPassword} channelRows={rows} />
-      </div>
 
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div className="wrap space-y-12 py-8">
+        <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">Restricted</div>
-            <h1 className="mt-1 flex items-center gap-2 font-display text-3xl font-bold sm:text-4xl">
-              Channel management <span className="text-yellow-400">🔒</span>
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              {rows.length} channels total · {activeCount} active · {hiddenCount} hidden {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
-            </p>
-            {error && <p className="text-xs text-red-400">Load error: {error.message}</p>}
+            <div className="kicker text-primary">Editor</div>
+            <h1 className="mt-1 text-[1.75rem]">Site administration</h1>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setAdding(true)}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow"
-            >
-              <Plus className="h-4 w-4" /> Add new channel
-            </button>
-            <button
-              onClick={() => { try { sessionStorage.removeItem(PW_KEY); } catch {}; logout(); navigate({ to: "/" }); }}
-              className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
-            >
-              <LogOut className="h-4 w-4" /> Sign out
-            </button>
-          </div>
-        </div>
-
-        <div className="mb-4 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => { setQ(e.target.value); setPage(0); }}
-              placeholder="Search channels…"
-              className="w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm outline-none focus:border-primary"
-            />
-          </div>
-          <select
-            value={catFilter}
-            onChange={(e) => { setCatFilter(e.target.value); setPage(0); }}
-            className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
+          <button
+            type="button"
+            onClick={() => {
+              logout();
+              void navigate({ to: "/" });
+            }}
+            className="btn btn-outline btn-sm"
           >
-            <option value="all">All categories</option>
-            {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+            Sign out
+          </button>
         </div>
 
-        {selected.size > 0 && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-primary/30 bg-primary/10 px-4 py-2 text-sm">
-            <span className="font-semibold">{selected.size} selected</span>
-            <button
-              onClick={() => doBulk(true)}
-              className="ml-auto rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 hover:bg-emerald-500/30"
-            >Set active</button>
-            <button
-              onClick={() => doBulk(false)}
-              className="rounded-full bg-red-500/20 px-3 py-1 text-xs font-semibold text-red-300 hover:bg-red-500/30"
-            >Set inactive</button>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="rounded-full bg-white/5 px-3 py-1 text-xs text-muted-foreground hover:bg-white/10"
-            >Clear</button>
-          </div>
+        {notice && (
+          <p role="alert" className="tile border-primary/40 p-3 text-[13px] text-primary">
+            {notice}
+          </p>
         )}
 
-        <div className="rounded-2xl border border-white/10 overflow-hidden">
-          <div className="max-h-[65vh] overflow-y-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10 bg-black/80 backdrop-blur text-left text-[11px] uppercase tracking-widest text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-3 w-8">
-                    <input type="checkbox" checked={allChecked} onChange={togglePageSelected} className="h-4 w-4 accent-primary" />
-                  </th>
-                  <th className="px-2 py-3 w-14">Logo</th>
-                  <th className="px-3 py-3">Name</th>
-                  <th className="px-3 py-3">Category</th>
-                  <th className="px-3 py-3 hidden md:table-cell">Stream URL</th>
-                  <th className="px-3 py-3">Status</th>
-                  <th className="px-3 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {isLoading ? (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Loading channels…</td></tr>
-                ) : pageRows.length === 0 ? (
-                  <tr><td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No channels match.</td></tr>
-                ) : pageRows.map((r) => {
-                  const isSel = selected.has(r.slug);
-                  return (
-                    <tr key={r.slug} className={`border-t border-white/5 ${!r.is_active ? "opacity-50 line-through" : ""}`}>
-                      <td className="px-3 py-2">
-                        <input type="checkbox" checked={isSel} onChange={() => toggleOne(r.slug)} className="h-4 w-4 accent-primary" />
-                      </td>
-                      <td className="px-2 py-2">
-                        <ChannelLogo src={r.logo_url} name={r.name} group={r.category} size={32} />
-                      </td>
-                      <td className="px-3 py-2 font-medium">
-                        {r.name}
-                        {r.is_custom && <span className="ml-2 rounded-full bg-primary/20 px-1.5 py-0.5 text-[9px] font-semibold uppercase text-primary">custom</span>}
-                      </td>
-                      <td className="px-3 py-2 text-xs text-muted-foreground uppercase">{r.category}</td>
-                      <td className="px-3 py-2 hidden md:table-cell max-w-[260px] truncate text-xs text-muted-foreground" title={r.stream_url}>{r.stream_url}</td>
-                      <td className="px-3 py-2">
-                        {r.is_active ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold text-emerald-300">Active</span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] font-semibold text-red-300">Inactive</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right whitespace-nowrap">
-                        <button onClick={() => setEditing(r)} disabled={busy} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40">
-                          <Pencil className="h-3 w-3" /> Edit
-                        </button>
-                        <button onClick={() => doToggle(r)} disabled={busy} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40">
-                          {r.is_active ? <><EyeOff className="h-3 w-3" /> Hide</> : <><Eye className="h-3 w-3" /> Show</>}
-                        </button>
-                          <button
-                            onClick={() => doDelete(r)}
-                            disabled={busy}
-                            className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20 disabled:opacity-40"
-                          >
-                            <Trash2 className="h-3 w-3" /> Delete
-                          </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <ScraperSettingsEditor token={token} />
+        <MatchOverrides token={token} channelRows={rows} />
+        <NowOnTvEditor token={token} channelRows={rows} />
+
+        <section>
+          <div className="rule-heavy mb-5 flex flex-wrap items-end justify-between gap-3 pt-3">
+            <div>
+              <div className="kicker text-primary">Legacy channel list</div>
+              <h2 className="mt-1 text-[1.4rem]">Channels in the database</h2>
+              <p className="text-[13px] text-muted-foreground">
+                {rows.length} total, {activeCount} shown to visitors, {rows.length - activeCount} hidden.
+                {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" aria-label="Working" />}
+              </p>
+              {error && <p className="text-[13px] text-primary">Could not load channels.</p>}
+            </div>
+            <button type="button" onClick={() => setAdding(true)} className="btn btn-primary btn-sm">
+              <Plus className="h-4 w-4" aria-hidden /> Add channel
+            </button>
           </div>
 
-          <div className="flex items-center justify-between border-t border-white/10 bg-black/40 px-4 py-3 text-xs text-muted-foreground">
-            <div>
-              Showing {filtered.length === 0 ? 0 : page * PAGE_SIZE + 1}–{Math.min(filtered.length, (page + 1) * PAGE_SIZE)} of {filtered.length}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+              <input
+                value={q}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setPage(0);
+                }}
+                placeholder="Search channels"
+                aria-label="Search channels"
+                className="field pl-9"
+              />
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                disabled={page === 0}
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 disabled:opacity-40 hover:bg-white/10"
-              >Previous</button>
-              <span className="font-semibold text-foreground">{page + 1} / {pageCount}</span>
-              <button
-                disabled={page >= pageCount - 1}
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-1 disabled:opacity-40 hover:bg-white/10"
-              >Next</button>
+            <select
+              value={catFilter}
+              onChange={(e) => {
+                setCatFilter(e.target.value);
+                setPage(0);
+              }}
+              aria-label="Filter by category"
+              className="field w-auto"
+            >
+              <option value="all">All categories</option>
+              {ALL_CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          {selected.size > 0 && (
+            <div className="tile mb-3 flex flex-wrap items-center gap-2 p-3 text-[13px]">
+              <span className="font-semibold">{selected.size} selected</span>
+              <button type="button" onClick={() => doBulk(true)} className="btn btn-outline btn-sm ml-auto">
+                Show
+              </button>
+              <button type="button" onClick={() => doBulk(false)} className="btn btn-outline btn-sm">
+                Hide
+              </button>
+              <button type="button" onClick={() => setSelected(new Set())} className="btn btn-ghost btn-sm">
+                Clear
+              </button>
+            </div>
+          )}
+
+          <div className="tile overflow-hidden p-0">
+            <div className="max-h-[65vh] overflow-y-auto">
+              <table className="w-full text-[13px]">
+                <caption className="sr-only">Channels stored in the database</caption>
+                <thead className="sticky top-0 z-10 bg-card text-left">
+                  <tr className="rule-b">
+                    <th scope="col" className="w-8 px-3 py-3">
+                      <input type="checkbox" checked={allChecked} onChange={togglePageSelected} aria-label="Select all on this page" />
+                    </th>
+                    <th scope="col" className="w-14 px-2 py-3 kicker">Logo</th>
+                    <th scope="col" className="px-3 py-3 kicker">Name</th>
+                    <th scope="col" className="px-3 py-3 kicker">Category</th>
+                    <th scope="col" className="hidden px-3 py-3 kicker md:table-cell">Stream</th>
+                    <th scope="col" className="px-3 py-3 kicker">Status</th>
+                    <th scope="col" className="px-3 py-3 text-right kicker">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Loading</td>
+                    </tr>
+                  ) : pageRows.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">No channels match.</td>
+                    </tr>
+                  ) : (
+                    pageRows.map((r) => (
+                      <tr key={r.slug} className={`rule-b ${r.is_active ? "" : "opacity-50"}`}>
+                        <td className="px-3 py-2">
+                          <input type="checkbox" checked={selected.has(r.slug)} onChange={() => toggleOne(r.slug)} aria-label={`Select ${r.name}`} />
+                        </td>
+                        <td className="px-2 py-2">
+                          <ChannelLogo src={r.logo_url} name={r.name} group={r.category} size={32} />
+                        </td>
+                        <td className="px-3 py-2 font-medium">
+                          {r.name}
+                          {r.is_custom && <span className="badge ml-2">custom</span>}
+                        </td>
+                        <td className="px-3 py-2 text-muted-foreground">{r.category}</td>
+                        <td className="mono hidden max-w-[260px] truncate px-3 py-2 text-muted-foreground md:table-cell" title={r.stream_url}>
+                          {r.stream_url}
+                        </td>
+                        <td className="px-3 py-2">{r.is_active ? <span className="badge badge-live">Shown</span> : <span className="badge badge-ft">Hidden</span>}</td>
+                        <td className="whitespace-nowrap px-3 py-2 text-right">
+                          <button type="button" onClick={() => setEditing(r)} disabled={busy} className="btn btn-ghost btn-sm" aria-label={`Edit ${r.name}`}>
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                          <button type="button" onClick={() => doSave(r.slug, { is_active: !r.is_active })} disabled={busy} className="btn btn-ghost btn-sm" aria-label={r.is_active ? `Hide ${r.name}` : `Show ${r.name}`}>
+                            {r.is_active ? <EyeOff className="h-3.5 w-3.5" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
+                          </button>
+                          <button type="button" onClick={() => doDelete(r)} disabled={busy} className="btn btn-ghost btn-sm text-primary" aria-label={`Delete ${r.name}`}>
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+            <div className="rule flex items-center justify-between px-4 py-3 text-[12px] text-muted-foreground">
+              <span>
+                {filtered.length === 0 ? 0 : page * PAGE_SIZE + 1}–{Math.min(filtered.length, (page + 1) * PAGE_SIZE)} of {filtered.length}
+              </span>
+              <span className="flex items-center gap-2">
+                <button type="button" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="btn btn-ghost btn-sm">
+                  Previous
+                </button>
+                <span className="mono">
+                  {page + 1} / {pageCount}
+                </span>
+                <button type="button" disabled={page >= pageCount - 1} onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))} className="btn btn-ghost btn-sm">
+                  Next
+                </button>
+              </span>
             </div>
           </div>
-        </div>
+        </section>
       </div>
       <Footer />
 
@@ -407,12 +363,15 @@ function AdminPage() {
         <EditModal
           row={editing}
           onClose={() => setEditing(null)}
-          onSave={async (patch) => { await doSave(editing.slug, patch); setEditing(null); }}
+          onSave={async (patch) => {
+            await doSave(editing.slug, patch);
+            setEditing(null);
+          }}
         />
       )}
       {adding && (
         <EditModal
-          row={{ slug: "", name: "", category: "Sports", logo_url: "", stream_url: "", is_active: true, is_custom: true }}
+          row={{ slug: "", name: "", category: "Sports", logo_url: "", stream_url: "", is_active: true, is_custom: true, match_alias: null }}
           isNew
           onClose={() => setAdding(false)}
           onSave={(patch) => doInsert(patch)}
@@ -422,55 +381,57 @@ function AdminPage() {
   );
 }
 
-function EditModal({
-  row, isNew, onClose, onSave,
-}: {
-  row: Row;
-  isNew?: boolean;
-  onClose: () => void;
-  onSave: (patch: Patch) => void;
-}) {
+function EditModal({ row, isNew, onClose, onSave }: { row: Row; isNew?: boolean; onClose: () => void; onSave: (patch: Patch) => void }) {
   const [name, setName] = useState(row.name);
   const [category, setCategory] = useState(row.category);
   const [logo, setLogo] = useState(row.logo_url ?? "");
   const [url, setUrl] = useState(row.stream_url);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-card p-6 shadow-glow">
-        <div className="flex items-start justify-between mb-4">
-          <h2 className="font-display text-lg font-bold">{isNew ? "Add new channel" : `Edit · ${row.name}`}</h2>
-          <button aria-label="Close" onClick={onClose} className="rounded-full p-1 text-muted-foreground hover:bg-white/10">
+    <div role="dialog" aria-modal="true" aria-labelledby="edit-title" className="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 p-4">
+      <div className="tile w-full max-w-lg p-6">
+        <div className="mb-4 flex items-start justify-between">
+          <h2 id="edit-title" className="text-[1.2rem]">
+            {isNew ? "Add channel" : `Edit ${row.name}`}
+          </h2>
+          <button type="button" aria-label="Close" onClick={onClose} className="btn btn-ghost btn-sm px-2">
             <X className="h-4 w-4" />
           </button>
         </div>
         <form
-          onSubmit={(e) => { e.preventDefault(); onSave({ name, category, logo_url: logo, stream_url: url }); }}
+          onSubmit={(e) => {
+            e.preventDefault();
+            onSave({ name, category, logo_url: logo, stream_url: url });
+          }}
           className="space-y-3"
         >
           <Field label="Channel name">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input required value={name} onChange={(e) => setName(e.target.value)} className="field" />
           </Field>
           <Field label="Category">
-            <select value={category} onChange={(e) => setCategory(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary">
-              {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <select value={category} onChange={(e) => setCategory(e.target.value)} className="field">
+              {ALL_CATEGORIES.map((c) => (
+                <option key={c}>{c}</option>
+              ))}
             </select>
           </Field>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
             <Field label="Logo URL">
-              <input value={logo} onChange={(e) => setLogo(e.target.value)} placeholder="https://…/logo.png" className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary" />
+              <input type="url" value={logo} onChange={(e) => setLogo(e.target.value)} placeholder="https://" className="field" />
             </Field>
             <div className="pb-1">
               <ChannelLogo src={logo || undefined} name={name || "?"} group={category} size={48} />
             </div>
           </div>
           <Field label="Stream URL (.m3u8)">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary" />
+            <input required type="url" value={url} onChange={(e) => setUrl(e.target.value)} className="field mono" />
           </Field>
           <div className="flex justify-end gap-2 pt-2">
-            <button type="button" onClick={onClose} className="rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10">Cancel</button>
-            <button type="submit" className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow">
-              <Save className="h-4 w-4" /> Save changes
+            <button type="button" onClick={onClose} className="btn btn-ghost btn-sm">
+              Cancel
+            </button>
+            <button type="submit" className="btn btn-primary btn-sm">
+              Save
             </button>
           </div>
         </form>
@@ -479,10 +440,10 @@ function EditModal({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block">
-      <div className="mb-1 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{label}</div>
+      <span className="kicker mb-1.5 block">{label}</span>
       {children}
     </label>
   );
@@ -490,20 +451,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 // ---------- Now on TV editor ----------
 
-interface NowRow {
-  slug: string;
-  name: string;
-  logo_url: string;
-  category: string;
-}
-
-function NowOnTvEditor({
-  getPassword,
-  channelRows,
-}: {
-  getPassword: () => string;
-  channelRows: NowRow[];
-}) {
+function NowOnTvEditor({ token, channelRows }: { token: string; channelRows: Row[] }) {
   const qc = useQueryClient();
   const { rows, isLoading } = useNowOnTv();
   const insertFn = useServerFn(adminInsertNowOnTv);
@@ -511,7 +459,8 @@ function NowOnTvEditor({
   const deleteFn = useServerFn(adminDeleteNowOnTv);
 
   const [busy, setBusy] = useState(false);
-  const [newSlug, setNewSlug] = useState<string>(channelRows[0]?.slug ?? "");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [newSlug, setNewSlug] = useState(channelRows[0]?.slug ?? "");
   const [newTitle, setNewTitle] = useState("");
   const [newSubtitle, setNewSubtitle] = useState("");
 
@@ -519,151 +468,88 @@ function NowOnTvEditor({
     if (!newSlug && channelRows[0]) setNewSlug(channelRows[0].slug);
   }, [channelRows, newSlug]);
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: NOW_ON_TV_QUERY_KEY });
-
-  const doInsert = async () => {
-    if (!newSlug || !newTitle.trim()) {
-      alert("Pick a channel and enter a title.");
-      return;
-    }
+  const run = async (label: string, fn: () => Promise<unknown>) => {
     setBusy(true);
+    setNotice(null);
     try {
+      await fn();
+      await qc.invalidateQueries({ queryKey: NOW_ON_TV_QUERY_KEY });
+    } catch (e) {
+      setNotice(`${label} failed: ${errText(e)}`);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doInsert = () => {
+    if (!newSlug || !newTitle.trim()) return setNotice("Pick a channel and enter a title.");
+    return run("Add", async () => {
       const nextOrder = (rows[rows.length - 1]?.sort_order ?? 0) + 10;
       await insertFn({
-        data: {
-          password: getPassword(),
-          item: {
-            channel_slug: newSlug,
-            title: newTitle.trim(),
-            subtitle: newSubtitle.trim(),
-            sort_order: nextOrder,
-            is_active: true,
-          },
-        },
+        data: { password: token, item: { channel_slug: newSlug, title: newTitle.trim(), subtitle: newSubtitle.trim(), sort_order: nextOrder, is_active: true } },
       });
       setNewTitle("");
       setNewSubtitle("");
-      await invalidate();
-    } catch (e) {
-      alert(`Add failed: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+    });
   };
-
-  const doPatch = async (id: string, patch: Partial<{ title: string; subtitle: string; sort_order: number; is_active: boolean; channel_slug: string }>) => {
-    setBusy(true);
-    try {
-      await updateFn({ data: { password: getPassword(), id, patch } });
-      await invalidate();
-    } catch (e) {
-      alert(`Update failed: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const doDelete = async (id: string) => {
-    if (!confirm("Remove this item from the Now on TV strip?")) return;
-    setBusy(true);
-    try {
-      await deleteFn({ data: { password: getPassword(), id } });
-      await invalidate();
-    } catch (e) {
-      alert(`Delete failed: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
+  const doPatch = (id: string, patch: Partial<{ title: string; subtitle: string; sort_order: number; is_active: boolean; channel_slug: string }>) =>
+    run("Update", () => updateFn({ data: { password: token, id, patch } }));
+  const doDelete = (id: string) => {
+    if (!confirm("Remove this item from the strip?")) return;
+    return run("Delete", () => deleteFn({ data: { password: token, id } }));
   };
 
   return (
-    <section className="mx-auto max-w-6xl px-4 pb-14 sm:px-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">Homepage</div>
-          <h2 className="mt-1 font-display text-2xl font-bold">Now on TV strip</h2>
-          <p className="text-sm text-muted-foreground">
-            Curate what visitors see at the top of the homepage.
-            {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
-          </p>
-        </div>
+    <section>
+      <div className="rule-heavy mb-5 pt-3">
+        <div className="kicker text-primary">Front page</div>
+        <h2 className="mt-1 text-[1.4rem]">Now on TV strip</h2>
+        <p className="text-[13px] text-muted-foreground">
+          What visitors see first under the header.
+          {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" aria-label="Working" />}
+        </p>
       </div>
+      {notice && (
+        <p role="alert" className="mb-3 text-[13px] text-primary">
+          {notice}
+        </p>
+      )}
 
-      {/* Add form */}
-      <div className="mb-6 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-        <div className="grid gap-3 md:grid-cols-[220px_1fr_1fr_auto]">
-          <select
-            value={newSlug}
-            onChange={(e) => setNewSlug(e.target.value)}
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
-          >
-            {channelRows.map((c) => (
-              <option key={c.slug} value={c.slug}>{c.name}</option>
-            ))}
-          </select>
-          <input
-            value={newTitle}
-            onChange={(e) => setNewTitle(e.target.value)}
-            placeholder="Title (e.g. Real Madrid vs Barcelona)"
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          <input
-            value={newSubtitle}
-            onChange={(e) => setNewSubtitle(e.target.value)}
-            placeholder="Subtitle (optional)"
-            className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary"
-          />
-          <button
-            onClick={doInsert}
-            disabled={busy}
-            className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" /> Add
-          </button>
-        </div>
+      <div className="tile mb-4 grid gap-3 p-4 md:grid-cols-[220px_1fr_1fr_auto]">
+        <select value={newSlug} onChange={(e) => setNewSlug(e.target.value)} aria-label="Channel" className="field">
+          {channelRows.map((c) => (
+            <option key={c.slug} value={c.slug}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} placeholder="Title, e.g. Real Madrid v Barcelona" aria-label="Title" className="field" />
+        <input value={newSubtitle} onChange={(e) => setNewSubtitle(e.target.value)} placeholder="Subtitle (optional)" aria-label="Subtitle" className="field" />
+        <button type="button" onClick={doInsert} disabled={busy} className="btn btn-primary btn-sm">
+          <Plus className="h-4 w-4" aria-hidden /> Add
+        </button>
       </div>
 
       {isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">Loading strip…</div>
+        <div className="tile p-8 text-center text-[13px] text-muted-foreground">Loading</div>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">
-          Nothing on the strip yet — add your first item above.
-        </div>
+        <div className="tile p-8 text-center text-[13px] text-muted-foreground">Nothing on the strip yet.</div>
       ) : (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {rows.map((r) => {
             const ch = channelRows.find((c) => c.slug === r.channel_slug);
             return (
-              <div
-                key={r.id}
-                className={`grid grid-cols-1 items-center gap-3 rounded-xl border border-white/10 bg-white/[0.03] p-3 md:grid-cols-[auto_200px_1fr_1fr_90px_auto] ${r.is_active ? "" : "opacity-50"}`}
-              >
+              <li key={r.id} className={`tile grid grid-cols-1 items-center gap-3 p-3 md:grid-cols-[auto_200px_1fr_1fr_90px_auto] ${r.is_active ? "" : "opacity-50"}`}>
                 <ChannelLogo src={ch?.logo_url} name={ch?.name ?? r.channel_slug} group={ch?.category} size={36} />
-                
-                <div className="flex flex-col gap-1">
-                  <label className="text-[10px] font-semibold uppercase text-primary ml-1">Match Channel:</label>
-                  <select
-                    value={r.channel_slug}
-                    onChange={(e) => doPatch(r.id, { channel_slug: e.target.value })}
-                    disabled={busy}
-                    className="rounded-lg border border-primary/30 bg-primary/10 px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary cursor-pointer"
-                  >
-                    {channelRows.map((c) => (
-                      <option key={c.slug} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <input
-                  defaultValue={r.title}
-                  onBlur={(e) => e.target.value !== r.title && doPatch(r.id, { title: e.target.value })}
-                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
-                />
-                <input
-                  defaultValue={r.subtitle}
-                  onBlur={(e) => e.target.value !== r.subtitle && doPatch(r.id, { subtitle: e.target.value })}
-                  placeholder="Subtitle"
-                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
-                />
+                <select value={r.channel_slug} onChange={(e) => doPatch(r.id, { channel_slug: e.target.value })} disabled={busy} aria-label="Channel" className="field">
+                  {channelRows.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                <input defaultValue={r.title} onBlur={(e) => e.target.value !== r.title && doPatch(r.id, { title: e.target.value })} aria-label="Title" className="field" />
+                <input defaultValue={r.subtitle} onBlur={(e) => e.target.value !== r.subtitle && doPatch(r.id, { subtitle: e.target.value })} placeholder="Subtitle" aria-label="Subtitle" className="field" />
                 <input
                   type="number"
                   defaultValue={r.sort_order}
@@ -671,206 +557,163 @@ function NowOnTvEditor({
                     const v = Number(e.target.value);
                     if (Number.isFinite(v) && v !== r.sort_order) doPatch(r.id, { sort_order: v });
                   }}
-                  className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none focus:border-primary"
-                  title="Sort order (lower first)"
+                  aria-label="Sort order"
+                  className="field mono"
                 />
-                <div className="flex items-center gap-1 justify-self-end">
-                  <button
-                    onClick={() => doPatch(r.id, { is_active: !r.is_active })}
-                    disabled={busy}
-                    className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[11px] hover:bg-white/10 disabled:opacity-40"
-                  >
-                    {r.is_active ? <><EyeOff className="h-3 w-3" /> Hide</> : <><Eye className="h-3 w-3" /> Show</>}
+                <span className="flex items-center gap-1 justify-self-end">
+                  <button type="button" onClick={() => doPatch(r.id, { is_active: !r.is_active })} disabled={busy} className="btn btn-ghost btn-sm" aria-label={r.is_active ? "Hide" : "Show"}>
+                    {r.is_active ? <EyeOff className="h-3.5 w-3.5" aria-hidden /> : <Eye className="h-3.5 w-3.5" aria-hidden />}
                   </button>
-                  <button
-                    onClick={() => doDelete(r.id)}
-                    disabled={busy}
-                    className="inline-flex items-center gap-1 rounded-full border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] text-red-300 hover:bg-red-500/20 disabled:opacity-40"
-                  >
-                    <Trash2 className="h-3 w-3" />
+                  <button type="button" onClick={() => doDelete(r.id)} disabled={busy} className="btn btn-ghost btn-sm text-primary" aria-label="Remove">
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
-                </div>
-              </div>
+                </span>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </section>
   );
 }
 
-function ScrapedMatchesAdmin({
-  getPassword,
-  channelRows,
-}: {
-  getPassword: () => string;
-  channelRows: any[];
-}) {
-  const queryClient = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const setOverrideFn = useServerFn(adminSetMatchOverride);
+// ---------- Match to channel overrides ----------
 
-  const { data: matches, isLoading } = useQuery({
+function MatchOverrides({ token, channelRows }: { token: string; channelRows: Row[] }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const setOverrideFn = useServerFn(adminSetMatchOverride);
+  const fetchMatches = useServerFn(getMatches);
+
+  const { data: matches, isLoading } = useQuery<Match[]>({
     queryKey: ["matches", "today"],
-    queryFn: () => getMatches({ data: { day: "today" } }),
+    queryFn: () => fetchMatches({ data: { day: "today" } }),
   });
 
   const doOverride = async (matchId: string, channelSlug: string) => {
     setBusy(true);
+    setNotice(null);
     try {
-      await setOverrideFn({
-        data: { password: getPassword(), matchId, channelSlug },
-      });
-      // Invalidate channels query so the new match_alias is pulled down
-      await queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+      await setOverrideFn({ data: { password: token, matchId, channelSlug } });
+      await qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
     } catch (e) {
-      alert(`Update failed: ${(e as Error).message}`);
+      setNotice(`Update failed: ${errText(e)}`);
     } finally {
       setBusy(false);
     }
   };
 
   return (
-    <section className="mx-auto max-w-6xl px-4 sm:px-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="eyebrow">Scraped from syrlive.com</div>
-          <h2 className="mt-1 font-display text-2xl font-bold text-primary">Homepage Matches (Live Override)</h2>
-          <p className="text-sm text-muted-foreground">
-            These are the matches currently shown on your homepage. Select a channel to forcefully link the match to it!
-            {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" />}
-          </p>
-        </div>
+    <section>
+      <div className="rule-heavy mb-5 pt-3">
+        <div className="kicker text-primary">Today's fixtures</div>
+        <h2 className="mt-1 text-[1.4rem]">Match to channel overrides</h2>
+        <p className="text-[13px] text-muted-foreground">
+          Force a fixture to open a specific database channel instead of the automatic match.
+          {busy && <Loader2 className="ml-2 inline h-3 w-3 animate-spin" aria-label="Working" />}
+        </p>
       </div>
+      {notice && (
+        <p role="alert" className="mb-3 text-[13px] text-primary">
+          {notice}
+        </p>
+      )}
 
       {isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">
-          Loading scraped matches...
-        </div>
+        <div className="tile p-8 text-center text-[13px] text-muted-foreground">Loading</div>
       ) : !matches || matches.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-white/10 bg-white/[0.02] p-8 text-center text-sm text-muted-foreground">
-          No matches found for today.
-        </div>
+        <div className="tile p-8 text-center text-[13px] text-muted-foreground">No fixtures today.</div>
       ) : (
-        <div className="space-y-2">
+        <ul className="space-y-2">
           {matches.map((m) => {
-            // Find the channel that currently has this match.id in its match_alias
-            const overrideChannel = channelRows.find((c) => {
-              if (!c.match_alias) return false;
-              const aliases = c.match_alias.split(",").map((a: string) => a.trim());
-              return aliases.includes(m.id);
-            });
-            const currentOverrideSlug = overrideChannel?.slug || "";
-
+            const overrideChannel = channelRows.find((c) =>
+              (c.match_alias ?? "")
+                .split(",")
+                .map((a) => a.trim())
+                .includes(m.id),
+            );
             return (
-              <div
-                key={m.id}
-                className="grid grid-cols-1 items-center gap-3 rounded-xl border border-primary/20 bg-primary/[0.05] p-3 md:grid-cols-[auto_1fr_1fr_auto]"
-              >
-                <div className="flex items-center gap-2">
-                  {m.homeLogo ? <img src={m.homeLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10" />}
-                  <span className="font-semibold text-sm">{m.homeTeam}</span>
-                  <span className="text-muted-foreground text-xs mx-2">vs</span>
-                  <span className="font-semibold text-sm">{m.awayTeam}</span>
-                  {m.awayLogo ? <img src={m.awayLogo} className="w-8 h-8 object-contain" /> : <div className="w-8 h-8 rounded-full bg-white/10" />}
+              <li key={m.id} className="tile grid grid-cols-1 items-center gap-3 p-3 md:grid-cols-[1fr_auto_280px]">
+                <div className="flex items-center gap-2 text-[13px]">
+                  {m.homeLogo ? <img src={m.homeLogo} alt="" width={28} height={28} className="h-7 w-7 object-contain" /> : <span className="h-7 w-7 rounded-full bg-muted" />}
+                  <span className="font-semibold">{m.homeTeam}</span>
+                  <span className="text-muted-foreground">v</span>
+                  <span className="font-semibold">{m.awayTeam}</span>
+                  {m.awayLogo ? <img src={m.awayLogo} alt="" width={28} height={28} className="h-7 w-7 object-contain" /> : <span className="h-7 w-7 rounded-full bg-muted" />}
                 </div>
-                
-                <div className="text-xs text-muted-foreground flex gap-3">
-                  <span className="bg-white/5 px-2 py-1 rounded-md">{m.time}</span>
-                  <span className="bg-white/5 px-2 py-1 rounded-md text-emerald-400">{m.statusLabel}</span>
-                  <span className="bg-white/5 px-2 py-1 rounded-md text-amber-400">{m.channel}</span>
+                <div className="flex flex-wrap gap-2 text-[12px]">
+                  <span className="mono">{m.time}</span>
+                  <span className={`badge ${m.status === "live" ? "badge-live" : m.status === "soon" ? "badge-soon" : "badge-ft"}`}>{m.statusLabel}</span>
+                  <span className="text-muted-foreground">{m.channel}</span>
                 </div>
-
-                <div className="flex items-center gap-2 justify-self-end w-full max-w-xs">
-                  <label className="text-[10px] font-bold uppercase text-primary shrink-0">Force Channel:</label>
-                  <select
-                    value={currentOverrideSlug}
-                    onChange={(e) => doOverride(m.id, e.target.value)}
-                    disabled={busy}
-                    className="w-full rounded-lg border border-primary/40 bg-primary/20 px-2 py-1.5 text-xs font-semibold outline-none focus:border-primary cursor-pointer text-primary-foreground"
-                  >
-                    <option value="">-- No Override (Auto) --</option>
-                    {channelRows.map((c) => (
-                      <option key={c.slug} value={c.slug}>{c.name}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+                <select value={overrideChannel?.slug ?? ""} onChange={(e) => doOverride(m.id, e.target.value)} disabled={busy} aria-label={`Channel for ${m.homeTeam} v ${m.awayTeam}`} className="field">
+                  <option value="">Automatic</option>
+                  {channelRows.map((c) => (
+                    <option key={c.slug} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </li>
             );
           })}
-        </div>
+        </ul>
       )}
     </section>
   );
 }
 
-function ScraperSettingsEditor({ getPassword }: { getPassword: () => string }) {
-  const [url, setUrl] = useState('');
+// ---------- Settings ----------
+
+function ScraperSettingsEditor({ token }: { token: string }) {
+  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
+  const [notice, setNotice] = useState<string | null>(null);
   const fetchSetting = useServerFn(getSetting);
   const saveSetting = useServerFn(updateSetting);
 
   useEffect(() => {
-    fetchSetting({ data: 'scraper_url' })
+    fetchSetting({ data: "scraper_url" })
       .then((val) => {
         if (val) setUrl(val);
-        setLoading(false);
       })
-      .catch((e) => {
-        console.error('Failed to load setting', e);
-        setLoading(false);
-      });
+      .catch(() => setNotice("Could not load the current value."))
+      .finally(() => setLoading(false));
   }, [fetchSetting]);
 
   const handleSave = async () => {
     setSaving(true);
+    setNotice(null);
     try {
-      await saveSetting({
-        data: { password: getPassword(), key: 'scraper_url', value: url },
-      });
-      alert('Settings saved successfully!');
+      await saveSetting({ data: { password: token, key: "scraper_url", value: url } });
+      setNotice("Saved.");
     } catch (e) {
-      alert(`Save failed: ${(e as Error).message}`);
+      setNotice(`Save failed: ${errText(e)}`);
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 sm:px-6">
-      <div className="rounded-2xl border border-white/10 bg-card p-6 shadow-glow">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="font-display text-xl font-bold flex items-center gap-2">
-              Scraper Settings
-            </h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Configure the source website used for scraping match data.
-            </p>
-          </div>
-        </div>
-        
-        <div className="flex gap-2">
-          <input
-            type="url"
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="e.g. https://live-internet-football.com/"
-            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
-            disabled={loading || saving}
-          />
-          <button
-            onClick={handleSave}
-            disabled={loading || saving}
-            className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            Save
-          </button>
-        </div>
+    <section>
+      <div className="rule-heavy mb-5 pt-3">
+        <div className="kicker text-primary">Settings</div>
+        <h2 className="mt-1 text-[1.4rem]">Fixture source</h2>
+        <p className="text-[13px] text-muted-foreground">Fixtures come from the live API. This legacy field is kept for the fallback scraper only.</p>
       </div>
-    </div>
+      <div className="tile flex flex-wrap gap-2 p-4">
+        <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://" aria-label="Fallback source URL" className="field mono flex-1" disabled={loading || saving} />
+        <button type="button" onClick={handleSave} disabled={loading || saving} className="btn btn-primary btn-sm">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : null} Save
+        </button>
+        {notice && (
+          <p role="status" className="w-full text-[13px] text-muted-foreground">
+            {notice}
+          </p>
+        )}
+      </div>
+    </section>
   );
 }
