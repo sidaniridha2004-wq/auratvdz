@@ -49,6 +49,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const retriesRef = useRef(0);
+  // Set once the rung the viewer asked for has failed, so the next reload
+  // falls back to auto instead of pinning a dead feed again.
+  const pinBrokenRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [retryNonce, setRetryNonce] = useState(0);
@@ -155,6 +158,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
 
   const manualRetry = useCallback(() => {
     retriesRef.current = 0;
+    pinBrokenRef.current = false;
     setError(null);
     setLoading(true);
     setRetryNonce((n) => n + 1);
@@ -245,7 +249,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
         levelLoadingMaxRetry: 4,
         manifestLoadingMaxRetry: 2,
         progressive: true,
-        abrEwmaDefaultEstimate: 400000,
+        // Assume a decent connection so auto mode opens around 720p and
+        // climbs, instead of starting on the lowest rung every time.
+        abrEwmaDefaultEstimate: 2_500_000,
       });
       hlsRef.current = hls;
       hls.loadSource(effectiveSrc);
@@ -260,12 +266,15 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
           label: l.height ? `${l.height}p` : `${Math.round((l.bitrate ?? 0) / 1000)} kbps`,
         }));
         setLevels(ls);
-        if (!sources && preferredHeight && ls.length > 0) {
+        if (!sources && preferredHeight && !pinBrokenRef.current && ls.length > 0) {
+          // Pin the rung the viewer picked (a channel opened from a "1080"
+          // category plays 1080p); the menu still lists every other rung.
           const withHeight = ls.filter((l) => l.height > 0);
           if (withHeight.length > 0) {
             const best = withHeight.reduce((a, b) =>
               Math.abs(a.height - preferredHeight) <= Math.abs(b.height - preferredHeight) ? a : b,
             );
+            hls.startLevel = best.index;
             hls.currentLevel = best.index;
             setCurrentLevel(best.index);
             setActiveHeight(best.height);
@@ -285,6 +294,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
           hls.recoverMediaError();
           return;
         }
+        // A pinned rung that keeps failing should not be pinned again; let
+        // the reload pick from whatever rungs are still alive.
+        if (hls.currentLevel !== -1 && !hls.autoLevelEnabled) pinBrokenRef.current = true;
         scheduleRetry("Stream unavailable.");
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
