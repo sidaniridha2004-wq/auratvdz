@@ -3,6 +3,7 @@ import { Play, Star } from "lucide-react";
 import { ChannelLogo } from "./ChannelLogo";
 import { useFavorites } from "@/lib/favorites";
 import { CATEGORY_META, categoryFor, type ChannelCategory } from "@/lib/channel-category";
+import { heightFromLabel } from "@/lib/quality";
 
 interface Props {
   slug: string;
@@ -27,10 +28,18 @@ export function ChannelCard({ slug, name, group, logo, href, featured, category 
   const meta = CATEGORY_META[cat];
   const fav = isFav(slug);
   const yacineId = /^yacine-(\d+)$/.exec(slug)?.[1];
+  // A channel listed under "beIN SPORTS 1080" should open at 1080p.
+  const pinnedHeight = heightFromLabel(group) || heightFromLabel(name) || undefined;
   const linkCls = "absolute inset-0 z-10 focus:outline-none focus-visible:outline-2 focus-visible:outline-primary";
 
   const link = yacineId ? (
-    <Link to="/watch/$channelId" params={{ channelId: yacineId }} search={{ name, logo }} className={linkCls} aria-label={`Watch ${name}`} />
+    <Link
+      to="/watch/$channelId"
+      params={{ channelId: yacineId }}
+      search={{ name, logo, q: pinnedHeight }}
+      className={linkCls}
+      aria-label={pinnedHeight ? `Watch ${name} in ${pinnedHeight}p` : `Watch ${name}`}
+    />
   ) : href.to === "/watch/live/$slug" ? (
     <Link to="/watch/live/$slug" params={href.params} className={linkCls} aria-label={`Watch ${name}`} />
   ) : href.to === "/watch/tv/$key" ? (

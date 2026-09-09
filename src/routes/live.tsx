@@ -6,6 +6,7 @@ import { ChannelLogo } from "@/components/ChannelLogo";
 import { getYacineDirectory, getYacineEvents, type YacineEvent } from "@/lib/yacine.functions";
 import { pageHead } from "@/lib/seo";
 import { breadcrumbJsonLd } from "@/lib/site";
+import { heightFromLabel } from "@/lib/quality";
 
 const CRUMBS = [
   { name: "Home", path: "/" },
@@ -207,7 +208,11 @@ function LivePage() {
                   <Link
                     to="/watch/$channelId"
                     params={{ channelId: String(item.id) }}
-                    search={{ name: item.name, logo: item.logo || undefined }}
+                    search={{
+                      name: item.name,
+                      logo: item.logo || undefined,
+                      q: heightFromLabel(item.categoryName) || heightFromLabel(item.name) || undefined,
+                    }}
                     className="flex min-h-14 items-center gap-3 bg-background px-3 py-2 hover:bg-card"
                   >
                     <ChannelLogo src={item.logo || undefined} name={item.name} group={item.categoryName} size={36} />

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useRouter, notFound, Navigate } from "@tanstack/react-router";
+import { heightFromLabel } from "@/lib/quality";
 import { useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
 import { Footer } from "@/components/Footer";
@@ -58,14 +59,15 @@ function WatchLive() {
   const { slug } = Route.useParams();
   const { bySlug, isLoading } = useChannels();
 
-  useEffect(() => () => { void exitImmersiveMode(); }, []);
+  useEffect(() => () => exitImmersiveMode(), []);
 
   // Channels from the live API use `yacine-<id>` slugs; send them to the
   // dedicated player route so there is one code path per source.
   const yacineId = /^yacine-(\d+)$/.exec(slug)?.[1];
   if (yacineId) {
     const c = bySlug.get(slug);
-    return <Navigate to="/watch/$channelId" params={{ channelId: yacineId }} search={{ name: c?.name, logo: c?.logo || undefined }} replace />;
+    const q = c ? heightFromLabel(c.group) || heightFromLabel(c.name) || undefined : undefined;
+    return <Navigate to="/watch/$channelId" params={{ channelId: yacineId }} search={{ name: c?.name, logo: c?.logo || undefined, q }} replace />;
   }
 
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) throw notFound();

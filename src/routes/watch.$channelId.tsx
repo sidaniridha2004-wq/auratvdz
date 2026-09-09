@@ -12,9 +12,10 @@ import { pageHead } from "@/lib/seo";
 const watchSearchSchema = z.object({
   name: z.string().max(120).optional(),
   logo: z.string().url().max(500).optional().catch(undefined),
-  // Resolution-specific categories (e.g. "beIN SPORTS 1080") pin the player to
-  // that one rung. Matches open without it, so every quality stays available.
-  q: z.coerce.number().int().min(100).max(2160).optional().catch(undefined),
+  // Resolution-specific categories (e.g. "beIN SPORTS 1080") open the player
+  // pinned to that rung; the quality menu still lists every other one.
+  // Matches open without it, so playback starts in auto.
+  q: z.coerce.number().int().min(100).max(4320).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/watch/$channelId")({
@@ -68,8 +69,9 @@ function Watch() {
   const id = Number(channelId);
   if (!Number.isInteger(id) || id <= 0) throw notFound();
 
+  // The master always carries the full quality ladder for this channel; `q`
+  // only tells it which rung to list first and the player which one to pin.
   const masterUrl = q ? `/api/public/master?channelId=${id}&q=${q}` : `/api/public/master?channelId=${id}`;
-  // The pinned rung doubles as the starting quality in the player menu.
   const preferredHeight = q;
   const title = name ?? `Channel ${id}`;
 
@@ -106,8 +108,8 @@ function Watch() {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-muted-foreground">
           <p>
             {preferredHeight
-              ? `Starts at ${preferredHeight}p on this channel. Use the quality menu to change it.`
-              : "Quality adapts to your connection. Use the quality menu on the player to lock a resolution."}
+              ? `Playing in ${preferredHeight}p. Other qualities for this channel are in the player's quality menu.`
+              : "Quality adapts to your connection. Open the quality menu on the player to see every feed for this channel."}
           </p>
           <p>
             Not playing?{" "}
