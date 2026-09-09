@@ -10,6 +10,7 @@ Timezone used for fixtures: Africa/Algiers
 
 - [Home: today's fixtures and channel guide](https://auratvdz.lovable.app/)
 - [Live now: matches currently in play](https://auratvdz.lovable.app/live)
+- [Movies & series on demand: search, details, seasons and episodes](https://auratvdz.lovable.app/movies)
 - [Channel status: automated uptime checks](https://auratvdz.lovable.app/status)
 - [Android app download](https://auratvdz.lovable.app/download)
 - [My channels: add your own streams, stored on your device](https://auratvdz.lovable.app/settings/channels)

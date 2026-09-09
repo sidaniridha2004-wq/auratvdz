@@ -14,7 +14,7 @@ export function MobileTabBar() {
   const path = location.pathname;
 
   // Hide on the player pages so it never overlaps the video.
-  if (path.startsWith("/watch")) return null;
+  if (path.startsWith("/watch") || path.startsWith("/play")) return null;
 
   const item = (active: boolean) =>
     `flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] ${active ? "text-foreground" : "text-muted-foreground"}`;

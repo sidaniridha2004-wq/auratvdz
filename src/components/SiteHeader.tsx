@@ -10,6 +10,7 @@ const NAV: Array<{ to: string; hash?: string; label: string; key?: string }> = [
   { to: "/", hash: "matches", label: "Fixtures", key: "nav.matches" },
   { to: "/", hash: "channels", label: "Channels", key: "nav.channels" },
   { to: "/live", label: "Live" },
+  { to: "/movies", label: "Movies" },
   { to: "/status", label: "Status", key: "nav.status" },
   { to: "/about", label: "About" },
   { to: "/faq", label: "FAQ" },

@@ -4,5 +4,6 @@ Allow: /
 Disallow: /admin
 Disallow: /api/
 Disallow: /thank-you
+Disallow: /play/
 
 Sitemap: https://auratvdz.lovable.app/sitemap.xml

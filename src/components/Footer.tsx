@@ -10,6 +10,7 @@ const COLS: Array<{ title: string; links: Array<{ to: string; hash?: string; lab
       { to: "/", hash: "matches", label: "Today's fixtures" },
       { to: "/", hash: "channels", label: "All channels" },
       { to: "/live", label: "Live events" },
+      { to: "/movies", label: "Movies & series" },
       { to: "/status", label: "Channel status" },
       { to: "/settings/channels", label: "My channels" },
       { to: "/download", label: "Android app" },
