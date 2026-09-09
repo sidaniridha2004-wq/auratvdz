@@ -114,7 +114,7 @@ export function MatchCard({ match }: { match: Match }) {
 
       <div className="rule mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 text-[12px] text-muted-foreground">
         <span className="flex min-w-0 items-center gap-2">
-          {ch?.kind === "m3u" && ch.logo ? (
+          {ch?.logo ? (
             <ChannelLogo src={ch.logo} name={ch.label} size={20} />
           ) : (
             <Tv className="h-4 w-4 shrink-0" aria-hidden />
