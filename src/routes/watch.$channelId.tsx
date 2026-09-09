@@ -12,6 +12,9 @@ import { pageHead } from "@/lib/seo";
 const watchSearchSchema = z.object({
   name: z.string().max(120).optional(),
   logo: z.string().url().max(500).optional().catch(undefined),
+  // Resolution-specific categories (e.g. "beIN SPORTS 1080") pin the player to
+  // that one rung. Matches open without it, so every quality stays available.
+  q: z.coerce.number().int().min(100).max(2160).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/watch/$channelId")({
@@ -59,23 +62,13 @@ export const Route = createFileRoute("/watch/$channelId")({
   ),
 });
 
-// beIN MAX 1080p rungs from this upstream are unreliable (the label often
-// points at a different feed), so those channels start on the 720p rung.
-function preferredHeightFor(name: string | undefined, id: number): number | undefined {
-  const n = (name ?? "").toLowerCase();
-  const isBeinMaxName = /bein\s*max/.test(n) || /\u0645\u0627\u0643\u0633/.test(name ?? "");
-  const isBeinMaxId = id >= 1471 && id <= 1476;
-  return isBeinMaxName || isBeinMaxId ? 720 : undefined;
-}
-
 function Watch() {
   const { channelId } = Route.useParams();
-  const { name, logo } = Route.useSearch();
+  const { name, logo, q } = Route.useSearch();
   const id = Number(channelId);
   if (!Number.isInteger(id) || id <= 0) throw notFound();
 
-  const masterUrl = `/api/public/master?channelId=${id}`;
-  const preferredHeight = preferredHeightFor(name, id);
+  const masterUrl = q ? `/api/public/master?channelId=${id}&q=${q}` : `/api/public/master?channelId=${id}`;
   const title = name ?? `Channel ${id}`;
 
   useEffect(() => () => { void exitImmersiveMode(); }, []);

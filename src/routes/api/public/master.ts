@@ -82,6 +82,9 @@ export const Route = createFileRoute("/api/public/master")({
         if (!Number.isFinite(channelId)) {
           return new Response("missing channelId", { status: 400 });
         }
+        // Optional: restrict the master playlist to a single rung, so a channel
+        // opened from a resolution-specific category plays only that quality.
+        const onlyHeight = Number(url.searchParams.get("q")) || 0;
 
         let streams: StreamLink[] = [];
         try {
@@ -96,9 +99,14 @@ export const Route = createFileRoute("/api/public/master")({
         }
 
         // Sort low→high so hls.js starts conservative and steps up
-        const variants = streams
+        let variants = streams
           .map((s, i) => ({ s, i, q: resolveQuality(s.name) }))
           .sort((a, b) => a.q.bandwidth - b.q.bandwidth);
+
+        if (onlyHeight) {
+          const exact = variants.filter((v) => v.q.height === onlyHeight);
+          if (exact.length) variants = exact;
+        }
 
         const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:3"];
         for (const v of variants) {
