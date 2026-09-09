@@ -1,92 +1,131 @@
-// Client-side channel data source. The homepage and admin panel both read
-// through useChannels(): initial data comes from `listChannels()`
-// (Supabase → public SELECT policy → anon key), and a realtime subscription
-// on `public.channels` invalidates the query on every INSERT/UPDATE/DELETE
-// so admin edits show up instantly — no reload needed. A window focus
-// listener triggers a refetch as a safety net when realtime is delayed.
 import { useEffect, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { listChannels, type ChannelRow } from "./channels.functions";
+import { getYacineDirectory } from "./yacine.functions";
 import type { M3uChannel } from "./m3u-channels";
 
 export const CHANNELS_QUERY_KEY = ["channels"] as const;
+export const YACINE_CHANNELS_QUERY_KEY = ["yacine-directory"] as const;
 
-/** Map a DB row into the M3uChannel shape used across the UI. */
-export function rowToChannel(r: ChannelRow): M3uChannel {
+export function rowToChannel(row: ChannelRow): M3uChannel {
   return {
-    slug: r.slug,
-    name: r.name,
-    group: r.category,
-    logo: r.logo_url,
-    url: r.stream_url,
-    matchAlias: r.match_alias ?? undefined,
+    slug: row.slug,
+    name: row.name,
+    group: row.category,
+    logo: row.logo_url,
+    url: row.stream_url,
+    matchAlias: row.match_alias ?? undefined,
   };
 }
 
 export function useChannels() {
-  const qc = useQueryClient();
+  const queryClient = useQueryClient();
   const fetchChannels = useServerFn(listChannels);
-  const query = useQuery({
+  const fetchYacineDirectory = useServerFn(getYacineDirectory);
+
+  const databaseQuery = useQuery({
     queryKey: CHANNELS_QUERY_KEY,
     queryFn: () => fetchChannels(),
     staleTime: 30_000,
   });
+  const yacineQuery = useQuery({
+    queryKey: YACINE_CHANNELS_QUERY_KEY,
+    queryFn: () => fetchYacineDirectory(),
+    staleTime: 10 * 60_000,
+    retry: 2,
+  });
 
-  // Realtime: any change to public.channels re-fetches the list.
   useEffect(() => {
-    const ch = supabase
+    const channel = supabase
       .channel("channels-live")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "channels" },
-        () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY }),
+        () => queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY }),
       )
       .subscribe();
     return () => {
-      supabase.removeChannel(ch);
+      supabase.removeChannel(channel);
     };
-  }, [qc]);
+  }, [queryClient]);
 
-  // Fallback: refetch when the tab regains focus (e.g. after editing in /admin).
   useEffect(() => {
-    const onFocus = () => qc.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+    const onFocus = () => {
+      queryClient.invalidateQueries({ queryKey: CHANNELS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: YACINE_CHANNELS_QUERY_KEY });
+    };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [qc]);
+  }, [queryClient]);
 
-  const rows = query.data ?? [];
-  const active = useMemo(
-    () => rows.filter((r) => r.is_active).map(rowToChannel),
+  const rows = databaseQuery.data ?? [];
+  const databaseChannels = useMemo(
+    () => rows.filter((row) => row.is_active).map(rowToChannel),
     [rows],
   );
+  const yacineChannels = useMemo<M3uChannel[]>(
+    () =>
+      (yacineQuery.data?.channels ?? []).map((channel) => ({
+        slug: `yacine-${channel.id}`,
+        name: channel.name,
+        group: channel.categoryName,
+        logo: channel.logo,
+        url: "",
+      })),
+    [yacineQuery.data],
+  );
+  const active = useMemo(
+    () => [...databaseChannels, ...yacineChannels],
+    [databaseChannels, yacineChannels],
+  );
   const bySlug = useMemo(() => {
-    const m = new Map<string, M3uChannel>();
-    for (const c of active) m.set(c.slug, c);
-    return m;
+    const map = new Map<string, M3uChannel>();
+    for (const channel of active) map.set(channel.slug, channel);
+    return map;
   }, [active]);
 
   return {
     channels: active,
     rows,
     bySlug,
-    isLoading: query.isLoading,
-    error: query.error as Error | null,
+    isLoading: databaseQuery.isLoading && yacineQuery.isLoading,
+    error:
+      active.length > 0
+        ? null
+        : ((databaseQuery.error ?? yacineQuery.error) as Error | null),
   };
 }
 
-/** Lightweight lookup — reads the same cached query without adding a realtime channel. */
 export function useChannelsBySlug() {
   const fetchChannels = useServerFn(listChannels);
-  const query = useQuery({
+  const fetchYacineDirectory = useServerFn(getYacineDirectory);
+  const databaseQuery = useQuery({
     queryKey: CHANNELS_QUERY_KEY,
     queryFn: () => fetchChannels(),
     staleTime: 30_000,
   });
+  const yacineQuery = useQuery({
+    queryKey: YACINE_CHANNELS_QUERY_KEY,
+    queryFn: () => fetchYacineDirectory(),
+    staleTime: 10 * 60_000,
+  });
+
   return useMemo(() => {
-    const m = new Map<string, M3uChannel>();
-    for (const r of query.data ?? []) if (r.is_active) m.set(r.slug, rowToChannel(r));
-    return m;
-  }, [query.data]);
+    const map = new Map<string, M3uChannel>();
+    for (const row of databaseQuery.data ?? []) {
+      if (row.is_active) map.set(row.slug, rowToChannel(row));
+    }
+    for (const channel of yacineQuery.data?.channels ?? []) {
+      map.set(`yacine-${channel.id}`, {
+        slug: `yacine-${channel.id}`,
+        name: channel.name,
+        group: channel.categoryName,
+        logo: channel.logo,
+        url: "",
+      });
+    }
+    return map;
+  }, [databaseQuery.data, yacineQuery.data]);
 }
