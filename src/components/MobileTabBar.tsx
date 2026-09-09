@@ -1,5 +1,5 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, Calendar, Radio, Star } from "lucide-react";
+import { Calendar, Home, Radio, Star, Zap } from "lucide-react";
 import { useI18n } from "@/lib/i18n";
 import { useFavorites } from "@/lib/favorites";
 
@@ -12,9 +12,35 @@ export function MobileTabBar() {
 
   const items = [
     { to: "/", hash: "", icon: Home, label: t("nav.home"), active: isHome },
-    { to: "/", hash: "matches", icon: Calendar, label: t("nav.matches"), active: hash === "matches" },
-    { to: "/", hash: "channels", icon: Radio, label: t("nav.channels"), active: hash === "channels" },
-    { to: "/", hash: "favorites", icon: Star, label: t("nav.favorites"), active: hash === "favorites", badge: count },
+    {
+      to: "/live",
+      hash: "",
+      icon: Zap,
+      label: "Live",
+      active: location.pathname === "/live",
+    },
+    {
+      to: "/",
+      hash: "matches",
+      icon: Calendar,
+      label: t("nav.matches"),
+      active: hash === "matches",
+    },
+    {
+      to: "/",
+      hash: "channels",
+      icon: Radio,
+      label: t("nav.channels"),
+      active: hash === "channels",
+    },
+    {
+      to: "/",
+      hash: "favorites",
+      icon: Star,
+      label: t("nav.favorites"),
+      active: hash === "favorites",
+      badge: count,
+    },
   ] as const;
 
   return (
@@ -22,7 +48,7 @@ export function MobileTabBar() {
       className="fixed inset-x-0 bottom-0 z-40 border-t border-white/10 bg-background/90 backdrop-blur-xl sm:hidden"
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
-      <div className="grid grid-cols-4">
+      <div className="grid grid-cols-5">
         {items.map((it) => (
           <Link
             key={it.label}

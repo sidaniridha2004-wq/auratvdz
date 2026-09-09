@@ -1,6 +1,15 @@
 import { Link } from "@tanstack/react-router";
 import logoAsset from "@/assets/auratv-logo.png.asset.json";
-import { Flame, Radio, Star, Sun, Moon, Activity, Download } from "lucide-react";
+import {
+  Activity,
+  CalendarDays,
+  Download,
+  Flame,
+  Moon,
+  Radio,
+  Star,
+  Sun,
+} from "lucide-react";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useFavorites } from "@/lib/favorites";
@@ -34,6 +43,12 @@ export function SiteHeader() {
         </Link>
 
         <nav className="ml-auto flex shrink-0 items-center gap-1 text-sm">
+          <Link
+            to="/live"
+            className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-2 font-semibold text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/20 md:inline-flex"
+          >
+            <CalendarDays className="h-4 w-4" /> Live
+          </Link>
           <Link
             to="/"
             hash="matches"
@@ -77,7 +92,9 @@ export function SiteHeader() {
                 key={l}
                 onClick={() => setLang(l)}
                 className={`px-2 py-1.5 transition ${
-                  lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+                  lang === l
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {l}
@@ -91,7 +108,11 @@ export function SiteHeader() {
             onClick={toggle}
             className="rounded-full p-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
           >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? (
+              <Sun className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
           </button>
         </nav>
       </div>
