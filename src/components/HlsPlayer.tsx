@@ -239,6 +239,11 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
         // 720p even after the viewer picked 1080p from the quality menu.
         capLevelToPlayerSize: false,
         maxBufferLength: 30,
+        // Segment links are signed and expire; a few quick retries cover the
+        // gap while the master playlist is refreshed.
+        fragLoadingMaxRetry: 4,
+        levelLoadingMaxRetry: 4,
+        manifestLoadingMaxRetry: 2,
         progressive: true,
         abrEwmaDefaultEstimate: 400000,
       });
@@ -272,7 +277,15 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
         if (lvl) setActiveHeight(lvl.height ?? null);
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (data.fatal) scheduleRetry("Stream unavailable.");
+        if (!data.fatal) return;
+        // Media errors (codec hiccups) can usually be recovered in place;
+        // anything else reloads from the master so expired links are re-minted.
+        if (data.type === Hls.ErrorTypes.MEDIA_ERROR && retriesRef.current < MAX_AUTO_RETRIES) {
+          retriesRef.current += 1;
+          hls.recoverMediaError();
+          return;
+        }
+        scheduleRetry("Stream unavailable.");
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = effectiveSrc;
