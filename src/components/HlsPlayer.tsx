@@ -235,7 +235,9 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        capLevelToPlayerSize: true,
+        // Never cap by player size: a small window used to pin every stream to
+        // 720p even after the viewer picked 1080p from the quality menu.
+        capLevelToPlayerSize: false,
         maxBufferLength: 30,
         progressive: true,
         abrEwmaDefaultEstimate: 400000,
@@ -298,6 +300,8 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, titl
   const pickLevel = (idx: number) => {
     const hls = hlsRef.current;
     if (!hls) return;
+    hls.autoLevelCapping = -1;
+    hls.nextLevel = idx;
     hls.currentLevel = idx;
     setCurrentLevel(idx);
     setMenuOpen(false);
