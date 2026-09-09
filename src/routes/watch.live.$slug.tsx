@@ -1,28 +1,38 @@
-import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { ArrowLeft } from "lucide-react";
+import { createFileRoute, Link, useRouter, notFound, Navigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { SiteHeader } from "@/components/SiteHeader";
+import { Footer } from "@/components/Footer";
+import { Breadcrumbs } from "@/components/PageShell";
 import { HlsPlayer } from "@/components/HlsPlayer";
 import { ChannelLogo } from "@/components/ChannelLogo";
 import { findChannelBySlug } from "@/lib/m3u-channels";
 import { useChannels } from "@/lib/channels-client";
 import { exitImmersiveMode } from "@/lib/tv-navigation";
+import { pageHead } from "@/lib/seo";
 
 export const Route = createFileRoute("/watch/live/$slug")({
+  head: ({ params }) =>
+    pageHead({
+      title: `Watch ${params.slug.replace(/-/g, " ")}`,
+      description: "Live stream player.",
+      path: `/watch/live/${params.slug}`,
+      noindex: true,
+    }),
   component: WatchLive,
   errorComponent: ({ error, reset }) => {
     const router = useRouter();
     return (
-      <div className="min-h-screen bg-hero">
+      <div className="min-h-screen">
         <SiteHeader />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <div className="wrap py-24 text-center">
           <p className="text-destructive">{error.message}</p>
           <button
+            type="button"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+            className="btn btn-primary mt-4"
           >
             Retry
           </button>
@@ -31,10 +41,14 @@ export const Route = createFileRoute("/watch/live/$slug")({
     );
   },
   notFoundComponent: () => (
-    <div className="min-h-screen bg-hero">
+    <div className="min-h-screen">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
-        Channel not found or currently unavailable.
+      <div className="wrap py-24 text-center text-muted-foreground">
+        This channel is not available right now.{" "}
+        <Link to="/" hash="channels" className="underline">
+          Browse channels
+        </Link>
+        .
       </div>
     </div>
   ),
@@ -43,101 +57,75 @@ export const Route = createFileRoute("/watch/live/$slug")({
 function WatchLive() {
   const { slug } = Route.useParams();
   const { bySlug, isLoading } = useChannels();
-  const staticCh = findChannelBySlug(slug);
-  const dbCh = bySlug.get(slug);
 
-  // Wait for the channel list before deciding — otherwise a hidden channel
-  // could briefly play from the static fallback while the query loads.
+  useEffect(() => () => exitImmersiveMode(), []);
+
+  // Channels from the live API use `yacine-<id>` slugs; send them to the
+  // dedicated player route so there is one code path per source.
+  const yacineId = /^yacine-(\d+)$/.exec(slug)?.[1];
+  if (yacineId) {
+    const c = bySlug.get(slug);
+    return <Navigate to="/watch/$channelId" params={{ channelId: yacineId }} search={{ name: c?.name, logo: c?.logo || undefined }} replace />;
+  }
+
+  if (!/^[a-z0-9-]{1,80}$/.test(slug)) throw notFound();
+
+  const dbCh = bySlug.get(slug);
   if (isLoading && !dbCh) {
     return (
-      <div className="min-h-screen bg-hero">
+      <div className="min-h-screen">
         <SiteHeader />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
-          Loading channel…
-        </div>
+        <div className="wrap py-24 text-center text-muted-foreground">Loading channel…</div>
       </div>
     );
   }
-  // If the admin has hidden or removed this channel, refuse to play — never
-  // fall back to the static m3u list here.
+  // Hidden or removed channels never fall back to the static list.
   if (!dbCh) throw notFound();
-  const ch = dbCh;
+
+  const staticCh = findChannelBySlug(slug);
   const logo = dbCh.logo || staticCh?.logo;
-
-  const isBeinMax = /bein\s*sports?\s*max/i.test(ch.name);
+  const isBeinMax = /bein\s*sports?\s*max/i.test(dbCh.name);
   const preferredHeight = isBeinMax ? 720 : undefined;
-  
-  let rawStreamUrl = ch.url;
-  let proxied = "";
-  if (ch.url) {
-    const parts = ch.url.split("|");
-    rawStreamUrl = parts[0];
-    let proxyUrl = `/api/public/stream?url=${encodeURIComponent(rawStreamUrl)}`;
-    
-    // Parse standard IPTV pipe headers (e.g. |User-Agent=...|Origin=...|Referer=...)
-    // Use indexOf-based split so values containing "=" (query strings, tokens) survive.
-    for (let i = 1; i < parts.length; i++) {
-      const seg = parts[i];
-      const eq = seg.indexOf("=");
-      if (eq <= 0) continue;
-      const key = seg.slice(0, eq).toLowerCase();
-      const value = seg.slice(eq + 1);
-      if (!value) continue;
-      if (key === "user-agent") proxyUrl += `&ua=${encodeURIComponent(value)}`;
-      if (key === "origin") proxyUrl += `&origin=${encodeURIComponent(value)}`;
-      if (key === "referer") proxyUrl += `&referer=${encodeURIComponent(value)}`;
-    }
-    proxied = proxyUrl;
-  }
-
-  useEffect(() => {
-    return () => {
-      exitImmersiveMode();
-    };
-  }, []);
 
   return (
-    <div className="min-h-screen bg-hero">
+    <div className="min-h-screen">
       <SiteHeader />
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Home
-        </Link>
-
+      <main className="wrap py-5 sm:py-8">
+        <Breadcrumbs
+          items={[
+            { name: "Home", path: "/" },
+            { name: "Channels", path: "/#channels" },
+            { name: dbCh.name, path: `/watch/live/${slug}` },
+          ]}
+        />
         <div className="mt-4 flex items-center gap-3">
-          <ChannelLogo
-            src={logo}
-            name={ch.name}
-            group={ch.group}
-            className="h-12 w-12 rounded-xl bg-card p-1.5 shadow-card"
-          />
+          <ChannelLogo src={logo} name={dbCh.name} group={dbCh.group} size={44} />
           <div>
-            <div className="text-xs uppercase tracking-widest text-destructive">
-              <span className="live-dot mr-1.5" /> Live · Primary server
+            <div className="kicker flex items-center gap-1.5 text-live">
+              <span className="live-dot" aria-hidden /> Live
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">{ch.name}</h1>
-            <div className="text-xs text-muted-foreground">{ch.group}</div>
+            <h1 className="text-[1.5rem] leading-tight sm:text-[2rem]" dir="auto">
+              {dbCh.name}
+            </h1>
+            <div className="text-[12px] text-muted-foreground" dir="auto">
+              {dbCh.group}
+            </div>
           </div>
         </div>
 
-        <div className="mt-6">
-          <HlsPlayer
-            key={slug}
-            src={proxied}
-            rawUrl={rawStreamUrl}
-            preferredHeight={preferredHeight}
-          />
+        <div className="mt-5">
+          <HlsPlayer key={slug} src={`/api/public/legacy-master?slug=${encodeURIComponent(slug)}`} preferredHeight={preferredHeight} title={dbCh.name} />
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground">
-          {preferredHeight
-            ? `Locked to ~${preferredHeight}p for beIN MAX — tap the gear icon to switch.`
-            : "Quality auto-switches. Tap the gear icon on the player to pick a specific rung."}
+        <p className="mt-4 text-[12px] text-muted-foreground">
+          {preferredHeight ? `Starts at ${preferredHeight}p on beIN MAX. Use the quality menu to change it.` : "Quality adapts to your connection."}{" "}
+          <Link to="/faq" className="underline">
+            Playback help
+          </Link>
+          .
         </p>
-      </div>
+      </main>
+      <Footer />
     </div>
   );
 }

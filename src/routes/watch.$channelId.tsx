@@ -1,32 +1,43 @@
 import { createFileRoute, Link, useRouter, notFound } from "@tanstack/react-router";
-import { ArrowLeft, Radio } from "lucide-react";
+import { useEffect } from "react";
 import { z } from "zod";
 import { SiteHeader } from "@/components/SiteHeader";
+import { Footer } from "@/components/Footer";
+import { Breadcrumbs } from "@/components/PageShell";
 import { HlsPlayer } from "@/components/HlsPlayer";
-import { useEffect } from "react";
+import { ChannelLogo } from "@/components/ChannelLogo";
 import { exitImmersiveMode } from "@/lib/tv-navigation";
+import { pageHead } from "@/lib/seo";
 
 const watchSearchSchema = z.object({
-  name: z.string().optional(),
-  logo: z.string().optional(),
+  name: z.string().max(120).optional(),
+  logo: z.string().url().max(500).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/watch/$channelId")({
   validateSearch: watchSearchSchema,
+  head: ({ params }) =>
+    pageHead({
+      title: `Watch channel ${params.channelId}`,
+      description: "Live stream player.",
+      path: `/watch/${params.channelId}`,
+      noindex: true,
+    }),
   component: Watch,
   errorComponent: ({ error, reset }) => {
     const router = useRouter();
     return (
-      <div className="min-h-screen bg-hero">
+      <div className="min-h-screen">
         <SiteHeader />
-        <div className="mx-auto max-w-3xl px-6 py-24 text-center">
+        <div className="wrap py-24 text-center">
           <p className="text-destructive">{error.message}</p>
           <button
+            type="button"
             onClick={() => {
               router.invalidate();
               reset();
             }}
-            className="mt-4 rounded-md bg-primary px-4 py-2 text-primary-foreground"
+            className="btn btn-primary mt-4"
           >
             Retry
           </button>
@@ -35,81 +46,88 @@ export const Route = createFileRoute("/watch/$channelId")({
     );
   },
   notFoundComponent: () => (
-    <div className="min-h-screen bg-hero">
+    <div className="min-h-screen">
       <SiteHeader />
-      <div className="mx-auto max-w-3xl px-6 py-24 text-center text-muted-foreground">
-        Channel not found.
+      <div className="wrap py-24 text-center text-muted-foreground">
+        Channel not found.{" "}
+        <Link to="/" hash="channels" className="underline">
+          Browse channels
+        </Link>
+        .
       </div>
     </div>
   ),
 });
 
-// beIN MAX 1080p streams from this upstream are unreliable (the label often
-// points at a different feed), so we lock those channels to the 720p rung.
+// beIN MAX 1080p rungs from this upstream are unreliable (the label often
+// points at a different feed), so those channels start on the 720p rung.
 function preferredHeightFor(name: string | undefined, id: number): number | undefined {
   const n = (name ?? "").toLowerCase();
-  const isBeinMaxName = /bein\s*max/.test(n) || /ماكس/.test(name ?? "");
+  const isBeinMaxName = /bein\s*max/.test(n) || /\u0645\u0627\u0643\u0633/.test(name ?? "");
   const isBeinMaxId = id >= 1471 && id <= 1476;
-  if (isBeinMaxName || isBeinMaxId) return 720;
-  return undefined;
+  return isBeinMaxName || isBeinMaxId ? 720 : undefined;
 }
 
 function Watch() {
   const { channelId } = Route.useParams();
   const { name, logo } = Route.useSearch();
   const id = Number(channelId);
-  if (!Number.isFinite(id)) throw notFound();
+  if (!Number.isInteger(id) || id <= 0) throw notFound();
 
   const masterUrl = `/api/public/master?channelId=${id}`;
   const preferredHeight = preferredHeightFor(name, id);
+  const title = name ?? `Channel ${id}`;
 
-  useEffect(() => {
-    return () => {
-      exitImmersiveMode();
-    };
-  }, []);
+  useEffect(() => () => exitImmersiveMode(), []);
 
   return (
-    <div className="min-h-screen bg-hero">
+    <div className="min-h-screen">
       <SiteHeader />
-      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" /> Home
-        </Link>
+      <main className="wrap py-5 sm:py-8">
+        <Breadcrumbs
+          items={[
+            { name: "Home", path: "/" },
+            { name: "Channels", path: "/#channels" },
+            { name: title, path: `/watch/${id}` },
+          ]}
+        />
 
         <div className="mt-4 flex items-center gap-3">
-          {logo ? (
-            <img
-              src={logo}
-              alt={name ?? "channel"}
-              className="h-12 w-12 rounded-xl bg-card object-contain p-1.5 shadow-card"
-            />
-          ) : (
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-card text-primary shadow-card">
-              <Radio className="h-6 w-6" />
-            </div>
-          )}
+          <ChannelLogo src={logo} name={title} size={44} />
           <div>
-            <div className="text-xs uppercase tracking-widest text-destructive">
-              <span className="live-dot mr-1.5" /> Live now
+            <div className="kicker flex items-center gap-1.5 text-live">
+              <span className="live-dot" aria-hidden /> Live
             </div>
-            <h1 className="text-2xl font-bold sm:text-3xl">{name ?? `Channel #${id}`}</h1>
+            <h1 className="text-[1.5rem] leading-tight sm:text-[2rem]" dir="auto">
+              {title}
+            </h1>
           </div>
         </div>
 
-        <div className="mt-6">
-          <HlsPlayer key={id} src={masterUrl} preferredHeight={preferredHeight} />
+        <div className="mt-5">
+          <HlsPlayer key={id} src={masterUrl} preferredHeight={preferredHeight} title={title} />
         </div>
 
-        <p className="mt-4 text-xs text-muted-foreground">
-          {preferredHeight
-            ? `Locked to ${preferredHeight}p for this channel — tap the gear icon to switch quality.`
-            : "Quality switches automatically based on your connection. Tap the gear icon on the player to lock a specific resolution."}
-        </p>
-      </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] text-muted-foreground">
+          <p>
+            {preferredHeight
+              ? `Starts at ${preferredHeight}p on this channel. Use the quality menu to change it.`
+              : "Quality adapts to your connection. Use the quality menu on the player to lock a resolution."}
+          </p>
+          <p>
+            Not playing?{" "}
+            <Link to="/faq" className="underline">
+              Read the FAQ
+            </Link>{" "}
+            or{" "}
+            <Link to="/contact" className="underline">
+              report it
+            </Link>
+            .
+          </p>
+        </div>
+      </main>
+      <Footer />
     </div>
   );
 }
