@@ -9,9 +9,18 @@ export interface ProxyTarget {
   url: string;
   referer?: string;
   ua?: string;
+  /** Unix seconds after which the link is refused. Set by signedProxyUrl. */
+  exp?: number;
 }
 
 const SIG_LEN = 32; // base64url chars of the truncated HMAC we keep
+/**
+ * How long a minted link stays valid. Long enough for a full match plus
+ * extra time; short enough that a scraped playlist is useless by the next
+ * day. The player reloads the master (and gets fresh links) when a link
+ * expires mid-session.
+ */
+const DEFAULT_TTL_SECONDS = 6 * 60 * 60;
 
 function secret(): string {
   const s = process.env.STREAM_SIGNING_SECRET || process.env.ADMIN_PASSWORD || "";
@@ -66,12 +75,14 @@ export function encodeTarget(t: ProxyTarget): string {
   const compact: ProxyTarget = { url: t.url };
   if (t.referer) compact.referer = t.referer;
   if (t.ua) compact.ua = t.ua;
+  if (t.exp) compact.exp = t.exp;
   return b64url(new TextEncoder().encode(JSON.stringify(compact)));
 }
 
-/** Build a signed, root-relative proxy URL. */
-export async function signedProxyUrl(t: ProxyTarget): Promise<string> {
-  const payload = encodeTarget(t);
+/** Build a signed, root-relative proxy URL that expires after `ttlSeconds`. */
+export async function signedProxyUrl(t: ProxyTarget, ttlSeconds = DEFAULT_TTL_SECONDS): Promise<string> {
+  const exp = t.exp ?? Math.floor(Date.now() / 1000) + ttlSeconds;
+  const payload = encodeTarget({ ...t, exp });
   const sig = await sign(payload);
   return `/api/public/stream?u=${payload}&s=${sig}`;
 }
@@ -85,10 +96,12 @@ export async function verifyProxyParams(u: string | null, s: string | null): Pro
   try {
     const obj = JSON.parse(new TextDecoder().decode(unb64url(u))) as Partial<ProxyTarget>;
     if (!obj || typeof obj.url !== "string") return null;
+    if (typeof obj.exp === "number" && obj.exp < Math.floor(Date.now() / 1000)) return null;
     return {
       url: obj.url,
       referer: typeof obj.referer === "string" ? obj.referer : undefined,
       ua: typeof obj.ua === "string" ? obj.ua : undefined,
+      exp: typeof obj.exp === "number" ? obj.exp : undefined,
     };
   } catch {
     return null;

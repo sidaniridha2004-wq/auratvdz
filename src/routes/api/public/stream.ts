@@ -1,198 +1,199 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { assertSafeUrl } from "@/lib/ssrf-guard";
+import { assertSafeUrlResolved } from "@/lib/ssrf-guard";
+import { signedProxyUrl, verifyProxyParams, type ProxyTarget } from "@/lib/stream-sign.server";
 
-// Proxies HLS streams that require custom User-Agent / Referer headers,
-// and rewrites .m3u8 playlist segment URLs to also flow through this proxy.
+// Relays HLS playlists and segments that need a specific Referer or
+// User-Agent. Only links minted by our own master-playlist routes are
+// accepted: the upstream URL and headers travel inside a signed, expiring
+// token, so this endpoint can no longer be pointed at arbitrary hosts.
+//
+// Redirects are followed by hand and every hop is re-checked against the
+// SSRF guard (including DNS), so an upstream 30x cannot steer us at a
+// private or metadata address.
 
-// Follow redirects manually so that every hop is re-validated by
-// assertSafeUrl(). `redirect: "follow"` would let an attacker-controlled
-// upstream 30x to a private/metadata IP that the original URL would have
-// failed the SSRF check on.
 const MAX_REDIRECTS = 5;
-// Deliberately generous — some HLS manifests + init segments are slow to
-// arrive on mobile networks or during cold-started serverless invocations.
-// A false "unavailable" error is worse than a longer spinner.
 const UPSTREAM_TIMEOUT_MS = 15_000;
+const MAX_PLAYLIST_BYTES = 2 * 1024 * 1024;
+const SNIFF_BYTES = 512 * 1024;
+const DEFAULT_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
-function rid() {
-  return Math.random().toString(36).slice(2, 8);
-}
-function shortUrl(u: string) {
-  try {
-    const p = new URL(u);
-    return `${p.hostname}${p.pathname.slice(0, 40)}`;
-  } catch {
-    return u.slice(0, 60);
-  }
+const CORS: Record<string, string> = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-methods": "GET, OPTIONS",
+  "access-control-allow-headers": "range",
+  "access-control-expose-headers": "content-length, content-range, accept-ranges",
+};
+
+function plain(status: number, body: string) {
+  return new Response(body, {
+    status,
+    headers: { ...CORS, "content-type": "text/plain; charset=utf-8", "cache-control": "no-store", "x-content-type-options": "nosniff" },
+  });
 }
 
-async function safeFetch(
-  startUrl: URL,
+async function fetchFollowingRedirects(
+  start: URL,
   headers: Record<string, string>,
-  logId: string,
 ): Promise<{ response: Response; finalUrl: URL }> {
-  let current = startUrl;
+  let current = start;
   for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
     const controller = new AbortController();
-    const timer = setTimeout(() => {
-      controller.abort();
-      console.warn(
-        `[stream ${logId}] timeout ${UPSTREAM_TIMEOUT_MS}ms hop=${hop} ${shortUrl(current.toString())}`,
-      );
-    }, UPSTREAM_TIMEOUT_MS);
-    let r: Response;
-    const t0 = Date.now();
+    const timer = setTimeout(() => controller.abort(), UPSTREAM_TIMEOUT_MS);
+    let response: Response;
     try {
-      r = await fetch(current.toString(), {
-        headers,
-        redirect: "manual",
-        signal: controller.signal,
-      });
+      response = await fetch(current.toString(), { headers, redirect: "manual", signal: controller.signal });
     } finally {
       clearTimeout(timer);
     }
-    console.log(
-      `[stream ${logId}] hop=${hop} status=${r.status} ${Date.now() - t0}ms ${shortUrl(current.toString())}`,
-    );
-    if (![301, 302, 303, 307, 308].includes(r.status)) return { response: r, finalUrl: current };
-    const loc = r.headers.get("location");
-    if (!loc) return { response: r, finalUrl: current };
-    // Re-validate every hop — assertSafeUrl throws on private/metadata IPs
-    current = assertSafeUrl(new URL(loc, current).toString());
+    if (![301, 302, 303, 307, 308].includes(response.status)) return { response, finalUrl: current };
+    const location = response.headers.get("location");
+    if (!location) return { response, finalUrl: current };
+    current = await assertSafeUrlResolved(new URL(location, current).toString());
   }
   throw new Error("Too many redirects");
+}
+
+/** Rewrite every URI in a playlist to a signed proxy link with the same headers and expiry. */
+async function rewritePlaylist(text: string, base: URL, parent: ProxyTarget): Promise<string> {
+  const sign = (raw: string) => {
+    let absolute: string;
+    try {
+      absolute = new URL(raw, base).toString();
+    } catch {
+      return Promise.resolve("");
+    }
+    if (!/^https?:\/\//i.test(absolute)) return Promise.resolve("");
+    return signedProxyUrl({ url: absolute, referer: parent.referer, ua: parent.ua, exp: parent.exp });
+  };
+
+  const out: string[] = [];
+  for (const line of text.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      out.push(line);
+      continue;
+    }
+    if (trimmed.startsWith("#")) {
+      // Tags such as #EXT-X-KEY, #EXT-X-MAP and #EXT-X-MEDIA carry URI="...".
+      const matches = [...trimmed.matchAll(/URI="([^"]+)"/g)];
+      if (!matches.length) {
+        out.push(line);
+        continue;
+      }
+      let rewritten = trimmed;
+      for (const match of matches) {
+        const signed = await sign(match[1]);
+        if (signed) rewritten = rewritten.replace(match[0], `URI="${signed}"`);
+      }
+      out.push(rewritten);
+      continue;
+    }
+    const signed = await sign(trimmed);
+    out.push(signed || trimmed);
+  }
+  return out.join("\n");
+}
+
+function looksLikePlaylist(contentType: string, url: URL): boolean {
+  if (contentType.includes("mpegurl")) return true;
+  const path = url.pathname.toLowerCase();
+  return path.endsWith(".m3u8") || path.endsWith(".m3u");
+}
+
+function mightBePlaylist(contentType: string, length: number | null): boolean {
+  if (length !== null && length > SNIFF_BYTES) return false;
+  return contentType === "" || contentType.startsWith("text/") || contentType.includes("octet-stream");
 }
 
 export const Route = createFileRoute("/api/public/stream")({
   server: {
     handlers: {
-      OPTIONS: async () =>
-        new Response(null, {
-          status: 204,
-          headers: {
-            "access-control-allow-origin": "*",
-            "access-control-allow-methods": "GET, OPTIONS",
-            "access-control-allow-headers": "*",
-          },
-        }),
+      OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const target = url.searchParams.get("url");
-        const referer = url.searchParams.get("referer") ?? "";
-        const ua = url.searchParams.get("ua") ?? "";
-        const origin = url.searchParams.get("origin") ?? "";
-        const cookie = url.searchParams.get("cookie") ?? "";
-        if (!target) return new Response("missing url", { status: 400 });
+        const target = await verifyProxyParams(url.searchParams.get("u"), url.searchParams.get("s"));
+        if (!target) return plain(403, "forbidden");
 
         let parsed: URL;
         try {
-          parsed = assertSafeUrl(target);
+          parsed = await assertSafeUrlResolved(target.url);
         } catch {
-          return new Response("bad url", { status: 400 });
+          return plain(400, "bad url");
         }
 
-        const headers: Record<string, string> = {};
-        if (referer) headers["referer"] = referer;
-        if (ua) headers["user-agent"] = ua;
-        if (origin) headers["origin"] = origin;
-        if (cookie) headers["cookie"] = cookie;
+        const headers: Record<string, string> = {
+          "user-agent": target.ua || DEFAULT_UA,
+          accept: "*/*",
+        };
+        if (target.referer) {
+          headers.referer = target.referer;
+          try {
+            headers.origin = new URL(target.referer).origin;
+          } catch {
+            // A malformed referer is still forwarded as-is; origin is optional.
+          }
+        }
         const range = request.headers.get("range");
-        if (range) headers["range"] = range;
-
-        const logId = rid();
-        const t0 = Date.now();
-        console.log(`[stream ${logId}] start ${shortUrl(parsed.toString())} range=${range ?? "-"}`);
+        if (range && /^bytes=\d*-\d*$/.test(range)) headers.range = range;
 
         let upstream: Response;
         let finalUrl: URL;
         try {
-          const result = await safeFetch(parsed, headers, logId);
-          upstream = result.response;
-          finalUrl = result.finalUrl;
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          console.error(`[stream ${logId}] upstream FAIL ${Date.now() - t0}ms ${msg}`);
-          return new Response("upstream unavailable", {
-            status: 502,
-            headers: { "access-control-allow-origin": "*" },
-          });
+          ({ response: upstream, finalUrl } = await fetchFollowingRedirects(parsed, headers));
+        } catch {
+          return plain(502, "upstream unavailable");
+        }
+        if (!upstream.ok && upstream.status !== 206) {
+          return plain(upstream.status >= 500 ? 502 : 404, "upstream error");
         }
 
-        const ct = upstream.headers.get("content-type") ?? "";
-        const isPlaylist =
-          ct.includes("mpegurl") ||
-          finalUrl.pathname.endsWith(".m3u8") ||
-          finalUrl.pathname.endsWith(".m3u") ||
-          parsed.pathname.endsWith(".m3u8") ||
-          parsed.pathname.endsWith(".m3u");
+        const contentType = (upstream.headers.get("content-type") ?? "").toLowerCase();
+        const declaredLength = Number(upstream.headers.get("content-length"));
+        const length = Number.isFinite(declaredLength) && declaredLength > 0 ? declaredLength : null;
 
-        const baseHeaders: Record<string, string> = {
-          "access-control-allow-origin": "*",
-          "access-control-expose-headers": "*",
-          "cache-control": "no-store",
-        };
+        let playlistText: string | null = null;
+        let bufferedBody: ArrayBuffer | null = null;
 
-        if (isPlaylist) {
-          let text: string;
-          try {
-            text = await upstream.text();
-          } catch (e) {
-            const msg = e instanceof Error ? e.message : String(e);
-            console.error(`[stream ${logId}] read playlist FAIL ${msg}`);
-            return new Response("upstream read error", {
-              status: 502,
-              headers: { "access-control-allow-origin": "*" },
-            });
+        if (looksLikePlaylist(contentType, finalUrl) || looksLikePlaylist(contentType, parsed)) {
+          if (length !== null && length > MAX_PLAYLIST_BYTES) return plain(502, "playlist too large");
+          playlistText = await upstream.text();
+          if (playlistText.length > MAX_PLAYLIST_BYTES) return plain(502, "playlist too large");
+        } else if (mightBePlaylist(contentType, length)) {
+          // Tokenised playlist URLs often have no extension and a generic
+          // content type; peek at the body before deciding.
+          bufferedBody = await upstream.arrayBuffer();
+          if (bufferedBody.byteLength <= MAX_PLAYLIST_BYTES) {
+            const head = new TextDecoder().decode(bufferedBody.slice(0, 16));
+            if (head.trimStart().startsWith("#EXTM3U")) {
+              playlistText = new TextDecoder().decode(bufferedBody);
+              bufferedBody = null;
+            }
           }
-          const lineCount = text.split("\n").length;
-          const rewritten = text
-            .split("\n")
-            .map((line) => {
-              const trimmed = line.trim();
-              if (!trimmed || trimmed.startsWith("#")) {
-                return line.replace(/URI="([^"]+)"/g, (_m, u: string) => {
-                  const abs = new URL(u, finalUrl).toString();
-                  let proxied = `/api/public/stream?url=${encodeURIComponent(abs)}`;
-                  if (referer) proxied += `&referer=${encodeURIComponent(referer)}`;
-                  if (ua) proxied += `&ua=${encodeURIComponent(ua)}`;
-                  if (origin) proxied += `&origin=${encodeURIComponent(origin)}`;
-                  if (cookie) proxied += `&cookie=${encodeURIComponent(cookie)}`;
-                  return `URI="${proxied}"`;
-                });
-              }
-              const abs = new URL(trimmed, finalUrl).toString();
-              let proxied = `/api/public/stream?url=${encodeURIComponent(abs)}`;
-              if (referer) proxied += `&referer=${encodeURIComponent(referer)}`;
-              if (ua) proxied += `&ua=${encodeURIComponent(ua)}`;
-              if (origin) proxied += `&origin=${encodeURIComponent(origin)}`;
-              if (cookie) proxied += `&cookie=${encodeURIComponent(cookie)}`;
-              return proxied;
-            })
-            .join("\n");
+        }
 
-          console.log(
-            `[stream ${logId}] playlist ${text.length}B lines=${lineCount} ${Date.now() - t0}ms`,
-          );
+        if (playlistText !== null) {
+          const rewritten = await rewritePlaylist(playlistText, finalUrl, target);
           return new Response(rewritten, {
-            status: upstream.status,
-            headers: { ...baseHeaders, "content-type": "application/vnd.apple.mpegurl" },
+            status: 200,
+            headers: {
+              ...CORS,
+              "content-type": "application/vnd.apple.mpegurl",
+              "cache-control": "no-store",
+              "x-content-type-options": "nosniff",
+            },
           });
         }
 
-        const passHeaders = new Headers(baseHeaders);
-        const passThrough = ["content-type", "content-length", "content-range", "accept-ranges"];
-        for (const h of passThrough) {
-          const v = upstream.headers.get(h);
-          if (v) passHeaders.set(h, v);
-        }
-        const cl = upstream.headers.get("content-length") ?? "?";
-        console.log(
-          `[stream ${logId}] segment ct=${ct} bytes=${cl} status=${upstream.status} ${Date.now() - t0}ms`,
-        );
-        return new Response(upstream.body, {
-          status: upstream.status,
-          headers: passHeaders,
+        const passHeaders = new Headers({
+          ...CORS,
+          "cache-control": "private, max-age=120",
+          "x-content-type-options": "nosniff",
         });
+        for (const name of ["content-type", "content-length", "content-range", "accept-ranges"]) {
+          const value = upstream.headers.get(name);
+          if (value) passHeaders.set(name, value);
+        }
+        return new Response(bufferedBody ?? upstream.body, { status: upstream.status, headers: passHeaders });
       },
     },
   },
