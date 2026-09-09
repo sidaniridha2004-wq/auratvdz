@@ -1,0 +1,34 @@
+# AuraTV
+
+> AuraTV is a free live sport and TV guide for Algeria. It lists today's football fixtures with the channel showing each one, and provides a web player for beIN Sports, Algerian, French and Arabic channels. No account is required. AuraTV does not host video; streams are relayed from third-party sources and removed on request.
+
+Site: https://auratvdz.lovable.app
+Languages: English, French, Arabic (switchable in the header)
+Timezone used for fixtures: Africa/Algiers
+
+## Main pages
+
+- [Home: today's fixtures and channel guide](https://auratvdz.lovable.app/)
+- [Live now: matches currently in play](https://auratvdz.lovable.app/live)
+- [Channel status: automated uptime checks](https://auratvdz.lovable.app/status)
+- [Android app download](https://auratvdz.lovable.app/download)
+- [My channels: add your own streams, stored on your device](https://auratvdz.lovable.app/settings/channels)
+
+## About
+
+- [About and team](https://auratvdz.lovable.app/about)
+- [Case studies](https://auratvdz.lovable.app/case-studies)
+- [FAQ](https://auratvdz.lovable.app/faq)
+- [Contact and directions](https://auratvdz.lovable.app/contact)
+
+## Legal
+
+- [Privacy policy](https://auratvdz.lovable.app/privacy)
+- [Terms of use](https://auratvdz.lovable.app/terms)
+- [Copyright and DMCA](https://auratvdz.lovable.app/dmca)
+
+## Notes for agents
+
+- Fixture times are shown in Algeria time (UTC+1).
+- The channel guide is grouped by category (beIN Sports MAX, Algeria TV, French TV, MBC, and so on).
+- Do not link to /api/ or /admin; these are not public content.

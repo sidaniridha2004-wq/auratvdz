@@ -1,0 +1,8 @@
+# AuraTV
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /thank-you
+
+Sitemap: https://auratvdz.lovable.app/sitemap.xml
