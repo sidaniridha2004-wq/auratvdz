@@ -1,87 +1,29 @@
+// Key/value app settings. Public read, admin-gated write.
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
+import { requireAdmin, serverSupabase } from "@/lib/admin-auth.server";
 
-// Helper to create a Supabase client using public key
-function createPublicClient(adminPassword?: string) {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-      global: adminPassword ? { headers: { "x-auratv-admin-password": adminPassword } } : undefined,
-    }
-  );
-}
+const keySchema = z.string().min(1).max(64).regex(/^[a-z0-9_.-]+$/i);
 
-// Helper to verify admin password on server-side functions
-async function requirePassword(pw: string) {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (expected && expected.length > 0) {
-    const a = new TextEncoder().encode(pw);
-    const b = new TextEncoder().encode(expected);
-    if (a.length !== b.length) throw new Error("Unauthorized");
-    let match = true;
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) match = false;
-    }
-    if (!match) throw new Error("Unauthorized");
-  } else {
-    // If no password configured, fall back to checking via Supabase RPC just like channels.functions does
-    const sb = createPublicClient(pw);
-    const { data } = await sb.rpc("admin_password_matches", { _password: pw });
-    if (!data) throw new Error("Unauthorized");
-  }
-}
-
-/**
- * Gets a setting by key. 
- * Can be called publicly without a password.
- */
 export const getSetting = createServerFn({ method: "GET" })
-  .validator((key: string) => key)
+  .inputValidator((input: unknown) => keySchema.parse(input))
   .handler(async ({ data: key }) => {
-    const sb = createPublicClient();
-    const { data, error } = await sb
-      .from("app_settings")
-      .select("value")
-      .eq("key", key)
-      .single();
-
-    if (error || !data) return null;
-    return data.value;
+    const supabase = serverSupabase();
+    const { data, error } = await supabase.from("app_settings").select("value").eq("key", key).maybeSingle();
+    if (error) return null;
+    return (data?.value as string | undefined) ?? null;
   });
 
-/**
- * Updates a setting. Requires admin password.
- */
 export const updateSetting = createServerFn({ method: "POST" })
-  .validator(
-    z.object({
-      password: z.string(),
-      key: z.string(),
-      value: z.string(),
-    })
+  .inputValidator((input: unknown) =>
+    z.object({ password: z.string(), key: keySchema, value: z.string().max(4096) }).parse(input),
   )
-  .handler(async ({ data: { password, key, value } }) => {
-    await requirePassword(password);
-    
-    const sb = createPublicClient(password);
-    
-    // Upsert the setting
-    const { error } = await sb
+  .handler(async ({ data }) => {
+    await requireAdmin(data.password);
+    const supabase = serverSupabase({ admin: true });
+    const { error } = await supabase
       .from("app_settings")
-      .upsert({ 
-        key, 
-        value,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'key' });
-
-    if (error) {
-      console.error("Failed to update setting:", error);
-      throw new Error("Failed to update setting");
-    }
-
-    return { success: true };
+      .upsert({ key: data.key, value: data.value }, { onConflict: "key" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
   });

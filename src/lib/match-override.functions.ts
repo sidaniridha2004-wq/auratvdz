@@ -1,95 +1,53 @@
+// Admin: force a fixture onto a specific channel by writing its id into the
+// channel's comma-separated `match_alias` column.
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { Database } from "@/integrations/supabase/types";
+import { requireAdmin, serverSupabase } from "@/lib/admin-auth.server";
 
-async function requirePassword(pw: string) {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (expected && expected.length > 0) {
-    const a = new TextEncoder().encode(pw);
-    const b = new TextEncoder().encode(expected);
-    if (a.length !== b.length) throw new Error("Unauthorized");
-    let diff = 0;
-    for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-    if (diff !== 0) throw new Error("Unauthorized");
-    return;
-  }
+const matchIdSchema = z.string().min(1).max(120).regex(/^[a-zA-Z0-9_-]+$/);
 
-  const supabase = await createPublicClient();
-  const { data, error } = await (supabase as any).rpc("admin_password_matches", {
-    _password: pw,
-  });
-  if (error || data !== true) throw new Error("Unauthorized");
-}
-
-async function createPublicClient(adminPassword?: string) {
-  return createClient<Database>(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_PUBLISHABLE_KEY!,
-    {
-      global: {
-        headers: adminPassword ? { "x-auratv-admin-password": adminPassword } : {},
-      },
-    },
-  );
+function splitAliases(raw: string | null | undefined): string[] {
+  return (raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 export const adminSetMatchOverride = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
-    z.object({ 
-      password: z.string(), 
-      matchId: z.string(), 
-      channelSlug: z.string() // empty string to clear the override
-    }).parse(input),
+    z
+      .object({
+        password: z.string(),
+        matchId: matchIdSchema,
+        channelSlug: z.string().max(80),
+      })
+      .parse(input),
   )
   .handler(async ({ data }) => {
-    await requirePassword(data.password);
-    const supabase = await createPublicClient(data.password);
-    
-    // First, find any channel that currently has this matchId inside its match_alias
-    const { data: channels, error: fetchError } = await supabase
-      .from("channels")
-      .select("slug, match_alias")
-      .like("match_alias", `%${data.matchId}%`);
-      
-    if (fetchError) throw new Error(fetchError.message);
-    
-    // Remove the matchId from those channels
-    for (const channel of channels || []) {
-      if (!channel.match_alias) continue;
-      
-      const aliases = channel.match_alias.split(",").map(a => a.trim()).filter(a => a !== data.matchId && a !== "");
-      const newAlias = aliases.join(", ");
-      
-      await supabase
-        .from("channels")
-        .update({ match_alias: newAlias })
-        .eq("slug", channel.slug);
+    await requireAdmin(data.password);
+    const supabase = serverSupabase({ admin: true });
+
+    // Load every channel's alias list once and compute the change in memory.
+    // No LIKE / wildcard queries, so the match id can't alter the filter.
+    const { data: rows, error } = await supabase.from("channels").select("slug,match_alias");
+    if (error) throw new Error(error.message);
+
+    const updates: Array<{ slug: string; match_alias: string | null }> = [];
+    for (const row of rows ?? []) {
+      const aliases = splitAliases(row.match_alias as string | null);
+      const has = aliases.includes(data.matchId);
+      const shouldHave = row.slug === data.channelSlug && data.channelSlug !== "";
+      if (has === shouldHave) continue;
+      const next = shouldHave ? [...aliases, data.matchId] : aliases.filter((a) => a !== data.matchId);
+      updates.push({ slug: row.slug as string, match_alias: next.length ? next.join(",") : null });
     }
-    
-    // If a new channel was selected, add the matchId to its match_alias
-    if (data.channelSlug) {
-      const { data: targetCh, error: targetError } = await supabase
+
+    for (const u of updates) {
+      const { error: e2 } = await supabase
         .from("channels")
-        .select("slug, match_alias")
-        .eq("slug", data.channelSlug)
-        .single();
-        
-      if (targetError) throw new Error(targetError.message);
-      
-      const currentAliases = targetCh.match_alias 
-        ? targetCh.match_alias.split(",").map(a => a.trim()).filter(a => a !== "")
-        : [];
-        
-      if (!currentAliases.includes(data.matchId)) {
-        currentAliases.push(data.matchId);
-        
-        await supabase
-          .from("channels")
-          .update({ match_alias: currentAliases.join(", ") })
-          .eq("slug", data.channelSlug);
-      }
+        .update({ match_alias: u.match_alias })
+        .eq("slug", u.slug);
+      if (e2) throw new Error(e2.message);
     }
-    
-    return { ok: true };
+    return { ok: true, changed: updates.length };
   });

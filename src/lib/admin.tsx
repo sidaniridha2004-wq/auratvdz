@@ -1,61 +1,89 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { adminVerifyPassword } from "@/lib/channels.functions";
+import { adminCheckSession, adminVerifyPassword } from "@/lib/channels.functions";
 
-// Session-scoped admin flag. Uses sessionStorage so it survives navigation
-// within the same tab but resets on close/refresh-to-new-tab. The password
-// itself is validated server-side against process.env.ADMIN_PASSWORD — we
-// never hardcode it in client-bundled source.
-const KEY = "auratv:admin";
-const PW_KEY = "auratv:admin:pw";
+// The browser never stores the admin password. After sign-in it keeps a
+// short-lived signed session token (sessionStorage, current tab only) and
+// sends that token with each write. Rotating ADMIN_PASSWORD on the server
+// invalidates all tokens immediately.
+const TOKEN_KEY = "auratv:admin:token";
 
 interface Ctx {
   isAdmin: boolean;
+  ready: boolean;
+  token: string;
   login: (pw: string) => Promise<boolean>;
   logout: () => void;
 }
 const AdminCtx = createContext<Ctx | null>(null);
 
+function readToken(): string {
+  try {
+    return sessionStorage.getItem(TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export function AdminProvider({ children }: { children: ReactNode }) {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [token, setToken] = useState("");
+  const [ready, setReady] = useState(false);
+
   useEffect(() => {
-    try {
-      // Only trust the admin flag if the password is still cached — otherwise
-      // subsequent write calls would fail with Unauthorized.
-      if (sessionStorage.getItem(KEY) === "1" && sessionStorage.getItem(PW_KEY)) {
-        setIsAdmin(true);
-      } else {
-        sessionStorage.removeItem(KEY);
-        sessionStorage.removeItem(PW_KEY);
-      }
-    } catch {}
+    const stored = readToken();
+    if (!stored) {
+      setReady(true);
+      return;
+    }
+    let cancelled = false;
+    adminCheckSession({ data: { token: stored } })
+      .then((res) => {
+        if (cancelled) return;
+        if (res.ok) setToken(stored);
+        else {
+          try {
+            sessionStorage.removeItem(TOKEN_KEY);
+          } catch {}
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setReady(true);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
   const login = useCallback(async (pw: string) => {
     try {
       const res = await adminVerifyPassword({ data: { password: pw } });
       if (res.ok) {
-        setIsAdmin(true);
+        setToken(res.token);
         try {
-          sessionStorage.setItem(KEY, "1");
-          sessionStorage.setItem(PW_KEY, pw);
+          sessionStorage.setItem(TOKEN_KEY, res.token);
         } catch {}
         return true;
       }
     } catch {}
     return false;
   }, []);
+
   const logout = useCallback(() => {
-    setIsAdmin(false);
+    setToken("");
     try {
-      sessionStorage.removeItem(KEY);
-      sessionStorage.removeItem(PW_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
     } catch {}
   }, []);
-  const value = useMemo(() => ({ isAdmin, login, logout }), [isAdmin, login, logout]);
+
+  const value = useMemo<Ctx>(
+    () => ({ isAdmin: token.length > 0, ready, token, login, logout }),
+    [token, ready, login, logout],
+  );
   return <AdminCtx.Provider value={value}>{children}</AdminCtx.Provider>;
 }
 
 export function useAdmin(): Ctx {
   const c = useContext(AdminCtx);
-  if (!c) return { isAdmin: false, login: async () => false, logout: () => {} };
+  if (!c) return { isAdmin: false, ready: true, token: "", login: async () => false, logout: () => {} };
   return c;
 }

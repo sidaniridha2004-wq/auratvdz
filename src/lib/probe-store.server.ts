@@ -1,9 +1,9 @@
-// Shared probe cache + best-effort background scheduler.
-// Runs at module scope; each Worker isolate keeps its own cache.
-// On serverless runtimes without long-lived isolates the sweep is triggered
-// lazily on incoming requests (see triggerSweepIfStale).
+// Shared probe cache plus a best-effort background scheduler.
+// Runs at module scope; each worker isolate keeps its own cache. On serverless
+// runtimes without long-lived isolates the sweep is triggered lazily on
+// incoming requests (see triggerSweepIfStale).
 
-import { assertSafeUrl } from "@/lib/ssrf-guard";
+import { assertSafeUrlResolved } from "@/lib/ssrf-guard";
 import { M3U_CHANNELS } from "@/lib/m3u-channels";
 
 export interface ProbeResult {
@@ -19,30 +19,31 @@ export interface ProbeResult {
 
 const CACHE_TTL_MS = 3 * 60_000;
 const PROBE_TIMEOUT_MS = 6_000;
+const MAX_REDIRECTS = 5;
 const cache = new Map<string, ProbeResult>();
 let sweeping = false;
 let lastSweep = 0;
 
-const MAX_REDIRECTS = 5;
+function fail(base: Omit<ProbeResult, "ok" | "status" | "checkedAt">, reason: string, status = 0): ProbeResult {
+  return { ...base, ok: false, status, reason, checkedAt: Date.now() };
+}
 
 export async function probeOne(url: string, name = "", slug = ""): Promise<ProbeResult> {
   const t0 = Date.now();
+  const base = { slug, name, url, ms: 0 };
   let safe: URL;
   try {
-    safe = assertSafeUrl(url);
+    // Resolves DNS and checks the answer, so a public hostname that points at
+    // a private address is rejected too.
+    safe = await assertSafeUrlResolved(url);
   } catch (e) {
-    return {
-      slug, name, url, ok: false, status: 0, ms: 0,
-      reason: e instanceof Error ? e.message : "unsafe url",
-      checkedAt: Date.now(),
-    };
+    return fail(base, e instanceof Error ? e.message : "unsafe url");
   }
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), PROBE_TIMEOUT_MS);
   try {
-    // Walk redirects manually and re-validate every hop with assertSafeUrl —
-    // otherwise a public URL could 30x to a private/metadata IP and bypass
-    // the initial SSRF check.
+    // Walk redirects by hand and re-validate every hop; otherwise a public URL
+    // could 30x to a private or metadata address and bypass the first check.
     let current = safe;
     let r: Response | null = null;
     for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
@@ -50,27 +51,28 @@ export async function probeOne(url: string, name = "", slug = ""): Promise<Probe
       if (![301, 302, 303, 307, 308].includes(r.status)) break;
       const loc = r.headers.get("location");
       if (!loc) break;
-      current = assertSafeUrl(new URL(loc, current).toString());
+      current = await assertSafeUrlResolved(new URL(loc, current).toString());
       r = null;
     }
-    if (!r) {
-      return { slug, name, url, ok: false, status: 0, ms: Date.now() - t0, reason: "too many redirects", checkedAt: Date.now() };
-    }
     const ms = Date.now() - t0;
-    if (!r.ok) {
-      return { slug, name, url, ok: false, status: r.status, ms, reason: `HTTP ${r.status}`, checkedAt: Date.now() };
-    }
+    if (!r) return fail({ ...base, ms }, "too many redirects");
+    if (!r.ok) return fail({ ...base, ms }, `HTTP ${r.status}`, r.status);
     const text = (await r.text()).slice(0, 512);
     const looksLikeHls = text.includes("#EXTM3U");
     return {
-      slug, name, url, ok: looksLikeHls, status: r.status, ms,
+      ...base,
+      ms,
+      ok: looksLikeHls,
+      status: r.status,
       reason: looksLikeHls ? undefined : "not a valid HLS manifest",
       checkedAt: Date.now(),
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    const reason = /abort/i.test(msg) ? `timeout after ${PROBE_TIMEOUT_MS}ms` : msg;
-    return { slug, name, url, ok: false, status: 0, ms: Date.now() - t0, reason, checkedAt: Date.now() };
+    // Do not surface raw network error text (it can include internal
+    // hostnames); map to a short, fixed vocabulary.
+    const reason = /abort/i.test(msg) ? `timeout after ${PROBE_TIMEOUT_MS}ms` : "connection failed";
+    return fail({ ...base, ms: Date.now() - t0 }, reason);
   } finally {
     clearTimeout(timer);
   }
@@ -86,14 +88,11 @@ export async function sweepAll(force = false): Promise<void> {
     let i = 0;
     async function worker() {
       while (i < M3U_CHANNELS.length) {
-        const idx = i++;
-        const ch = M3U_CHANNELS[idx];
-        const r = await probeOne(ch.url, ch.name, ch.slug);
-        cache.set(ch.slug, r);
+        const ch = M3U_CHANNELS[i++];
+        cache.set(ch.slug, await probeOne(ch.url, ch.name, ch.slug));
       }
     }
     await Promise.all(Array.from({ length: concurrency }, worker));
-    console.log(`[probe] sweep complete: ${cache.size} channels in ${Date.now() - lastSweep}ms`);
   } finally {
     sweeping = false;
   }
@@ -101,8 +100,9 @@ export async function sweepAll(force = false): Promise<void> {
 
 /** Kick a background sweep if data is stale. Non-blocking. */
 export function triggerSweepIfStale(): void {
-  const stale = Date.now() - lastSweep > CACHE_TTL_MS;
-  if (stale) sweepAll(false).catch((e) => console.warn("[probe] sweep err", e));
+  if (Date.now() - lastSweep > CACHE_TTL_MS) {
+    sweepAll(false).catch(() => undefined);
+  }
 }
 
 export function getSnapshot(): {
@@ -129,10 +129,10 @@ export function getFailureFor(slug: string): ProbeResult | undefined {
 }
 
 // Best-effort in-isolate scheduler.
-try {
-  if (typeof setInterval === "function") {
-    setInterval(() => {
-      sweepAll(false).catch(() => {});
-    }, CACHE_TTL_MS);
-  }
-} catch {}
+if (typeof setInterval === "function") {
+  const handle = setInterval(() => {
+    sweepAll(false).catch(() => undefined);
+  }, CACHE_TTL_MS);
+  // Do not keep a Node process alive just for this timer.
+  (handle as { unref?: () => void }).unref?.();
+}

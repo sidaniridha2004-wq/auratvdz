@@ -21,13 +21,10 @@ export interface Match {
 
 type Day = "today" | "yesterday" | "tomorrow" | "home";
 
+const TZ = "Africa/Algiers";
+
 const dateKey = (timestamp: number) =>
-  new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Africa/Algiers",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(timestamp));
+  new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(timestamp));
 
 const targetDateKey = (day: Day) => {
   const offset = day === "yesterday" ? -1 : day === "tomorrow" ? 1 : 0;
@@ -48,6 +45,9 @@ const statusLabelFor = (status: Match["status"]) => {
   return "";
 };
 
+// Only http(s) logos from the upstream API are passed to the browser.
+const safeLogo = (raw: unknown): string => (typeof raw === "string" && /^https:\/\//i.test(raw) ? raw : "");
+
 export const getMatches = createServerFn({ method: "GET" })
   .inputValidator(
     z.object({
@@ -66,15 +66,12 @@ export const getMatches = createServerFn({ method: "GET" })
           return {
             id: `yacine-event-${event.id}`,
             homeTeam: event.home.name,
-            homeLogo: event.home.logo,
+            homeLogo: safeLogo(event.home.logo),
             awayTeam: event.away.name,
-            awayLogo: event.away.logo,
-            time: new Intl.DateTimeFormat("en-GB", {
-              timeZone: "Africa/Algiers",
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            }).format(new Date(event.startTime * 1000)),
+            awayLogo: safeLogo(event.away.logo),
+            time: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(
+              new Date(event.startTime * 1000),
+            ),
             kickoffIso: new Date(event.startTime * 1000).toISOString(),
             score: "",
             status,
@@ -85,8 +82,9 @@ export const getMatches = createServerFn({ method: "GET" })
             url: "",
           };
         });
-    } catch (error) {
-      console.error("getMatches failed", error);
+    } catch {
+      // Upstream outage: the page renders an empty schedule rather than a
+      // server error. The status page surfaces provider health separately.
       return [] as Match[];
     }
   });

@@ -1,5 +1,8 @@
-const BASE_URL = "https://def.yacinelive.com";
-const KEY_BASE = "c!xZj+N9&G@Ev@vw";
+// Upstream host and decrypt key can be rotated from the environment without
+// touching the code. Both fall back to the values the Android app ships with.
+// Read per request: on edge runtimes env is only bound while handling a request.
+const baseUrl = () => (process.env.YACINE_API_URL || "https://def.yacinelive.com").replace(/\/+$/, "");
+const keyBase = () => process.env.YACINE_DECRYPT_KEY || "c!xZj+N9&G@Ev@vw";
 
 export type YacineTeam = { id: number; name: string; logo: string };
 export type YacineEvent = {
@@ -56,7 +59,7 @@ const url = (value: unknown) => {
 
 function decode<T>(encoded: string, timestamp: string): T {
   const input = Buffer.from(encoded.trim(), "base64");
-  const key = Buffer.from(`${KEY_BASE}${timestamp}`, "utf8");
+  const key = Buffer.from(`${keyBase()}${timestamp}`, "utf8");
   const output = Buffer.allocUnsafe(input.length);
   for (let i = 0; i < input.length; i += 1) {
     output[i] = input[i] ^ key[i % key.length];
@@ -71,14 +74,14 @@ function rows<T>(payload: unknown): T[] {
 }
 
 async function request(path: string): Promise<unknown> {
-  if (!path.startsWith("/api/")) throw new Error("Invalid API path");
+  if (!/^\/api\/[a-z0-9/_-]*$/i.test(path)) throw new Error("Invalid API path");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
-    const response = await fetch(`${BASE_URL}${path}`, {
+    const response = await fetch(`${baseUrl()}${path}`, {
       headers: {
         Accept: "text/plain, application/json;q=0.9, */*;q=0.8",
-        "User-Agent": "AuraTV/1.0 (+https://auratvdz.vercel.app)",
+        "User-Agent": "AuraTV/1.0 (+https://auratvdz.lovable.app)",
       },
       cache: "no-store",
       signal: controller.signal,
@@ -159,7 +162,7 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
             ),
           );
         } catch (error) {
-          warnings.push(`${current.name}: ${String(error)}`);
+          warnings.push(`${current.name}: ${error instanceof Error && error.name === "AbortError" ? "timed out" : "unavailable"}`);
         }
       }
 
@@ -176,7 +179,7 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
           })),
         );
       } catch (error) {
-        warnings.push(`${current.name}: ${String(error)}`);
+        warnings.push(`${current.name}: ${error instanceof Error && error.name === "AbortError" ? "timed out" : "unavailable"}`);
       }
     }
 
