@@ -12,6 +12,9 @@ import { pageHead } from "@/lib/seo";
 const watchSearchSchema = z.object({
   name: z.string().max(120).optional(),
   logo: z.string().url().max(500).optional().catch(undefined),
+  // Resolution-specific categories (e.g. "beIN SPORTS 1080") pin the player to
+  // that one rung. Matches open without it, so every quality stays available.
+  q: z.coerce.number().int().min(100).max(2160).optional().catch(undefined),
 });
 
 export const Route = createFileRoute("/watch/$channelId")({
