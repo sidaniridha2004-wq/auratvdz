@@ -2,41 +2,21 @@ import { Link } from "@tanstack/react-router";
 import { Mic2, Tv } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { Match } from "@/lib/matches.functions";
-import { resolveMatchChannelSlug, findChannelBySlug, type M3uChannel } from "@/lib/m3u-channels";
+import type { M3uChannel } from "@/lib/m3u-channels";
 import { useChannelsBySlug } from "@/lib/channels-client";
+import { findChannelForMatch, yacineIdFromSlug } from "@/lib/match-channel";
 import { ChannelLogo } from "./ChannelLogo";
 
-type Resolved =
-  | { kind: "m3u"; slug: string; label: string; logo?: string }
-  | { kind: "yacine"; id: number; label: string }
-  | null;
+type Resolved = { kind: "yacine"; id: number; label: string; logo?: string } | null;
 
+/** Maps the fixture's channel name onto a playable directory channel id. */
 function resolveChannel(match: Match, bySlug: Map<string, M3uChannel>): Resolved {
   if (!match.channel) return null;
-  let slug = "";
-  const matchNameLower = match.channel.toLowerCase();
-  const matchIdLower = match.id.toLowerCase();
-  for (const [k, v] of bySlug.entries()) {
-    if (!v.matchAlias) continue;
-    const aliases = v.matchAlias.split(",").map((a) => a.trim().toLowerCase()).filter(Boolean);
-    if (aliases.some((a) => matchNameLower.includes(a) || a === matchIdLower)) {
-      slug = k;
-      break;
-    }
-  }
-  if (!slug) slug = resolveMatchChannelSlug(match.channel) || "";
-  if (slug) {
-    const dbCh = bySlug.get(slug);
-    if (!dbCh) return null;
-    const staticCh = findChannelBySlug(slug);
-    return { kind: "m3u", slug, label: dbCh.name || staticCh?.name || slug, logo: dbCh.logo || staticCh?.logo };
-  }
-  const m = matchNameLower.match(/(?:bein[^0-9]*max|\u0645\u0627\u0643\u0633|max)\s*([1-6])/);
-  if (m) {
-    const n = parseInt(m[1], 10);
-    return { kind: "yacine", id: 1470 + n, label: `beIN MAX ${n}` };
-  }
-  return null;
+  const found = findChannelForMatch(match.channel, bySlug.values());
+  if (!found) return null;
+  const id = yacineIdFromSlug(found.slug);
+  if (!id) return null;
+  return { kind: "yacine", id, label: found.name, logo: found.logo };
 }
 
 function useLocalKickoff(iso: string | null) {
