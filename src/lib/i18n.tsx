@@ -1,215 +1,232 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export type Lang = "en" | "fr" | "ar";
 
 type Dict = Record<string, string>;
 
 const EN: Dict = {
-  "nav.matches": "Matches",
+  "nav.matches": "Fixtures",
   "nav.channels": "Channels",
-  "nav.favorites": "Favorites",
+  "nav.favorites": "Saved",
   "nav.home": "Home",
   "nav.status": "Status",
-  "nav.settings": "Settings",
+  "nav.settings": "My channels",
   "nav.watch_live": "Watch live",
-  "hero.tagline": "Watch beIN Sports, Algeria TV, MBC, France TV — live, free, HD. Built for Algeria.",
-  "hero.today": "Today's matches",
+  "hero.tagline": "Today's football, the channel showing it, and a player that works. Free, no account.",
+  "hero.today": "Today's fixtures",
   "hero.browse": "Browse channels",
-  "hero.badge": "LIVE · HD\u00A0",
-  "ticker.live": "LIVE",
-  "ticker.today_matches": "today's matches",
-  "ticker.next": "Next kickoff",
-  "section.schedule": "Match Schedule",
-  "section.channels": "Channel Universe",
+  "hero.badge": "Live",
+  "ticker.live": "Live",
+  "ticker.today_matches": "matches today",
+  "ticker.next": "Next kick-off",
+  "section.schedule": "Match schedule",
+  "section.channels": "Channel guide",
   "section.fixtures": "Fixtures",
   "section.live_tv": "Live TV",
-  "section.bein_primary": "beIN SPORTS MAX — Primary",
-  "section.favorites": "My Favorites",
-  "favorites.empty": "Tap ★ on any channel to save it here.",
+  "section.bein_primary": "beIN Sports MAX",
+  "section.favorites": "Saved channels",
+  "favorites.empty": "Press the star on a channel and it will show up here.",
   "day.yesterday": "yesterday",
   "day.today": "today",
   "day.tomorrow": "tomorrow",
-  "search.channels": "Search channels…",
-  "player.select_quality": "Select Quality",
-  "player.quality_tip": "Higher quality requires faster internet.",
-  "player.unavailable": "Stream temporarily unavailable — try another server",
-  "player.mirror": "Try Mirror Server",
-  "player.loading": "Loading stream…",
-  "status.title": "Channel Status",
-  "status.subtitle": "Automated uptime checks for every channel.",
+  "search.channels": "Find a channel",
+  "player.select_quality": "Quality",
+  "player.quality_tip": "Drop the quality if the picture keeps stalling.",
+  "player.unavailable": "This source is down right now. Try another one.",
+  "player.mirror": "Try another source",
+  "player.loading": "Connecting",
+  "status.title": "Channel status",
+  "status.subtitle": "We check every channel automatically and post the result here.",
   "status.up": "Online",
   "status.down": "Offline",
   "status.last_check": "Last check",
   "status.response": "Response",
   "status.reason": "Reason",
-  "status.refresh": "Refresh now",
-  "footer.tagline": "Live sports & TV, built for Algeria.",
-  "footer.disclaimer": "Fixtures powered by syrlive · Streams are third-party sources.",
-  "install.title": "Install AuraTV",
-  "install.body": "Add to your home screen for one-tap access.",
+  "status.refresh": "Check again",
+  "footer.tagline": "Live sport and TV guide for Algeria.",
+  "footer.disclaimer": "AuraTV does not host any video. Streams come from third-party sources and are removed on request.",
+  "install.title": "Put AuraTV on your home screen",
+  "install.body": "One tap to today's fixtures. No app store needed.",
+  "install.cta": "Add to home screen",
   "install.dismiss": "Not now",
-  "settings.title": "My Channels",
-  "settings.subtitle": "Add your own streams — they stay on this device.",
+  "settings.title": "My channels",
+  "settings.subtitle": "Add your own stream links. They stay on this device and are never uploaded.",
   "settings.name": "Channel name",
   "settings.category": "Category",
   "settings.logo": "Logo URL (optional)",
   "settings.quality": "Quality label",
   "settings.stream_url": "Stream URL (.m3u8)",
-  "settings.add_source": "+ Add another quality",
+  "settings.add_source": "Add another quality",
   "settings.save": "Save channel",
   "settings.remove": "Remove",
-  "settings.empty": "No custom channels yet.",
+  "settings.empty": "You have not added any channels yet.",
 };
 
 const FR: Dict = {
   "nav.matches": "Matchs",
   "nav.channels": "Chaînes",
-  "nav.favorites": "Favoris",
+  "nav.favorites": "Enregistrées",
   "nav.home": "Accueil",
   "nav.status": "État",
-  "nav.settings": "Réglages",
+  "nav.settings": "Mes chaînes",
   "nav.watch_live": "Regarder en direct",
-  "hero.tagline": "Regardez beIN Sports, Algeria TV, MBC, France TV — en direct, gratuit, HD. Fait pour l'Algérie.",
+  "hero.tagline": "Le foot du jour, la chaîne qui le diffuse, et un lecteur qui marche. Gratuit, sans compte.",
   "hero.today": "Matchs du jour",
-  "hero.browse": "Parcourir les chaînes",
-  "hero.badge": "LIVE · HD\u00A0",
-  "ticker.live": "EN DIRECT",
+  "hero.browse": "Voir les chaînes",
+  "hero.badge": "Direct",
+  "ticker.live": "En direct",
   "ticker.today_matches": "matchs aujourd'hui",
   "ticker.next": "Prochain coup d'envoi",
-  "section.schedule": "Calendrier des matchs",
-  "section.channels": "Univers des chaînes",
+  "section.schedule": "Calendrier",
+  "section.channels": "Guide des chaînes",
   "section.fixtures": "Rencontres",
   "section.live_tv": "TV en direct",
-  "section.bein_primary": "beIN SPORTS MAX — Serveur principal",
-  "section.favorites": "Mes favoris",
-  "favorites.empty": "Touchez ★ sur une chaîne pour l'enregistrer ici.",
+  "section.bein_primary": "beIN Sports MAX",
+  "section.favorites": "Chaînes enregistrées",
+  "favorites.empty": "Appuyez sur l'étoile d'une chaîne pour la retrouver ici.",
   "day.yesterday": "hier",
   "day.today": "aujourd'hui",
   "day.tomorrow": "demain",
-  "search.channels": "Rechercher…",
-  "player.select_quality": "Choisir la qualité",
-  "player.quality_tip": "Une qualité plus élevée nécessite une meilleure connexion.",
-  "player.unavailable": "Flux temporairement indisponible — essayez un autre serveur",
-  "player.mirror": "Serveur miroir",
-  "player.loading": "Chargement…",
+  "search.channels": "Chercher une chaîne",
+  "player.select_quality": "Qualité",
+  "player.quality_tip": "Baissez la qualité si l'image saccade.",
+  "player.unavailable": "Cette source est hors ligne pour le moment. Essayez-en une autre.",
+  "player.mirror": "Autre source",
+  "player.loading": "Connexion",
   "status.title": "État des chaînes",
-  "status.subtitle": "Vérifications de disponibilité automatisées.",
+  "status.subtitle": "Chaque chaîne est vérifiée automatiquement et le résultat est publié ici.",
   "status.up": "En ligne",
   "status.down": "Hors ligne",
   "status.last_check": "Dernière vérification",
   "status.response": "Réponse",
   "status.reason": "Raison",
-  "status.refresh": "Actualiser",
-  "footer.tagline": "Sport et TV en direct, fait pour l'Algérie.",
-  "footer.disclaimer": "Programme fourni par syrlive · Les flux sont des sources tierces.",
-  "install.title": "Installer AuraTV",
-  "install.body": "Ajoutez à l'écran d'accueil pour un accès rapide.",
+  "status.refresh": "Vérifier à nouveau",
+  "footer.tagline": "Sport et TV en direct, guide pour l'Algérie.",
+  "footer.disclaimer": "AuraTV n'héberge aucune vidéo. Les flux proviennent de sources tierces et sont retirés sur demande.",
+  "install.title": "Ajoutez AuraTV à votre écran d'accueil",
+  "install.body": "Les matchs du jour en un geste, sans passer par un store.",
+  "install.cta": "Ajouter à l'écran d'accueil",
   "install.dismiss": "Plus tard",
   "settings.title": "Mes chaînes",
-  "settings.subtitle": "Ajoutez vos propres flux — ils restent sur cet appareil.",
+  "settings.subtitle": "Ajoutez vos propres liens. Ils restent sur cet appareil et ne sont jamais envoyés.",
   "settings.name": "Nom de la chaîne",
   "settings.category": "Catégorie",
-  "settings.logo": "URL du logo (optionnel)",
+  "settings.logo": "URL du logo (facultatif)",
   "settings.quality": "Qualité",
   "settings.stream_url": "URL du flux (.m3u8)",
-  "settings.add_source": "+ Ajouter une qualité",
+  "settings.add_source": "Ajouter une qualité",
   "settings.save": "Enregistrer",
   "settings.remove": "Supprimer",
-  "settings.empty": "Aucune chaîne personnalisée.",
+  "settings.empty": "Vous n'avez encore ajouté aucune chaîne.",
 };
 
 const AR: Dict = {
   "nav.matches": "المباريات",
   "nav.channels": "القنوات",
-  "nav.favorites": "المفضلة",
+  "nav.favorites": "المحفوظة",
   "nav.home": "الرئيسية",
   "nav.status": "الحالة",
-  "nav.settings": "الإعدادات",
+  "nav.settings": "قنواتي",
   "nav.watch_live": "شاهد مباشرة",
-  "hero.tagline": "شاهد beIN Sports وقنوات الجزائر وMBC وقنوات فرنسا مباشرة، مجاناً وبجودة عالية. مصنوع للجزائر.",
+  "hero.tagline": "مباريات اليوم، القناة الناقلة، ومشغّل يعمل فعلاً. مجاناً وبدون حساب.",
   "hero.today": "مباريات اليوم",
-  "hero.browse": "استعرض القنوات",
-  "hero.badge": "LIVE · HD\u00A0",
+  "hero.browse": "تصفح القنوات",
+  "hero.badge": "مباشر",
   "ticker.live": "مباشر",
-  "ticker.today_matches": "مباريات اليوم",
-  "ticker.next": "أقرب مباراة",
+  "ticker.today_matches": "مباراة اليوم",
+  "ticker.next": "المباراة القادمة",
   "section.schedule": "جدول المباريات",
-  "section.channels": "قنواتنا",
+  "section.channels": "دليل القنوات",
   "section.fixtures": "المباريات",
   "section.live_tv": "بث مباشر",
-  "section.bein_primary": "beIN SPORTS MAX — الخادم الأساسي",
-  "section.favorites": "مفضلتي",
-  "favorites.empty": "اضغط على ★ لحفظ قناة هنا.",
+  "section.bein_primary": "beIN Sports MAX",
+  "section.favorites": "القنوات المحفوظة",
+  "favorites.empty": "اضغط على النجمة بجانب أي قناة لتظهر هنا.",
   "day.yesterday": "أمس",
   "day.today": "اليوم",
   "day.tomorrow": "غداً",
-  "search.channels": "ابحث عن قناة…",
-  "player.select_quality": "اختر الجودة",
-  "player.quality_tip": "الجودة الأعلى تحتاج إنترنت أسرع.",
-  "player.unavailable": "البث غير متوفر — جرّب خادماً آخر",
-  "player.mirror": "خادم بديل",
-  "player.loading": "جاري التحميل…",
+  "search.channels": "ابحث عن قناة",
+  "player.select_quality": "الجودة",
+  "player.quality_tip": "اخفض الجودة إذا كان البث يتقطع.",
+  "player.unavailable": "هذا المصدر متوقف حالياً. جرّب مصدراً آخر.",
+  "player.mirror": "مصدر آخر",
+  "player.loading": "جارٍ الاتصال",
   "status.title": "حالة القنوات",
-  "status.subtitle": "فحص دوري لكل قناة.",
+  "status.subtitle": "نفحص كل قناة تلقائياً وننشر النتيجة هنا.",
   "status.up": "يعمل",
-  "status.down": "معطّل",
+  "status.down": "متوقف",
   "status.last_check": "آخر فحص",
   "status.response": "الاستجابة",
   "status.reason": "السبب",
-  "status.refresh": "تحديث",
-  "footer.tagline": "قنوات ومباريات مباشرة، صُنعت للجزائر.",
-  "footer.disclaimer": "المباريات من syrlive · البث من مصادر خارجية.",
-  "install.title": "ثبّت AuraTV",
-  "install.body": "أضفه إلى الشاشة الرئيسية للوصول السريع.",
+  "status.refresh": "أعد الفحص",
+  "footer.tagline": "دليل المباريات والقنوات المباشرة للجزائر.",
+  "footer.disclaimer": "AuraTV لا يستضيف أي فيديو. البث من مصادر خارجية ويُحذف عند الطلب.",
+  "install.title": "أضف AuraTV إلى شاشتك الرئيسية",
+  "install.body": "مباريات اليوم بضغطة واحدة، بدون متجر تطبيقات.",
+  "install.cta": "أضف إلى الشاشة الرئيسية",
   "install.dismiss": "لاحقاً",
   "settings.title": "قنواتي",
-  "settings.subtitle": "أضف روابط بثك الخاصة — تُحفظ على جهازك فقط.",
+  "settings.subtitle": "أضف روابط البث الخاصة بك. تبقى على جهازك ولا تُرسل إلى أي مكان.",
   "settings.name": "اسم القناة",
   "settings.category": "الفئة",
   "settings.logo": "رابط الشعار (اختياري)",
   "settings.quality": "الجودة",
   "settings.stream_url": "رابط البث (.m3u8)",
-  "settings.add_source": "+ أضف جودة أخرى",
-  "settings.save": "حفظ",
+  "settings.add_source": "أضف جودة أخرى",
+  "settings.save": "حفظ القناة",
   "settings.remove": "حذف",
-  "settings.empty": "لا قنوات مخصصة بعد.",
+  "settings.empty": "لم تضف أي قناة بعد.",
 };
 
 const DICTS: Record<Lang, Dict> = { en: EN, fr: FR, ar: AR };
 const STORAGE_KEY = "auratv:lang";
 
+export function isLang(v: unknown): v is Lang {
+  return v === "en" || v === "fr" || v === "ar";
+}
+
 interface Ctx {
   lang: Lang;
   setLang: (l: Lang) => void;
-  t: (k: keyof typeof EN | string) => string;
+  t: (k: string) => string;
   dir: "ltr" | "rtl";
 }
-const I18nCtx = createContext<Ctx | null>(null);
+
+const FALLBACK: Ctx = {
+  lang: "en",
+  setLang: () => {},
+  dir: "ltr",
+  t: (k) => EN[k] ?? k,
+};
+
+const I18nCtx = createContext<Ctx>(FALLBACK);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("en");
 
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY) as Lang | null;
-      if (saved === "en" || saved === "fr" || saved === "ar") setLangState(saved);
-    } catch {}
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (isLang(saved)) setLangState(saved);
+    } catch {
+      // storage blocked; keep default
+    }
   }, []);
 
   useEffect(() => {
-    const dir = lang === "ar" ? "rtl" : "ltr";
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("lang", lang);
-      document.documentElement.setAttribute("dir", dir);
-    }
+    if (typeof document === "undefined") return;
+    document.documentElement.lang = lang;
+    document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
   }, [lang]);
 
-  const setLang = (l: Lang) => {
+  const setLang = useCallback((l: Lang) => {
     setLangState(l);
     try {
       localStorage.setItem(STORAGE_KEY, l);
-    } catch {}
-  };
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const value = useMemo<Ctx>(() => {
     const dict = DICTS[lang];
@@ -217,18 +234,13 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       lang,
       setLang,
       dir: lang === "ar" ? "rtl" : "ltr",
-      t: (k) => dict[k as string] ?? EN[k as string] ?? (k as string),
+      t: (k) => dict[k] ?? EN[k] ?? k,
     };
-  }, [lang]);
+  }, [lang, setLang]);
 
   return <I18nCtx.Provider value={value}>{children}</I18nCtx.Provider>;
 }
 
 export function useI18n(): Ctx {
-  const c = useContext(I18nCtx);
-  if (!c) {
-    // Fallback: usable outside provider (SSR shell).
-    return { lang: "en", setLang: () => {}, dir: "ltr", t: (k) => EN[k as string] ?? (k as string) };
-  }
-  return c;
+  return useContext(I18nCtx);
 }

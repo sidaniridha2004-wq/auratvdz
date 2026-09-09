@@ -1,32 +1,7 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, type MouseEvent } from "react";
 import Hls from "hls.js";
-import {
-  RefreshCw,
-  AlertTriangle,
-  ExternalLink,
-  Settings,
-  Check,
-  Wifi,
-  Zap,
-  ArrowLeft,
-  Maximize,
-  Minimize,
-} from "lucide-react";
-
-/** Detect Android TV via user agent or lack of touch + large screen. */
-function isAndroidTV(): boolean {
-  if (typeof window === "undefined") return false;
-  const ua = navigator.userAgent.toLowerCase();
-  if (ua.includes("android") && (ua.includes(" tv") || ua.includes("aft"))) return true;
-  if (window.matchMedia("(pointer: none)").matches && window.innerWidth >= 960) return true;
-  return false;
-}
-
-/** Detect if running inside Capacitor WebView. */
-function isCapacitor(): boolean {
-  if (typeof window === "undefined") return false;
-  return !!(window as any).Capacitor;
-}
+import { RefreshCw, AlertTriangle, Settings, Check, Wifi, Zap, ArrowLeft, Maximize, Minimize } from "lucide-react";
+import { isAndroidTV, isCapacitor } from "@/lib/tv-navigation";
 
 export interface QualitySource {
   label: string;
@@ -36,11 +11,12 @@ export interface QualitySource {
 
 interface Props {
   src?: string;
+  /** Direct (unproxied) URL used as a last-resort fallback. Never shown to the user. */
   rawUrl?: string;
   preferredHeight?: number;
   sources?: QualitySource[];
-  /** Optional list of fallback source URLs to try when the primary fails. */
   mirrors?: string[];
+  title?: string;
 }
 
 const MAX_AUTO_RETRIES = 3;
@@ -53,7 +29,22 @@ interface Level {
   label: string;
 }
 
-export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Props) {
+type CapacitorLike = {
+  Plugins?: {
+    StatusBar?: { hide: () => Promise<void>; show: () => Promise<void> };
+    ScreenOrientation?: { lock: (o: { orientation: string }) => Promise<void>; unlock: () => Promise<void> };
+  };
+};
+type OrientationLike = { lock?: (o: string) => Promise<void>; unlock?: () => void };
+
+function capacitor(): CapacitorLike | undefined {
+  return typeof window === "undefined" ? undefined : (window as unknown as { Capacitor?: CapacitorLike }).Capacitor;
+}
+function orientation(): OrientationLike | undefined {
+  return typeof screen === "undefined" ? undefined : (screen.orientation as unknown as OrientationLike | undefined);
+}
+
+export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors, title }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -87,12 +78,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
   const [activeHeight, setActiveHeight] = useState<number | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [nativeFullscreen, setNativeFullscreen] = useState(false);
-  const [cssFullscreen, setCssFullscreen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return isAndroidTV() || isCapacitor();
-    }
-    return false;
-  });
+  const [cssFullscreen] = useState(() => (typeof window !== "undefined" ? isAndroidTV() || isCapacitor() : false));
 
   const [isIdle, setIsIdle] = useState(false);
   const idleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -113,82 +99,57 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     };
   }, [resetIdleTimer]);
 
-  // Enter landscape automatically on mount for native apps and TVs
+  // Native app / TV: go landscape + immersive on mount, restore on unmount.
   useEffect(() => {
-    if (cssFullscreen) {
-      const cap = (window as any).Capacitor;
-      if (cap && cap.Plugins) {
-        // Hide status bar via Capacitor plugin
-        if (cap.Plugins.StatusBar) cap.Plugins.StatusBar.hide().catch(() => {});
-        // Request document fullscreen to trigger Android immersive mode
-        // (hides both the status bar AND the bottom navigation/home bar)
-        if (document.documentElement.requestFullscreen) {
-          document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
-        }
-        if (cap.Plugins.ScreenOrientation)
-          cap.Plugins.ScreenOrientation.lock({ orientation: "landscape" }).catch(() => {});
-      } else {
-        try {
-          if (screen.orientation && "lock" in screen.orientation) {
-            (screen.orientation.lock as any)("landscape").catch(() => {});
-          }
-        } catch (e) {}
-      }
+    if (!cssFullscreen) return;
+    const cap = capacitor();
+    if (cap?.Plugins) {
+      cap.Plugins.StatusBar?.hide().catch(() => {});
+      document.documentElement.requestFullscreen?.({ navigationUI: "hide" }).catch(() => {});
+      cap.Plugins.ScreenOrientation?.lock({ orientation: "landscape" }).catch(() => {});
+    } else {
+      orientation()?.lock?.("landscape").catch(() => {});
     }
-
     return () => {
-      const cap = (window as any).Capacitor;
-      if (cap && cap.Plugins) {
-        if (cap.Plugins.ScreenOrientation) cap.Plugins.ScreenOrientation.unlock().catch(() => {});
-        if (cap.Plugins.StatusBar) cap.Plugins.StatusBar.show().catch(() => {});
-        // Exit fullscreen when leaving the player
-        if (document.fullscreenElement && document.exitFullscreen) {
-          document.exitFullscreen().catch(() => {});
-        }
+      const c = capacitor();
+      if (c?.Plugins) {
+        c.Plugins.ScreenOrientation?.unlock().catch(() => {});
+        c.Plugins.StatusBar?.show().catch(() => {});
+        if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
       } else {
         try {
-          if (screen.orientation && "unlock" in screen.orientation) {
-            screen.orientation.unlock();
-          }
-        } catch (e) {}
+          orientation()?.unlock?.();
+        } catch {
+          /* not supported */
+        }
       }
     };
   }, [cssFullscreen]);
 
   useEffect(() => {
-    const onFullscreenChange = () => {
-      setNativeFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener("fullscreenchange", onFullscreenChange);
-    return () => document.removeEventListener("fullscreenchange", onFullscreenChange);
+    const onChange = () => setNativeFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  const toggleFullscreen = async (e: React.MouseEvent) => {
+  const toggleFullscreen = async (e: MouseEvent) => {
     e.stopPropagation();
     try {
       if (!document.fullscreenElement) {
-        if (containerRef.current?.requestFullscreen) {
-          await containerRef.current.requestFullscreen();
-          setNativeFullscreen(true);
-          try {
-            if (screen.orientation && (screen.orientation as any).lock) {
-              await (screen.orientation as any).lock("landscape");
-            }
-          } catch (err) {}
-        }
+        await containerRef.current?.requestFullscreen?.();
+        setNativeFullscreen(true);
+        await orientation()?.lock?.("landscape").catch(() => {});
       } else {
-        if (document.exitFullscreen) {
-          await document.exitFullscreen();
-          setNativeFullscreen(false);
-          try {
-            if (screen.orientation && (screen.orientation as any).unlock) {
-              (screen.orientation as any).unlock();
-            }
-          } catch (err) {}
+        await document.exitFullscreen?.();
+        setNativeFullscreen(false);
+        try {
+          orientation()?.unlock?.();
+        } catch {
+          /* not supported */
         }
       }
-    } catch (err) {
-      console.error("Fullscreen toggle failed:", err);
+    } catch {
+      // Fullscreen can be refused (iframe, no user gesture). Nothing to report.
     }
   };
 
@@ -218,44 +179,33 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
     let cancelled = false;
     let loadTimer: ReturnType<typeof setTimeout> | undefined;
     const clearLoadTimer = () => {
-      if (loadTimer) {
-        clearTimeout(loadTimer);
-        loadTimer = undefined;
-      }
+      if (loadTimer) clearTimeout(loadTimer);
+      loadTimer = undefined;
     };
     const onCanPlay = () => {
-      if (!cancelled) {
-        setLoading(false);
-        setBuffering(false);
-        retriesRef.current = 0;
-        clearLoadTimer();
-      }
+      if (cancelled) return;
+      setLoading(false);
+      setBuffering(false);
+      retriesRef.current = 0;
+      clearLoadTimer();
     };
-    const onStall = () => {
-      if (!cancelled) setBuffering(true);
-    };
+    const onStall = () => !cancelled && setBuffering(true);
     const onPlaying = () => {
-      if (!cancelled) {
-        setBuffering(false);
-        // Unmute immediately after autoplay starts — browser allows muted autoplay,
-        // so we start muted and unmute the instant playback begins.
-        if (video.muted) video.muted = false;
-      }
-    };
-    const onWaiting = () => {
-      if (!cancelled) setBuffering(true);
+      if (cancelled) return;
+      setBuffering(false);
+      if (video.muted) video.muted = false;
     };
 
     video.addEventListener("canplay", onCanPlay);
     video.addEventListener("canplaythrough", onCanPlay);
     video.addEventListener("playing", onPlaying);
-    video.addEventListener("waiting", onWaiting);
+    video.addEventListener("waiting", onStall);
     video.addEventListener("stalled", onStall);
 
     loadTimer = setTimeout(() => {
       if (cancelled) return;
       if (video.readyState < 2) {
-        setError("Stream temporarily unavailable — try another server");
+        setError("This stream is not responding right now.");
         setLoading(false);
       }
     }, LOAD_TIMEOUT_MS);
@@ -281,13 +231,14 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       }
     };
 
+    let onErr: (() => void) | undefined;
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
         capLevelToPlayerSize: true,
         maxBufferLength: 30,
         progressive: true,
-        abrEwmaDefaultEstimate: 400000, // Assume 400kbps connection initially to force fastest/lowest quality stream to load first
+        abrEwmaDefaultEstimate: 400000,
       });
       hlsRef.current = hls;
       hls.loadSource(effectiveSrc);
@@ -299,7 +250,7 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
           index: i,
           height: l.height ?? 0,
           bitrate: l.bitrate ?? 0,
-          label: l.height ? `${l.height}p` : `${Math.round((l.bitrate ?? 0) / 1000)}kbps`,
+          label: l.height ? `${l.height}p` : `${Math.round((l.bitrate ?? 0) / 1000)} kbps`,
         }));
         setLevels(ls);
         if (!sources && preferredHeight && ls.length > 0) {
@@ -319,25 +270,14 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         if (lvl) setActiveHeight(lvl.height ?? null);
       });
       hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data.fatal) return;
-        scheduleRetry("Stream unavailable.");
+        if (data.fatal) scheduleRetry("Stream unavailable.");
       });
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       video.src = effectiveSrc;
-      const onErr = () => scheduleRetry("Stream unavailable.");
+      onErr = () => scheduleRetry("Stream unavailable.");
       video.addEventListener("error", onErr);
-      return () => {
-        cancelled = true;
-        clearLoadTimer();
-        video.removeEventListener("canplay", onCanPlay);
-        video.removeEventListener("canplaythrough", onCanPlay);
-        video.removeEventListener("playing", onPlaying);
-        video.removeEventListener("waiting", onWaiting);
-        video.removeEventListener("stalled", onStall);
-        video.removeEventListener("error", onErr);
-      };
     } else {
-      setError("HLS playback not supported.");
+      setError("Your browser cannot play HLS video.");
       setLoading(false);
     }
 
@@ -347,12 +287,13 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
       video.removeEventListener("canplay", onCanPlay);
       video.removeEventListener("canplaythrough", onCanPlay);
       video.removeEventListener("playing", onPlaying);
-      video.removeEventListener("waiting", onWaiting);
+      video.removeEventListener("waiting", onStall);
       video.removeEventListener("stalled", onStall);
+      if (onErr) video.removeEventListener("error", onErr);
       hlsRef.current?.destroy();
       hlsRef.current = null;
     };
-  }, [effectiveSrc, retryNonce, preferredHeight, sources]);
+  }, [effectiveSrc, retryNonce, preferredHeight, sources, rawUrl, useRaw]);
 
   const pickLevel = (idx: number) => {
     const hls = hlsRef.current;
@@ -371,10 +312,13 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
   const autoLabel = activeHeight ? `Auto · ${activeHeight}p` : "Auto";
   const currentLabel = currentLevel === -1 ? autoLabel : (levels.find((l) => l.index === currentLevel)?.label ?? "—");
 
-  const containerClass = cssFullscreen ? "fixed inset-0 z-[100] flex flex-col bg-black" : "space-y-3";
+  const containerClass = cssFullscreen ? "fixed inset-0 z-[100] flex flex-col bg-black" : "";
   const videoWrapperClass = cssFullscreen
-    ? "relative w-full h-full flex-1 bg-black"
-    : "relative aspect-video w-full overflow-hidden rounded-2xl bg-black shadow-card ring-1 ring-white/5";
+    ? "relative h-full w-full flex-1 bg-black"
+    : "relative aspect-video w-full overflow-hidden rounded-md bg-black rule";
+
+  const pill = "inline-flex items-center gap-1.5 bg-black/75 px-2.5 py-1 text-[12px] text-white";
+  const menuItem = "flex w-full items-center justify-between px-3 py-2 text-left text-[13px] hover:bg-white/10";
 
   return (
     <div className={containerClass}>
@@ -385,75 +329,71 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
         onTouchStart={resetIdleTimer}
         onClick={resetIdleTimer}
       >
-        <video ref={videoRef} controls autoPlay playsInline muted className="h-full w-full bg-black" />
+        <video
+          ref={videoRef}
+          controls
+          autoPlay
+          playsInline
+          muted
+          aria-label={title ? `${title} live video` : "Live video"}
+          className="h-full w-full bg-black"
+        />
 
         <div
-          className={`absolute inset-0 pointer-events-none transition-opacity duration-500 ${isIdle && !menuOpen && !loading && !error ? "opacity-0" : "opacity-100"}`}
+          className={`pointer-events-none absolute inset-0 transition-opacity duration-300 ${isIdle && !menuOpen && !loading && !error ? "opacity-0" : "opacity-100"}`}
         >
           {cssFullscreen && (
             <button
+              type="button"
+              aria-label="Back"
               onClick={() => window.history.back()}
-              className="pointer-events-auto absolute left-4 top-4 z-[110] rounded-full bg-black/50 p-2 text-white hover:bg-black/80 backdrop-blur"
+              className="pointer-events-auto absolute left-4 top-4 z-[110] bg-black/60 p-2 text-white"
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
           )}
 
-          <div className="pointer-events-auto absolute right-3 top-3 z-10 flex gap-2">
+          <div className="pointer-events-auto absolute right-3 top-3 z-10 flex items-start gap-2">
             {!error && (sourceMode || levels.length > 0) && (
               <div className="flex flex-col items-end gap-1">
-                <div className="rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/80 backdrop-blur">
-                  Quality ▾
-                </div>
                 <button
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={menuOpen}
                   onClick={(e) => {
                     e.stopPropagation();
                     setMenuOpen((v) => !v);
                     resetIdleTimer();
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-black/70 px-3 py-1.5 text-xs font-medium text-white backdrop-blur hover:bg-black/90 focus-visible:ring-2 focus-visible:ring-primary"
+                  className={pill}
                 >
-                  <Settings className="h-3.5 w-3.5" />
+                  <Settings className="h-3.5 w-3.5" aria-hidden />
                   {sourceMode ? activeSourceLabel : currentLabel}
                 </button>
                 {menuOpen && (
-                  <div className="mt-1 w-52 overflow-hidden rounded-xl border border-white/10 bg-black/95 py-1 text-sm text-white shadow-xl backdrop-blur">
-                    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-white/50">
-                      Quality Settings
-                    </div>
+                  <div role="menu" className="mt-1 w-48 bg-black/95 py-1 text-white rule">
+                    <div className="kicker px-3 py-1.5 text-white/60">Quality</div>
                     {sourceMode ? (
                       sources!.map((s, i) => (
-                        <button
-                          key={`${s.label}-${i}`}
-                          onClick={() => pickSource(i)}
-                          className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${sourceIdx === i ? "bg-primary/20" : ""}`}
-                        >
+                        <button key={`${s.label}-${i}`} type="button" role="menuitem" onClick={() => pickSource(i)} className={menuItem}>
                           <span>{s.label}</span>
-                          {sourceIdx === i && <Check className="h-3.5 w-3.5 text-primary" />}
+                          {sourceIdx === i && <Check className="h-3.5 w-3.5" aria-hidden />}
                         </button>
                       ))
                     ) : (
                       <>
-                        <button
-                          onClick={() => pickLevel(-1)}
-                          className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === -1 ? "bg-primary/20" : ""}`}
-                        >
+                        <button type="button" role="menuitem" onClick={() => pickLevel(-1)} className={menuItem}>
                           <span className="flex items-center gap-2">
-                            <Wifi className="h-3.5 w-3.5" /> Auto
+                            <Wifi className="h-3.5 w-3.5" aria-hidden /> Auto
                           </span>
-                          {currentLevel === -1 && <Check className="h-3.5 w-3.5 text-primary" />}
+                          {currentLevel === -1 && <Check className="h-3.5 w-3.5" aria-hidden />}
                         </button>
-                        <div className="my-1 h-px bg-white/10" />
                         {[...levels]
                           .sort((a, b) => b.height - a.height)
                           .map((l) => (
-                            <button
-                              key={l.index}
-                              onClick={() => pickLevel(l.index)}
-                              className={`flex w-full items-center justify-between px-3 py-2 hover:bg-white/10 ${currentLevel === l.index ? "bg-primary/20" : ""}`}
-                            >
+                            <button key={l.index} type="button" role="menuitem" onClick={() => pickLevel(l.index)} className={menuItem}>
                               <span>{l.label}</span>
-                              {currentLevel === l.index && <Check className="h-3.5 w-3.5 text-primary" />}
+                              {currentLevel === l.index && <Check className="h-3.5 w-3.5" aria-hidden />}
                             </button>
                           ))}
                       </>
@@ -464,78 +404,55 @@ export function HlsPlayer({ src, rawUrl, preferredHeight, sources, mirrors }: Pr
             )}
 
             {!cssFullscreen && (
-              <div className="flex flex-col items-end gap-1">
-                <div className="rounded-full bg-black/60 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-white/80 backdrop-blur">
-                  {nativeFullscreen ? "Exit" : "Expand"}
-                </div>
-                <button
-                  onClick={toggleFullscreen}
-                  className="inline-flex items-center justify-center rounded-full bg-black/70 p-1.5 text-white backdrop-blur hover:bg-black/90 focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  {nativeFullscreen ? <Minimize className="h-4 w-4" /> : <Maximize className="h-4 w-4" />}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={toggleFullscreen}
+                aria-label={nativeFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                className={pill}
+              >
+                {nativeFullscreen ? <Minimize className="h-4 w-4" aria-hidden /> : <Maximize className="h-4 w-4" aria-hidden />}
+              </button>
             )}
           </div>
 
           {loading && !error && (
-            <div className="absolute inset-0 overflow-hidden pointer-events-none bg-black">
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                <div className="h-10 w-10 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                <div className="text-xs uppercase tracking-[0.22em] text-white/70">
-                  {retrying ? `Reconnecting… ${retriesRef.current}/${MAX_AUTO_RETRIES}` : "Loading stream"}
-                </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-black" role="status">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              <div className="kicker text-white/70">
+                {retrying ? `Reconnecting ${retriesRef.current}/${MAX_AUTO_RETRIES}` : "Loading stream"}
               </div>
             </div>
           )}
 
           {!loading && !error && buffering && (
-            <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/45 backdrop-blur-[2px]">
-              <div className="flex items-center gap-3 rounded-full border border-white/10 bg-black/70 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-white shadow-glow">
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40" role="status">
+              <div className={`${pill} kicker`}>
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-                Buffering…
+                Buffering
               </div>
             </div>
           )}
 
           {!loading && !error && (
-            <div className="pointer-events-none absolute left-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full bg-black/60 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-white backdrop-blur">
-              <span className="live-dot" /> Live
+            <div className={`absolute left-3 top-3 z-10 ${pill} kicker`}>
+              <span className="live-dot" aria-hidden /> Live
             </div>
           )}
 
           {error && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center pointer-events-auto">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-destructive/20 text-destructive">
-                <AlertTriangle className="h-6 w-6" />
-              </div>
+            <div className="pointer-events-auto absolute inset-0 flex flex-col items-center justify-center gap-4 bg-black/90 px-6 text-center text-white" role="alert">
+              <AlertTriangle className="h-8 w-8 text-accent" aria-hidden />
               <div>
                 <div className="font-semibold">{error}</div>
-                <div className="mt-1 text-sm text-muted-foreground">Try a mirror server or open externally.</div>
+                <div className="mt-1 text-[13px] text-white/70">Try another server or come back in a minute.</div>
               </div>
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <button
-                  onClick={tryMirror}
-                  className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
-                >
-                  <Zap className="h-4 w-4" /> Try Mirror
+                <button type="button" onClick={tryMirror} className="btn btn-primary btn-sm">
+                  <Zap className="h-4 w-4" aria-hidden /> Try another server
                 </button>
-                <button
-                  onClick={manualRetry}
-                  className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-medium text-foreground hover:bg-white/10"
-                >
-                  <RefreshCw className="h-4 w-4" /> Retry
+                <button type="button" onClick={manualRetry} className="btn btn-sm border-white/40 text-white hover:border-white">
+                  <RefreshCw className="h-4 w-4" aria-hidden /> Retry
                 </button>
-                {rawUrl && (
-                  <a
-                    href={rawUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-card/60 px-4 py-2 text-sm font-medium text-foreground hover:bg-secondary"
-                  >
-                    <ExternalLink className="h-4 w-4" /> Open Stream
-                  </a>
-                )}
               </div>
             </div>
           )}
