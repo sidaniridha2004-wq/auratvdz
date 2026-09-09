@@ -135,13 +135,6 @@ export function MatchCard({ match }: { match: Match }) {
   );
 
   if (!ch) return inner;
-  if (ch.kind === "m3u") {
-    return (
-      <Link to="/watch/live/$slug" params={{ slug: ch.slug }} className="block h-full" aria-label={`Watch ${match.homeTeam} vs ${match.awayTeam} on ${ch.label}`}>
-        {inner}
-      </Link>
-    );
-  }
   return (
     <Link to="/watch/$channelId" params={{ channelId: String(ch.id) }} search={{ name: ch.label }} className="block h-full" aria-label={`Watch ${match.homeTeam} vs ${match.awayTeam} on ${ch.label}`}>
       {inner}
