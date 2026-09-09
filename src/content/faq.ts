@@ -101,12 +101,12 @@ export const TEAM: TeamMember[] = [
     name: "Ridha Sidani",
     role: "Founder and developer",
     bio: "Builds and runs the site and the Android app. Based in Algiers. Answers most support messages personally.",
-    photo: "/team/ridha.jpg",
+    photo: "/team/ridha.svg",
   },
   {
     name: "Oussama",
     role: "Channel curation",
     bio: "Keeps the programme guide accurate: checks kick-off times, channel assignments and commentators every match day.",
-    photo: "/team/oussama.jpg",
+    photo: "/team/oussama.svg",
   },
 ];
