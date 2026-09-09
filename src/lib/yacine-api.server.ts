@@ -1,3 +1,6 @@
+import { heightFromLabel } from "./quality";
+import { normaliseChannelName } from "./match-channel";
+
 // Upstream host and decrypt key can be rotated from the environment without
 // touching the code. Both fall back to the values the Android app ships with.
 // Read per request: on edge runtimes env is only bound while handling a request.
@@ -39,6 +42,7 @@ export type YacineDirectory = {
 type Json = Record<string, unknown>;
 type CacheEntry<T> = { expiresAt: number; value: T };
 const cache = new Map<string, CacheEntry<unknown>>();
+const inflight = new Map<string, Promise<unknown>>();
 
 const text = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
@@ -95,12 +99,20 @@ async function request(path: string): Promise<unknown> {
   }
 }
 
-async function cached<T>(key: string, ttl: number, load: () => Promise<T>) {
+async function cached<T>(key: string, ttl: number, load: () => Promise<T>): Promise<T> {
   const hit = cache.get(key) as CacheEntry<T> | undefined;
   if (hit && hit.expiresAt > Date.now()) return hit.value;
-  const value = await load();
-  cache.set(key, { value, expiresAt: Date.now() + ttl });
-  return value;
+  // Concurrent callers share one upstream request instead of racing.
+  const pending = inflight.get(key) as Promise<T> | undefined;
+  if (pending) return pending;
+  const task = load()
+    .then((value) => {
+      cache.set(key, { value, expiresAt: Date.now() + ttl });
+      return value;
+    })
+    .finally(() => inflight.delete(key));
+  inflight.set(key, task);
+  return task;
 }
 
 const team = (value: unknown): YacineTeam => {
@@ -215,4 +227,75 @@ export async function fetchYacineChannelStreams(channelId: number): Promise<Yaci
       }))
       .filter((stream) => stream.url !== ""),
   );
+}
+
+export type YacineVariant = YacineStream & {
+  /** Resolution rung, resolved from the stream label, channel or category name. */
+  height: number;
+  /** Directory channel the feed came from (the requested one or a sibling). */
+  channelId: number;
+};
+
+const MAX_SIBLINGS = 8;
+const DIRECTORY_WAIT_MS = 4_000;
+const DEFAULT_HEIGHT = 720;
+
+/**
+ * Every playable feed for a channel, across all the quality rungs the
+ * directory offers for it.
+ *
+ * Upstream lists the same channel once per resolution category ("beIN
+ * SPORTS 1" under "beIN SPORTS 1080", again under "... 720", ...). Opening
+ * any one of them should expose the whole ladder, so the sibling entries are
+ * found by normalised name and their feeds are merged. Heights come from the
+ * stream label first, then the channel name, then the category name.
+ */
+export async function fetchYacineChannelVariants(channelId: number, fallbackHeight = 0): Promise<YacineVariant[]> {
+  if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) return [];
+
+  // Never let a cold directory build stall playback: wait briefly, then
+  // continue with the requested channel alone while the build finishes.
+  const directory = await Promise.race<YacineDirectory | null>([
+    fetchYacineDirectory().catch(() => null),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), DIRECTORY_WAIT_MS)),
+  ]);
+
+  const self = directory?.channels.find((channel) => channel.id === channelId);
+  const members: Array<{ id: number; hint: number }> = [
+    {
+      id: channelId,
+      hint: (self && (heightFromLabel(self.name) || heightFromLabel(self.categoryName))) || fallbackHeight,
+    },
+  ];
+
+  if (directory && self) {
+    const base = normaliseChannelName(self.name);
+    const seen = new Set<number>([channelId]);
+    if (base) {
+      for (const channel of directory.channels) {
+        if (seen.has(channel.id) || normaliseChannelName(channel.name) !== base) continue;
+        seen.add(channel.id);
+        members.push({ id: channel.id, hint: heightFromLabel(channel.name) || heightFromLabel(channel.categoryName) });
+        if (members.length >= MAX_SIBLINGS) break;
+      }
+    }
+  }
+
+  const results = await Promise.allSettled(members.map((member) => fetchYacineChannelStreams(member.id)));
+  const variants: YacineVariant[] = [];
+  const urls = new Set<string>();
+  results.forEach((result, index) => {
+    if (result.status !== "fulfilled") return;
+    const member = members[index];
+    for (const stream of result.value) {
+      if (urls.has(stream.url)) continue;
+      urls.add(stream.url);
+      variants.push({
+        ...stream,
+        channelId: member.id,
+        height: heightFromLabel(stream.name) || member.hint || fallbackHeight || DEFAULT_HEIGHT,
+      });
+    }
+  });
+  return variants;
 }

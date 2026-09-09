@@ -1,38 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { fetchYacineChannelStreams } from "@/lib/yacine-api.server";
+import { fetchYacineChannelVariants } from "@/lib/yacine-api.server";
 import { signedProxyUrl } from "@/lib/stream-sign.server";
+import { bandwidthForHeight, heightFromLabel } from "@/lib/quality";
 
-// HLS master playlist for a live-API channel. Every quality the upstream
-// offers becomes one variant, so hls.js can switch bitrates on its own.
-// Variant URLs are signed proxy links: the browser never learns the upstream
-// address or the headers it needs, and the proxy refuses anything we did not
-// mint ourselves.
-
-const BANDWIDTH: Record<number, number> = {
-  2160: 12_000_000,
-  1080: 5_000_000,
-  720: 2_800_000,
-  480: 1_400_000,
-  360: 800_000,
-  240: 400_000,
-};
-
-/** Turn a label such as "1080P", "FHD" or "SD" into a resolution rung. */
-function resolveQuality(name: string): { height: number; bandwidth: number } {
-  const label = (name || "").toUpperCase();
-  const digits = parseInt(label.match(/(\d{3,4})/)?.[1] ?? "0", 10);
-  let height = digits >= 144 && digits <= 4320 ? digits : 0;
-  if (!height) {
-    if (label.includes("4K") || label.includes("UHD")) height = 2160;
-    else if (label.includes("FHD") || label.includes("FULL")) height = 1080;
-    else if (label.includes("HD")) height = 720;
-    else if (label.includes("SD")) height = 480;
-    else if (label.includes("LOW")) height = 240;
-    else height = 720;
-  }
-  const bandwidth = BANDWIDTH[height] ?? Math.max(300_000, Math.round((height / 1080) * 5_000_000));
-  return { height, bandwidth };
-}
+// HLS master playlist for a live-API channel.
+//
+// Every feed the directory offers for the channel becomes one variant, across
+// all of its resolution categories, so hls.js can list the full quality
+// ladder and switch between rungs. Variant URLs are signed proxy links: the
+// browser never learns the upstream address or the headers it needs, and the
+// proxy refuses anything we did not mint ourselves.
+//
+// `?q=1080` marks the rung the viewer picked (a channel opened from the
+// "beIN SPORTS 1080" category). That rung is listed first so playback starts
+// there; the player pins it and still shows the other rungs in its menu.
 
 const CORS = {
   "access-control-allow-origin": "*",
@@ -47,6 +28,10 @@ function plain(status: number, body: string) {
   });
 }
 
+function cleanName(value: string): string {
+  return value.replace(/["\r\n,]/g, "").trim();
+}
+
 export const Route = createFileRoute("/api/public/master")({
   server: {
     handlers: {
@@ -57,38 +42,36 @@ export const Route = createFileRoute("/api/public/master")({
         if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) {
           return plain(400, "missing channelId");
         }
-        // Optional: pin the playlist to one rung, so a channel opened from a
-        // resolution-specific category plays only that quality.
-        const onlyHeight = Number(url.searchParams.get("q")) || 0;
+        const wanted = heightFromLabel(url.searchParams.get("q"));
 
-        let streams: Awaited<ReturnType<typeof fetchYacineChannelStreams>>;
+        let variants: Awaited<ReturnType<typeof fetchYacineChannelVariants>>;
         try {
-          streams = await fetchYacineChannelStreams(channelId);
+          variants = await fetchYacineChannelVariants(channelId, wanted);
         } catch {
           return plain(502, "upstream error");
         }
-        if (!streams.length) return plain(404, "no streams");
+        if (!variants.length) return plain(404, "no streams");
 
-        // Low to high, so hls.js starts conservatively and steps up.
-        let variants = streams
-          .map((stream) => ({ stream, quality: resolveQuality(stream.name) }))
-          .sort((a, b) => a.quality.bandwidth - b.quality.bandwidth);
-
-        if (onlyHeight) {
-          const exact = variants.filter((v) => v.quality.height === onlyHeight);
-          if (exact.length) variants = exact;
+        // Low to high so hls.js steps up conservatively; the requested rung,
+        // if any, goes first so the very first fragment is already the one the
+        // viewer asked for.
+        variants.sort((a, b) => a.height - b.height);
+        if (wanted) {
+          const preferred = variants.filter((v) => v.height === wanted);
+          if (preferred.length) variants = [...preferred, ...variants.filter((v) => v.height !== wanted)];
         }
 
         const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:3"];
         for (const v of variants) {
-          const width = Math.round((v.quality.height * 16) / 9);
-          const name = (v.stream.name || `${v.quality.height}p`).replace(/["\r\n]/g, "");
-          lines.push(`#EXT-X-STREAM-INF:BANDWIDTH=${v.quality.bandwidth},RESOLUTION=${width}x${v.quality.height},NAME="${name}"`);
+          const bandwidth = bandwidthForHeight(v.height);
+          const width = Math.round((v.height * 16) / 9);
+          const label = cleanName(v.name) || `${v.height}p`;
+          lines.push(`#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${width}x${v.height},NAME="${label}"`);
           lines.push(
             await signedProxyUrl({
-              url: v.stream.url,
-              referer: v.stream.referer || undefined,
-              ua: v.stream.userAgent || undefined,
+              url: v.url,
+              referer: v.referer || undefined,
+              ua: v.userAgent || undefined,
             }),
           );
         }

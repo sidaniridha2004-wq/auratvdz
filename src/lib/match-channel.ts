@@ -14,6 +14,9 @@ const WORD_MAP: Array<[RegExp, string]> = [
   [/\u0645\u0627\u0643\u0633/g, "max"], // ماكس
   [/\u0625\u0643\u0633\u062a\u0631\u0627|\u0627\u0643\u0633\u062a\u0631\u0627/g, "xtra"], // إكسترا
   [/\u0646\u064a\u0648\u0632/g, "news"],
+  // Resolution suffixes ("beIN SPORTS 1 1080", "MBC 720p") are not part of
+  // the channel identity; strip them before the trailing number is compared.
+  [/\b(2160|1440|1080|720|576|480|360|240|144)p?\b/g, ""],
   [/hd|sd|fhd|uhd|4k/g, ""],
 ];
 
