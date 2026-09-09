@@ -1,13 +1,21 @@
 import process from "node:process";
 
-// The yacinelive public TV API obfuscates responses with a fixed XOR key.
-// It is not a credential — anyone calling the upstream API uses the same
-// value — but we still source it from an env var so operators can rotate
-// or override it without code changes. Read INSIDE handlers (Cloudflare
-// Workers bind env per-request).
+const CURRENT_API_URL = "https://def.yacinelive.com";
+const RETIRED_HOST = "ver3.yacinelive.com";
+
+// The upstream uses a fixed XOR key to obfuscate API responses. It is not a
+// private credential. Keep configuration server-side and automatically ignore
+// the retired ver3 host so an old deployment variable cannot break playback.
 export function getYacineConfig() {
+  const configuredUrl = process.env.YACINE_API_URL?.trim();
+  const apiUrl =
+    configuredUrl && !configuredUrl.includes(RETIRED_HOST)
+      ? configuredUrl.replace(/\/$/, "")
+      : CURRENT_API_URL;
+
   return {
-    apiUrl: process.env.YACINE_API_URL ?? "http://ver3.yacinelive.com",
-    decryptKey: process.env.YACINE_DECRYPT_KEY ?? "c!xZj+N9&G@Ev@vw",
+    apiUrl,
+    decryptKey:
+      process.env.YACINE_DECRYPT_KEY?.trim() || "c!xZj+N9&G@Ev@vw",
   };
 }
