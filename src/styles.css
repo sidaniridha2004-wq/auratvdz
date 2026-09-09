@@ -1,15 +1,19 @@
 @import "tailwindcss" source(none);
 @source "../src";
-@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
 
+/*
+  AuraTV design tokens — "broadcast guide" system.
+  Warm paper / ink palette, one signal red, hairline rules, serif display type.
+  No gradients, glows, blur blobs or glass. Radius is deliberately small.
+*/
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 10px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -30,334 +34,209 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-live: var(--live);
-  --font-display: "Cabinet Grotesk", "Satoshi", system-ui, sans-serif;
-  --font-sans: "Satoshi", "Inter", system-ui, sans-serif;
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --font-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
 }
 
-/* DARK (default) — true AMOLED black with restrained cinematic accents.
-   Primary = crisp signal red used only for LIVE + primary CTAs.
-   Accent  = cool cyan-white used sparingly for eyebrows/links. */
+/* DARK — warm studio black with cream ink. Default. */
 :root, .dark {
-  --radius: 0.9rem;
-  --background: oklch(0.04 0 0);              /* #050505 — AMOLED base */
-  --foreground: oklch(0.985 0 0);             /* near-white */
-  --card: oklch(0.09 0.003 260);              /* charcoal surface 1 */
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.10 0.004 260);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.68 0.24 25);             /* signal red — broadcast live */
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.14 0.005 260);         /* surface 2 */
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.12 0.004 260);
-  --muted-foreground: oklch(0.66 0.01 260);
-  --accent: oklch(0.86 0.12 195);             /* cool signal cyan */
-  --accent-foreground: oklch(0.08 0 0);
-  --destructive: oklch(0.66 0.25 22);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 6%);
-  --input: oklch(1 0 0 / 10%);
-  --ring: oklch(0.68 0.24 25);
-  --live: oklch(0.68 0.24 25);
-
-  /* Cinematic dark hero: mostly black with a single warm rim of red at the
-     bottom-left and a whisper of cyan up top — no purple/rainbow blobs. */
-  --gradient-hero:
-    radial-gradient(ellipse 60% 40% at 12% 100%, oklch(0.68 0.24 25 / 0.22), transparent 65%),
-    radial-gradient(ellipse 70% 40% at 90% 0%, oklch(0.75 0.1 210 / 0.10), transparent 70%),
-    linear-gradient(180deg, oklch(0.05 0 0), oklch(0.03 0 0));
-  --gradient-card: linear-gradient(165deg, oklch(0.11 0.004 260), oklch(0.07 0.003 260));
-  --gradient-surface: linear-gradient(180deg, oklch(0.09 0.003 260), oklch(0.06 0.002 260));
-  --shadow-glow: 0 0 40px -6px oklch(0.68 0.24 25 / 0.35);
-  --shadow-card: 0 20px 40px -20px oklch(0 0 0 / 0.9), 0 1px 0 0 oklch(1 0 0 / 0.04) inset;
-  --shadow-ring: 0 0 0 1px oklch(1 0 0 / 0.06);
+  --radius: 4px;
+  --background: #0f0e0c;
+  --foreground: #f1ece2;
+  --card: #171613;
+  --card-foreground: #f1ece2;
+  --popover: #1c1a17;
+  --popover-foreground: #f1ece2;
+  --primary: #d9272f;
+  --primary-foreground: #ffffff;
+  --secondary: #201e1a;
+  --secondary-foreground: #f1ece2;
+  --muted: #1c1a17;
+  --muted-foreground: #a49e92;
+  --accent: #f0b429;
+  --accent-foreground: #0f0e0c;
+  --destructive: #d9272f;
+  --destructive-foreground: #ffffff;
+  --border: rgba(241, 236, 226, 0.12);
+  --input: rgba(241, 236, 226, 0.16);
+  --ring: #d9272f;
+  --live: #2ec27e;
+  --paper: #f5f1e8;
+  --ink: #171512;
 }
 
-/* LIGHT theme — kept clean but never the default */
+/* LIGHT — newsprint paper. */
 .light {
-  --background: oklch(0.98 0.003 260);
-  --foreground: oklch(0.14 0.01 260);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.14 0.01 260);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.14 0.01 260);
-  --primary: oklch(0.58 0.24 25);
-  --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.95 0.005 260);
-  --secondary-foreground: oklch(0.14 0.01 260);
-  --muted: oklch(0.94 0.005 260);
-  --muted-foreground: oklch(0.42 0.01 260);
-  --accent: oklch(0.55 0.14 210);
-  --accent-foreground: oklch(0.99 0 0);
-  --destructive: oklch(0.55 0.25 22);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0 0 0 / 10%);
-  --input: oklch(0 0 0 / 8%);
-  --ring: oklch(0.58 0.24 25);
-  --live: oklch(0.58 0.24 25);
-
-  --gradient-hero: linear-gradient(180deg, oklch(0.99 0.003 260), oklch(0.94 0.005 260));
-  --gradient-card: linear-gradient(160deg, oklch(1 0 0), oklch(0.96 0.005 260));
-  --gradient-surface: linear-gradient(180deg, oklch(1 0 0), oklch(0.97 0.005 260));
-  --shadow-glow: 0 0 40px -10px oklch(0.58 0.24 25 / 0.35);
-  --shadow-card: 0 12px 28px -12px oklch(0 0 0 / 0.18);
-  --shadow-ring: 0 0 0 1px oklch(0 0 0 / 0.06);
+  --background: #f5f1e8;
+  --foreground: #171512;
+  --card: #fffdf8;
+  --card-foreground: #171512;
+  --popover: #fffdf8;
+  --popover-foreground: #171512;
+  --primary: #c1121f;
+  --primary-foreground: #ffffff;
+  --secondary: #ebe6da;
+  --secondary-foreground: #171512;
+  --muted: #ece7dc;
+  --muted-foreground: #6b665c;
+  --accent: #b07d12;
+  --accent-foreground: #ffffff;
+  --destructive: #c1121f;
+  --destructive-foreground: #ffffff;
+  --border: rgba(23, 21, 18, 0.14);
+  --input: rgba(23, 21, 18, 0.2);
+  --ring: #c1121f;
+  --live: #1f9d5f;
+  --paper: #f5f1e8;
+  --ink: #171512;
 }
 
 @layer base {
   * { border-color: var(--color-border); }
+  html { scroll-behavior: smooth; }
   html, body {
     background: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
     font-size: 16px;
-    font-feature-settings: "ss01", "cv11";
+    line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    font-variant-numeric: tabular-nums;
   }
-  h1, h2, h3, h4 {
+  h1, h2, h3, .font-display {
     font-family: var(--font-display);
-    letter-spacing: -0.025em;
-    font-weight: 800;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
-  /* Subtle film grain — cinematic atmosphere, only in dark */
-  .dark body::before {
-    content: "";
-    position: fixed; inset: 0; z-index: 1;
-    pointer-events: none;
-    opacity: 0.045;
-    mix-blend-mode: overlay;
-    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  a { text-underline-offset: 3px; }
+  :focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
   }
+  ::selection { background: var(--primary); color: #fff; }
   @media (max-width: 640px) {
-    body { padding-bottom: 68px; }
+    body { padding-bottom: 72px; }
   }
-  ::selection { background: oklch(0.68 0.24 25 / 0.35); color: var(--foreground); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
 }
 
 @layer utilities {
-  .bg-hero { background: var(--gradient-hero); }
-  .bg-card-gradient { background: var(--gradient-card); }
-  .bg-surface { background: var(--gradient-surface); }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
-  .shadow-card { box-shadow: var(--shadow-card); }
-  .ring-hairline { box-shadow: var(--shadow-ring); }
-
-  .glass {
-    background: oklch(1 0 0 / 0.035);
-    backdrop-filter: blur(20px) saturate(150%);
-    border: 1px solid oklch(1 0 0 / 0.06);
+  /* Small caps mono label used for section kickers, times, metadata */
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
   }
+  .mono { font-family: var(--font-mono); }
+  .rule { border-top: 1px solid var(--border); }
+  .rule-b { border-bottom: 1px solid var(--border); }
+  .rule-heavy { border-top: 2px solid var(--foreground); }
 
-  /* Live indicator — pulsing red dot */
+  .wrap { margin-inline: auto; width: 100%; max-width: 1200px; padding-inline: 16px; }
+  @media (min-width: 640px) { .wrap { padding-inline: 24px; } }
+
+  .tile {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .tile-hover { transition: border-color 160ms ease, background-color 160ms ease; }
+  .tile-hover:hover { border-color: var(--foreground); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    min-height: 44px; padding: 0 18px;
+    border-radius: var(--radius);
+    font-weight: 600; font-size: 14px; line-height: 1;
+    border: 1px solid transparent;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+    white-space: nowrap;
+  }
+  .btn-primary { background: var(--primary); color: var(--primary-foreground); }
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-outline { border-color: var(--foreground); color: var(--foreground); background: transparent; }
+  .btn-outline:hover { background: var(--foreground); color: var(--background); }
+  .btn-ghost { color: var(--foreground); background: transparent; border-color: var(--border); }
+  .btn-ghost:hover { border-color: var(--foreground); }
+  .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+  .field {
+    width: 100%; min-height: 44px;
+    background: var(--card); color: var(--foreground);
+    border: 1px solid var(--input); border-radius: var(--radius);
+    padding: 10px 12px; font-size: 14px;
+  }
+  .field:focus { outline: none; border-color: var(--foreground); }
+
+  /* Live indicator — solid dot with a single soft pulse */
   .live-dot {
     position: relative; display: inline-block;
-    width: 0.55rem; height: 0.55rem;
-    border-radius: 9999px; background: var(--live);
-    box-shadow: 0 0 12px oklch(0.68 0.24 25 / 0.9);
+    width: 8px; height: 8px; border-radius: 9999px; background: var(--live);
   }
   .live-dot::after {
-    content: ""; position: absolute; inset: -5px;
-    border-radius: 9999px; background: var(--live);
-    opacity: 0.55; animation: live-pulse 1.6s ease-out infinite;
+    content: ""; position: absolute; inset: -4px; border-radius: 9999px;
+    border: 1px solid var(--live); opacity: 0.6; animation: live-ring 1.8s ease-out infinite;
   }
-  @keyframes live-pulse {
-    0% { transform: scale(0.55); opacity: 0.7; }
-    100% { transform: scale(2.1); opacity: 0; }
-  }
-
-  /* Editorial section eyebrow */
-  .eyebrow {
-    font-size: 11px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.24em;
-    color: var(--accent);
+  @keyframes live-ring {
+    0% { transform: scale(0.6); opacity: 0.7; }
+    100% { transform: scale(1.6); opacity: 0; }
   }
 
-  /* Aurora is kept only as a single subtle text accent (not overused) */
-  .text-signal {
-    background: linear-gradient(90deg, oklch(0.85 0.13 25), oklch(0.75 0.18 30), oklch(0.85 0.13 25));
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-    animation: signal-shift 8s ease-in-out infinite;
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 2px; border: 1px solid var(--border);
   }
-  @keyframes signal-shift {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
+  .badge-live { border-color: var(--live); color: var(--live); }
+  .badge-soon { border-color: var(--accent); color: var(--accent); }
+  .badge-ft { color: var(--muted-foreground); }
 
-  .animate-fade-up { animation: fade-up 0.55s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
-  @keyframes fade-up {
-    from { opacity: 0; transform: translateY(14px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+  .skeleton { background: var(--muted); border-radius: var(--radius); animation: skel 1.4s ease-in-out infinite; }
+  @keyframes skel { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 
-  .grid-backdrop {
-    background-image:
-      linear-gradient(oklch(1 0 0 / 0.03) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(1 0 0 / 0.03) 1px, transparent 1px);
-    background-size: 64px 64px;
-    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 35%, transparent 80%);
-  }
-
-  /* Interactive lift used only on cards/buttons */
-  .card-hover {
-    transition: transform 0.35s cubic-bezier(0.2, 0.7, 0.2, 1),
-                box-shadow 0.35s ease,
-                border-color 0.35s ease,
-                background-color 0.35s ease;
-  }
-  .card-hover:hover {
-    transform: translateY(-3px);
-    border-color: oklch(1 0 0 / 0.14);
-    box-shadow: 0 24px 50px -24px oklch(0 0 0 / 0.9), 0 0 0 1px oklch(1 0 0 / 0.05) inset;
-  }
-
-  .marquee {
-    display: flex; overflow: hidden;
-    mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  }
-  .marquee-track {
-    display: flex; gap: 2.5rem; flex-shrink: 0; min-width: 100%;
-    animation: marquee 38s linear infinite;
-  }
-  @keyframes marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-100%); }
-  }
-  .marquee:hover .marquee-track { animation-play-state: paused; }
-
-  /* Restrained conic border — used only on hero featured card */
-  .conic-border { position: relative; }
-  .conic-border::before {
-    content: ""; position: absolute; inset: -1px;
-    border-radius: inherit; padding: 1px;
-    background: conic-gradient(from 0deg,
-      oklch(0.68 0.24 25 / 0.9),
-      oklch(0.86 0.12 195 / 0.5),
-      oklch(0.68 0.24 25 / 0.9));
-    -webkit-mask:
-      linear-gradient(#000 0 0) content-box,
-      linear-gradient(#000 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    animation: conic-spin 10s linear infinite;
-    pointer-events: none;
-  }
-  @keyframes conic-spin { to { transform: rotate(1turn); } }
-
-  .number-glow {
-    text-shadow: 0 0 40px oklch(0.68 0.24 25 / 0.45);
-  }
-
-  /* Skeleton shimmer */
-  .skeleton {
-    position: relative;
-    overflow: hidden;
-    background: oklch(0.10 0.004 260);
-  }
-  .skeleton::after {
-    content: "";
-    position: absolute; inset: 0;
-    background: linear-gradient(90deg, transparent, oklch(1 0 0 / 0.05), transparent);
-    transform: translateX(-100%);
-    animation: shimmer 1.6s infinite;
-  }
-  @keyframes shimmer {
-    100% { transform: translateX(100%); }
-  }
+  .prose-basic h2 { font-size: 1.5rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+  .prose-basic h3 { font-size: 1.15rem; margin-top: 1.5rem; margin-bottom: 0.4rem; }
+  .prose-basic p, .prose-basic li { color: var(--muted-foreground); font-size: 15px; line-height: 1.7; }
+  .prose-basic p { margin-bottom: 0.9rem; }
+  .prose-basic ul { list-style: disc; padding-left: 1.25rem; margin-bottom: 0.9rem; }
+  .prose-basic a { color: var(--foreground); text-decoration: underline; }
+  .prose-basic strong { color: var(--foreground); }
 }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   ANDROID TV — D-pad focus management
-   Applied when html.tv-mode is set by tv-navigation.ts
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* High-contrast focus ring for TV remote navigation */
+/* Android TV — D-pad focus */
 .tv-mode *:focus-visible {
-  outline: 3px solid oklch(0.68 0.24 25) !important;
+  outline: 3px solid var(--primary) !important;
   outline-offset: 4px;
-  border-radius: inherit;
-  box-shadow: 0 0 0 6px oklch(0.68 0.24 25 / 0.25), 0 0 40px oklch(0.68 0.24 25 / 0.2) !important;
-  z-index: 50;
-  transition: outline 0.15s ease, box-shadow 0.15s ease;
 }
-
-/* Scale-up effect on focused cards for TV */
-.tv-mode .card-hover:focus-within,
-.tv-mode .card-hover:focus-visible {
-  transform: translateY(-4px) scale(1.03);
-  border-color: oklch(0.68 0.24 25 / 0.5);
-}
-
-/* Larger interactive targets for TV remote (min 48px) */
-.tv-mode button,
-.tv-mode a,
-.tv-mode [tabindex="0"] {
-  min-height: 48px;
-  min-width: 48px;
-}
-
-/* TV layout overrides — larger text and spacing for 10-foot viewing */
+.tv-mode button, .tv-mode a, .tv-mode [tabindex="0"] { min-height: 48px; min-width: 48px; }
 @media (min-width: 960px) {
   .tv-mode h1 { font-size: 3rem; }
   .tv-mode h2 { font-size: 2rem; }
-  .tv-mode h3 { font-size: 1.5rem; }
   .tv-mode body { font-size: 18px; }
 }
-
-/* Hide mobile tab bar on TV (no touch) */
 .tv-mode .fixed.bottom-0 { display: none !important; }
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   CAPACITOR — native app adjustments
-   Applied when html.capacitor is set by tv-navigation.ts
-   ═══════════════════════════════════════════════════════════════════════════ */
-
-/* Safe area padding for notched/rounded Android phones */
+/* Capacitor native shell */
 .capacitor body {
   padding-top: env(safe-area-inset-top);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
-}
-
-/* Adjust bottom padding for mobile tab bar in Capacitor */
-@media (max-width: 640px) {
-  .capacitor body {
-    padding-bottom: calc(68px + env(safe-area-inset-bottom));
-  }
-}
-
-/* Disable text selection in native app for a more native feel */
-.capacitor * {
-  -webkit-user-select: none;
-  user-select: none;
-}
-.capacitor input,
-.capacitor textarea,
-.capacitor [contenteditable="true"] {
-  -webkit-user-select: text;
-  user-select: text;
-}
-
-/* Disable pull-to-refresh bounce on Android WebView */
-.capacitor body {
   overscroll-behavior-y: contain;
 }
-
-/* Hide native video fullscreen button so we can use a custom one for orientation locking */
-video::-webkit-media-controls-fullscreen-button {
-  display: none !important;
+@media (max-width: 640px) {
+  .capacitor body { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
 }
+.capacitor * { -webkit-user-select: none; user-select: none; }
+.capacitor input, .capacitor textarea, .capacitor [contenteditable="true"] { -webkit-user-select: text; user-select: text; }
 
-/* Ensure the video wrapper fills the entire screen when in fullscreen mode */
-:fullscreen.aspect-video,
-:-webkit-full-screen.aspect-video {
-  aspect-ratio: auto;
-  width: 100vw;
-  height: 100vh;
-}
-
+video::-webkit-media-controls-fullscreen-button { display: none !important; }
+:fullscreen.aspect-video, :-webkit-full-screen.aspect-video { aspect-ratio: auto; width: 100vw; height: 100vh; }

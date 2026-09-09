@@ -1,85 +1,89 @@
 import { Link } from "@tanstack/react-router";
-import logoAsset from "@/assets/auratv-logo.png.asset.json";
-import { useI18n, type Lang } from "@/lib/i18n";
-import { LegalModal } from "@/components/LegalModal";
+import { Wordmark } from "@/components/Wordmark";
+import { SITE } from "@/lib/site";
+import { useI18n } from "@/lib/i18n";
+
+const COLS: Array<{ title: string; links: Array<{ to: string; hash?: string; label: string }> }> = [
+  {
+    title: "Watch",
+    links: [
+      { to: "/", hash: "matches", label: "Today's fixtures" },
+      { to: "/", hash: "channels", label: "All channels" },
+      { to: "/live", label: "Live events" },
+      { to: "/status", label: "Channel status" },
+      { to: "/settings/channels", label: "My channels" },
+      { to: "/download", label: "Android app" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { to: "/about", label: "About & team" },
+      { to: "/case-studies", label: "Case studies" },
+      { to: "/faq", label: "FAQ" },
+      { to: "/contact", label: "Contact & directions" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { to: "/privacy", label: "Privacy policy" },
+      { to: "/terms", label: "Terms of use" },
+      { to: "/dmca", label: "Copyright / DMCA" },
+    ],
+  },
+];
 
 export function Footer() {
-  const { t, lang, setLang } = useI18n();
-  const langs: Lang[] = ["ar", "fr", "en"];
-  const linkCls =
-    "text-left text-muted-foreground transition hover:text-foreground";
+  const { t } = useI18n();
   return (
-    <footer className="mt-20 border-t border-white/10 bg-black/40 backdrop-blur">
-      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <div className="flex items-center gap-3">
-            <img src={logoAsset.url} alt="AuraTV" className="h-10 w-10 rounded-xl object-cover" />
-            <div>
-              <div className="font-display text-lg font-bold text-aurora">AuraTV</div>
-              <div className="text-xs text-muted-foreground">{t("footer.tagline")}</div>
-            </div>
-          </div>
-          <p className="mt-4 max-w-sm text-xs leading-relaxed text-muted-foreground">
-            Fixtures and channel data may come from external sources. Stream availability can vary.
-            If you are a rights holder and need content reviewed or removed, please contact us.
+    <footer className="mt-16 rule-heavy">
+      <div className="wrap grid gap-10 py-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div>
+          <Wordmark />
+          <p className="mt-4 max-w-sm text-[14px] leading-relaxed text-muted-foreground">{t("footer.tagline")}</p>
+          <p className="mt-3 max-w-sm text-[13px] leading-relaxed text-muted-foreground">{t("footer.disclaimer")}</p>
+          <p className="mt-4 text-[13px]">
+            <span className="kicker text-live">Response time</span>
+            <br />
+            <span className="text-muted-foreground">{SITE.responseTime}</span>
           </p>
+          <a
+            href={SITE.telegram}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 inline-block text-[14px] underline hover:text-primary"
+          >
+            Telegram: @Aura_TV
+          </a>
         </div>
 
-        <div>
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Explore
-          </div>
-          <ul className="space-y-2 text-sm">
-            <li><Link to="/" hash="matches" className={linkCls}>{t("nav.matches")}</Link></li>
-            <li><Link to="/" hash="channels" className={linkCls}>{t("nav.channels")}</Link></li>
-            <li><Link to="/" hash="favorites" className={linkCls}>{t("nav.favorites")}</Link></li>
-            <li><Link to="/status" className={linkCls}>{t("nav.status")}</Link></li>
-          </ul>
-        </div>
-
-        <div>
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Company
-          </div>
-          <ul className="space-y-2 text-sm">
-            <li><LegalModal kind="about" className={linkCls}>About</LegalModal></li>
-            <li><LegalModal kind="faq" className={linkCls}>FAQ</LegalModal></li>
-            <li><LegalModal kind="contact" className={linkCls}>Contact</LegalModal></li>
-            <li><LegalModal kind="report" className={linkCls}>Report a problem</LegalModal></li>
-          </ul>
-        </div>
-
-        <div>
-          <div className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-            Legal
-          </div>
-          <ul className="space-y-2 text-sm">
-            <li><LegalModal kind="privacy" className={linkCls}>Privacy Policy</LegalModal></li>
-            <li><LegalModal kind="terms" className={linkCls}>Terms of Service</LegalModal></li>
-            <li><LegalModal kind="dmca" className={linkCls}>DMCA / Copyright</LegalModal></li>
-          </ul>
-          <div className="mt-5">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Language
-            </div>
-            <div className="inline-flex overflow-hidden rounded-full border border-white/10 bg-white/5">
-              {langs.map((l) => (
-                <button
-                  key={l}
-                  onClick={() => setLang(l)}
-                  className={`px-3 py-1.5 text-xs font-semibold uppercase transition ${
-                    lang === l ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {l}
-                </button>
+        {COLS.map((col) => (
+          <nav key={col.title} aria-label={col.title}>
+            <div className="kicker mb-3">{col.title}</div>
+            <ul className="space-y-2 text-[14px]">
+              {col.links.map((l) => (
+                <li key={l.label}>
+                  <Link to={l.to} hash={l.hash} className="text-muted-foreground hover:text-foreground hover:underline">
+                    {l.label}
+                  </Link>
+                </li>
               ))}
-            </div>
-          </div>
-        </div>
+            </ul>
+          </nav>
+        ))}
       </div>
-      <div className="border-t border-white/10 px-4 py-4 text-center text-xs text-muted-foreground sm:px-6">
-        © 2026 AuraTV · Made for Algeria 🇩🇿
+      <div className="rule">
+        <div className="wrap flex flex-wrap items-center justify-between gap-2 py-4 text-[12px] text-muted-foreground">
+          <span>© {new Date().getFullYear()} {SITE.legalName}. Algiers, Algeria.</span>
+          <span>
+            We do not host video. Rights holder?{" "}
+            <Link to="/dmca" className="underline hover:text-foreground">
+              Send a notice
+            </Link>
+            .
+          </span>
+        </div>
       </div>
     </footer>
   );

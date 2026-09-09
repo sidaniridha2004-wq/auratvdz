@@ -1,121 +1,163 @@
 import { Link } from "@tanstack/react-router";
-import logoAsset from "@/assets/auratv-logo.png.asset.json";
-import {
-  Activity,
-  CalendarDays,
-  Download,
-  Flame,
-  Moon,
-  Radio,
-  Star,
-  Sun,
-} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Menu, Moon, Sun, X } from "lucide-react";
+import { Wordmark } from "@/components/Wordmark";
 import { useI18n, type Lang } from "@/lib/i18n";
 import { useTheme } from "@/lib/theme";
 import { useFavorites } from "@/lib/favorites";
+
+const NAV: Array<{ to: string; hash?: string; label: string; key?: string }> = [
+  { to: "/", hash: "matches", label: "Fixtures", key: "nav.matches" },
+  { to: "/", hash: "channels", label: "Channels", key: "nav.channels" },
+  { to: "/live", label: "Live" },
+  { to: "/status", label: "Status", key: "nav.status" },
+  { to: "/about", label: "About" },
+  { to: "/faq", label: "FAQ" },
+  { to: "/contact", label: "Contact" },
+];
 
 export function SiteHeader() {
   const { t, lang, setLang } = useI18n();
   const { theme, toggle } = useTheme();
   const { count } = useFavorites();
+  const [open, setOpen] = useState(false);
   const langs: Lang[] = ["ar", "fr", "en"];
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  const today = new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Africa/Algiers",
+  }).format(new Date());
+
   return (
-    <header className="sticky top-0 z-40 border-b border-white/10 bg-background/60 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
-        <Link to="/" className="group flex min-w-0 items-center gap-3">
-          <div className="relative shrink-0">
-            <div className="absolute inset-0 -z-10 rounded-2xl bg-primary/40 blur-xl transition group-hover:bg-primary/60" />
-            <img
-              src={logoAsset.url}
-              alt="AuraTV"
-              className="h-10 w-10 rounded-2xl object-cover shadow-glow transition-transform duration-500 group-hover:scale-105"
-            />
-          </div>
-          <div className="min-w-0 leading-tight">
-            <div className="truncate font-display text-lg font-bold tracking-tight">
-              <span className="text-aurora">AuraTV</span>
-            </div>
-            <div className="truncate text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              {t("hero.badge")}
-            </div>
-          </div>
-        </Link>
-
-        <nav className="ml-auto flex shrink-0 items-center gap-1 text-sm">
-          <Link
-            to="/live"
-            className="hidden items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-2 font-semibold text-emerald-300 ring-1 ring-emerald-500/30 transition hover:bg-emerald-500/20 md:inline-flex"
-          >
-            <CalendarDays className="h-4 w-4" /> Live
-          </Link>
-          <Link
-            to="/"
-            hash="matches"
-            className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground md:inline-flex"
-          >
-            <Flame className="h-4 w-4" /> {t("nav.matches")}
-          </Link>
-          <Link
-            to="/"
-            hash="channels"
-            className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground md:inline-flex"
-          >
-            <Radio className="h-4 w-4" /> {t("nav.channels")}
-          </Link>
-          {count > 0 && (
-            <Link
-              to="/"
-              hash="favorites"
-              className="hidden items-center gap-1.5 rounded-full bg-yellow-400/10 px-3 py-2 font-semibold text-yellow-300 transition hover:bg-yellow-400/20 md:inline-flex"
-            >
-              <Star className="h-4 w-4 fill-current" /> {count}
-            </Link>
-          )}
-          <Link
-            to="/status"
-            className="hidden items-center gap-1.5 rounded-full px-3 py-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground lg:inline-flex"
-          >
-            <Activity className="h-4 w-4" /> {t("nav.status")}
-          </Link>
-
-          {/* Download APK */}
-          <Link
-            to="/download"
-            className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-2 text-xs font-semibold text-primary transition hover:bg-primary/25"
-          >
-            <Download className="h-3.5 w-3.5" /> Download
-          </Link>
-          <div className="hidden overflow-hidden rounded-full border border-white/10 bg-white/5 text-[10px] font-bold uppercase sm:flex">
+    <header className="sticky top-0 z-40 bg-background/95 rule-b backdrop-blur-sm">
+      {/* Top line: date + language + theme, like a newspaper masthead */}
+      <div className="wrap hidden h-8 items-center justify-between text-[11px] text-muted-foreground md:flex">
+        <span className="kicker">{today} · Algiers</span>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             {langs.map((l) => (
               <button
                 key={l}
+                type="button"
                 onClick={() => setLang(l)}
-                className={`px-2 py-1.5 transition ${
-                  lang === l
-                    ? "bg-primary text-primary-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                }`}
+                aria-pressed={lang === l}
+                className={`kicker px-1.5 py-0.5 ${lang === l ? "text-foreground underline" : "hover:text-foreground"}`}
               >
                 {l}
               </button>
             ))}
           </div>
-
-          {/* Theme toggle */}
           <button
-            aria-label="Toggle theme"
+            type="button"
+            aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
             onClick={toggle}
-            className="rounded-full p-2 text-muted-foreground transition hover:bg-white/10 hover:text-foreground"
+            className="inline-flex h-6 w-6 items-center justify-center hover:text-foreground"
           >
-            {theme === "dark" ? (
-              <Sun className="h-4 w-4" />
-            ) : (
-              <Moon className="h-4 w-4" />
-            )}
+            {theme === "dark" ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
           </button>
-        </nav>
+        </div>
       </div>
+
+      <div className="wrap flex h-14 items-center gap-4 md:rule">
+        <Link to="/" aria-label="AuraTV home" className="shrink-0">
+          <Wordmark />
+        </Link>
+
+        <nav aria-label="Primary" className="ml-6 hidden items-center gap-5 text-[14px] md:flex">
+          {NAV.map((item) => (
+            <Link
+              key={item.label}
+              to={item.to}
+              hash={item.hash}
+              className="text-muted-foreground hover:text-foreground hover:underline"
+              activeProps={{ className: "text-foreground" }}
+              activeOptions={{ exact: true, includeHash: false }}
+            >
+              {item.key ? t(item.key) : item.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="ml-auto flex items-center gap-2">
+          {count > 0 && (
+            <Link to="/" hash="favorites" className="kicker hidden text-accent hover:underline sm:inline">
+              ★ {count}
+            </Link>
+          )}
+          <Link to="/download" className="btn btn-outline btn-sm hidden sm:inline-flex">
+            Get the app
+          </Link>
+          <Link to="/" hash="channels" className="btn btn-primary btn-sm">
+            Watch now
+          </Link>
+          <button
+            type="button"
+            aria-label={open ? "Close menu" : "Open menu"}
+            aria-expanded={open}
+            onClick={() => setOpen((v) => !v)}
+            className="inline-flex h-9 w-9 items-center justify-center md:hidden"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {open && (
+        <nav aria-label="Mobile" className="wrap rule pb-4 md:hidden">
+          <ul className="grid grid-cols-2 gap-x-6">
+            {NAV.map((item) => (
+              <li key={item.label} className="rule-b">
+                <Link
+                  to={item.to}
+                  hash={item.hash}
+                  onClick={() => setOpen(false)}
+                  className="block py-3 text-[15px]"
+                >
+                  {item.key ? t(item.key) : item.label}
+                </Link>
+              </li>
+            ))}
+            <li className="rule-b">
+              <Link to="/download" onClick={() => setOpen(false)} className="block py-3 text-[15px]">
+                Android app
+              </Link>
+            </li>
+            <li className="rule-b">
+              <Link to="/settings/channels" onClick={() => setOpen(false)} className="block py-3 text-[15px]">
+                {t("settings.title")}
+              </Link>
+            </li>
+          </ul>
+          <div className="mt-4 flex items-center justify-between">
+            <div className="flex items-center gap-1">
+              {langs.map((l) => (
+                <button
+                  key={l}
+                  type="button"
+                  onClick={() => setLang(l)}
+                  aria-pressed={lang === l}
+                  className={`kicker px-2 py-1 ${lang === l ? "text-foreground underline" : "text-muted-foreground"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={toggle} className="btn btn-ghost btn-sm">
+              {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {theme === "dark" ? "Light" : "Dark"}
+            </button>
+          </div>
+        </nav>
+      )}
     </header>
   );
 }

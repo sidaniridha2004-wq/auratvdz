@@ -4,42 +4,37 @@ import { categoryColorForGroup } from "@/lib/channel-category";
 interface Props {
   src?: string;
   name: string;
-  /** Original channel group label; used to pick the fallback color. */
   group?: string;
   className?: string;
   size?: number;
 }
 
-function firstLetter(name: string): string {
-  const clean = name.replace(/\b(HD|FHD|4K|SD)\b/gi, "").trim();
-  return (clean[0] || name[0] || "?").toUpperCase();
+function initials(name: string): string {
+  const clean = name.replace(/\b(HD|FHD|4K|SD|UHD)\b/gi, "").trim();
+  const parts = clean.split(/\s+/).filter(Boolean);
+  const a = parts[0]?.[0] ?? name[0] ?? "?";
+  const b = parts.length > 1 ? parts[1][0] : "";
+  return (a + b).toUpperCase();
 }
 
+/**
+ * Channel logo with a lightweight text fallback. The fallback is drawn with
+ * CSS instead of the old 2 MB placeholder PNG.
+ */
 export function ChannelLogo({ src, name, group, className = "", size = 48 }: Props) {
   const [broken, setBroken] = useState(!src);
-  // Reset the broken flag when the source URL changes so a fresh URL
-  // (e.g. after an admin logo edit) gets a chance to load.
-  useEffect(() => { setBroken(!src); }, [src]);
-  const color = categoryColorForGroup(group ?? "");
+  useEffect(() => setBroken(!src), [src]);
   const style = { width: size, height: size };
 
   if (broken || !src) {
     return (
       <div
-        className={`relative flex items-center justify-center overflow-hidden rounded-xl bg-black ${className}`}
-        style={style}
-        aria-label={name}
+        role="img"
+        aria-label={`${name} logo`}
+        className={`flex items-center justify-center rounded-sm font-display font-semibold text-white ${className}`}
+        style={{ ...style, background: categoryColorForGroup(group ?? ""), fontSize: Math.max(11, size * 0.34) }}
       >
-        <img 
-          src="/default-channel.png" 
-          alt="Default Channel" 
-          className="h-full w-full object-cover"
-        />
-        {/* Overlay a subtle tint based on the category color so channels still look slightly distinct */}
-        <div 
-          className="absolute inset-0 opacity-20 mix-blend-color" 
-          style={{ backgroundColor: color }} 
-        />
+        {initials(name)}
       </div>
     );
   }
@@ -47,18 +42,15 @@ export function ChannelLogo({ src, name, group, className = "", size = 48 }: Pro
   return (
     <img
       src={src}
-      alt={name}
+      alt={`${name} logo`}
       loading="lazy"
+      decoding="async"
+      width={size}
+      height={size}
       referrerPolicy="no-referrer"
       onError={() => setBroken(true)}
-      className={className}
-      style={{
-        ...style,
-        objectFit: "contain",
-        borderRadius: 8,
-        background: "#fff",
-        padding: 2,
-      }}
+      className={`rounded-sm bg-white object-contain p-0.5 ${className}`}
+      style={style}
     />
   );
 }
