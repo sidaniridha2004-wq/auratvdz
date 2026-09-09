@@ -191,3 +191,28 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
     };
   });
 }
+
+export type YacineStream = {
+  name: string;
+  url: string;
+  referer: string;
+  userAgent: string;
+};
+
+/**
+ * Playable variants for one channel. Cached briefly: the upstream rotates
+ * tokens in these URLs, so a long cache would hand out dead links.
+ */
+export async function fetchYacineChannelStreams(channelId: number): Promise<YacineStream[]> {
+  if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) return [];
+  return cached(`channel:${channelId}`, 20_000, async () =>
+    rows<Json>(await request(`/api/channel/${channelId}`))
+      .map((item) => ({
+        name: text(item.name).slice(0, 40),
+        url: url(item.url),
+        referer: url(item.referer),
+        userAgent: text(item.user_agent).slice(0, 256),
+      }))
+      .filter((stream) => stream.url !== ""),
+  );
+}

@@ -69,9 +69,11 @@ function Watch() {
   if (!Number.isInteger(id) || id <= 0) throw notFound();
 
   const masterUrl = q ? `/api/public/master?channelId=${id}&q=${q}` : `/api/public/master?channelId=${id}`;
+  // The pinned rung doubles as the starting quality in the player menu.
+  const preferredHeight = q;
   const title = name ?? `Channel ${id}`;
 
-  useEffect(() => () => { void exitImmersiveMode(); }, []);
+  useEffect(() => () => exitImmersiveMode(), []);
 
   return (
     <div className="min-h-screen">
