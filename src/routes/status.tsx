@@ -1,33 +1,36 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { RefreshCw, CheckCircle2, XCircle, Search, MessageCircle } from "lucide-react";
-import { SiteHeader } from "@/components/SiteHeader";
-import { Footer } from "@/components/Footer";
+import { RefreshCw, Search } from "lucide-react";
+import { PageShell, SideNote } from "@/components/PageShell";
 import { getChannelStatus } from "@/lib/status.functions";
 import { useI18n } from "@/lib/i18n";
+import { pageHead } from "@/lib/seo";
+import { SITE, breadcrumbJsonLd } from "@/lib/site";
+
+const CRUMBS = [
+  { name: "Home", path: "/" },
+  { name: "Channel status", path: "/status" },
+];
 
 export const Route = createFileRoute("/status")({
   component: StatusPage,
-  head: () => ({
-    meta: [
-      { title: "Channel Status — AuraTV" },
-      { name: "description", content: "Live uptime status for every AuraTV channel." },
-      { property: "og:title", content: "Channel Status — AuraTV" },
-      { property: "og:description", content: "Live uptime status for every AuraTV channel." },
-      { property: "og:url", content: "https://auratvdz.lovable.app/status" },
-    ],
-    links: [{ rel: "canonical", href: "https://auratvdz.lovable.app/status" }],
-  }),
+  head: () =>
+    pageHead({
+      title: "Channel status",
+      description: "Automated uptime checks for every AuraTV channel: which streams are online, how fast they respond, and when they were last tested.",
+      path: "/status",
+      jsonLd: breadcrumbJsonLd(CRUMBS),
+    }),
 });
 
 function relativeTime(ms: number): string {
   if (!ms) return "never";
   const diff = Math.max(0, Date.now() - ms);
-  if (diff < 60_000) return `${Math.round(diff / 1000)}s ago`;
-  if (diff < 3_600_000) return `${Math.round(diff / 60_000)}m ago`;
-  return `${Math.round(diff / 3_600_000)}h ago`;
+  if (diff < 60_000) return `${Math.round(diff / 1000)} s ago`;
+  if (diff < 3_600_000) return `${Math.round(diff / 60_000)} min ago`;
+  return `${Math.round(diff / 3_600_000)} h ago`;
 }
 
 function StatusPage() {
@@ -53,139 +56,122 @@ function StatusPage() {
     });
   }, [data, filter, q]);
 
+  const down = data?.down ?? 0;
+  const checked = data?.checked ?? 0;
+
   return (
-    <div className="min-h-screen bg-hero">
-      <SiteHeader />
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-accent">
-              Uptime
-            </div>
-            <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">{t("status.title")}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">{t("status.subtitle")}</p>
-          </div>
-          <button
-            onClick={() => refetch()}
-            disabled={isFetching}
-            className="inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-glow disabled:opacity-50"
-          >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} /> {t("status.refresh")}
-          </button>
-        </div>
-
-        <div className="mt-6 grid gap-3 sm:grid-cols-4">
-          <Stat label="Total" value={data?.total ?? 0} />
-          <Stat label="Checked" value={data?.checked ?? 0} />
-          <Stat label={t("status.up")} value={data?.up ?? 0} tone="ok" />
-          <Stat label={t("status.down")} value={data?.down ?? 0} tone="bad" />
-        </div>
-
-        {(() => {
-          const down = data?.down ?? 0;
-          const checked = data?.checked ?? 0;
-          if (checked === 0) return null;
-          const allOk = down === 0;
-          return (
-            <div className={`mt-6 rounded-2xl border p-4 text-sm font-semibold ${allOk ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" : "border-orange-500/30 bg-orange-500/10 text-orange-300"}`}>
-              {allOk ? "🟢 All systems operational" : `🟡 Some streams may be unavailable — ${down} channel${down === 1 ? "" : "s"} down`}
-            </div>
-          );
-        })()}
-
-
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search channel…"
-              className="w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm outline-none"
-            />
-          </div>
-          <div className="flex rounded-full border border-white/10 bg-white/5 p-1">
-            {(["all", "up", "down"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`rounded-full px-3 py-1 text-xs font-semibold uppercase ${
-                  filter === f ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-                }`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="mt-6 overflow-hidden rounded-2xl border border-white/10 bg-card/60 backdrop-blur">
-          <table className="w-full text-sm">
-            <thead className="bg-white/5 text-left text-[11px] uppercase tracking-widest text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Channel</th>
-                <th className="px-4 py-3">State</th>
-                <th className="px-4 py-3">{t("status.response")}</th>
-                <th className="px-4 py-3">{t("status.last_check")}</th>
-                <th className="px-4 py-3">{t("status.reason")}</th>
-                <th className="px-4 py-3 text-right">Report</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
-              ) : rows.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground">No channels match.</td></tr>
-              ) : (
-                rows.map((r) => (
-                  <tr key={r.slug} className="border-t border-white/5">
-                    <td className="px-4 py-3 font-medium">{r.name}</td>
-                    <td className="px-4 py-3">
-                      {r.ok ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-300">
-                          <CheckCircle2 className="h-3 w-3" /> 🟢 Online
-                        </span>
-                      ) : r.checkedAt === 0 ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-yellow-500/15 px-2.5 py-1 text-[11px] font-semibold text-yellow-300">
-                          🟡 Unstable
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-red-500/15 px-2.5 py-1 text-[11px] font-semibold text-red-300">
-                          <XCircle className="h-3 w-3" /> 🔴 Offline
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{r.ms}ms</td>
-                    <td className="px-4 py-3 text-muted-foreground">{relativeTime(r.checkedAt)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.reason ?? "—"}</td>
-                    <td className="px-4 py-3 text-right">
-                      <a
-                        href={`https://t.me/Aura_TV?text=${encodeURIComponent(`Issue with channel: ${r.name} (${r.slug}) — ${r.reason ?? "not working"}`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-semibold text-primary hover:bg-white/10"
-                      >
-                        <MessageCircle className="h-3 w-3" /> Report
-                      </a>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+    <PageShell
+      crumbs={CRUMBS}
+      kicker="Uptime"
+      title={t("status.title")}
+      lede={t("status.subtitle")}
+      aside={
+        <>
+          <SideNote title="How this works">
+            A server job requests each stream's playlist on a schedule and records the response time. "Unstable" means the channel has not been
+            checked yet in this cycle.
+          </SideNote>
+          <SideNote title="Still broken?">
+            <Link to="/contact" className="underline">
+              Send us the channel name
+            </Link>
+            . {SITE.responseTime}
+          </SideNote>
+        </>
+      }
+    >
+      <div className="grid grid-cols-2 gap-px bg-border sm:grid-cols-4">
+        <Stat label="Total" value={data?.total ?? 0} />
+        <Stat label="Checked" value={checked} />
+        <Stat label={t("status.up")} value={data?.up ?? 0} tone="ok" />
+        <Stat label={t("status.down")} value={down} tone="bad" />
       </div>
-      <Footer />
-    </div>
+
+      {checked > 0 && (
+        <p className={`mt-4 flex items-center gap-2 text-[14px] font-semibold ${down === 0 ? "text-live" : "text-accent"}`} role="status">
+          <span className={down === 0 ? "live-dot" : "inline-block h-2 w-2 rounded-full bg-accent"} aria-hidden />
+          {down === 0 ? "All checked channels are online." : `${down} channel${down === 1 ? " is" : "s are"} currently offline.`}
+        </p>
+      )}
+
+      <div className="mt-8 flex flex-wrap items-center gap-3">
+        <label className="relative min-w-[220px] flex-1">
+          <span className="sr-only">Search channel</span>
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search channel" type="search" className="field pl-9" />
+        </label>
+        <div role="tablist" aria-label="Filter" className="rule-b flex">
+          {(["all", "up", "down"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={filter === f}
+              onClick={() => setFilter(f)}
+              className={`kicker -mb-px border-b-2 px-3 py-2 ${filter === f ? "border-primary text-foreground" : "border-transparent text-muted-foreground"}`}
+            >
+              {f === "all" ? "All" : f === "up" ? t("status.up") : t("status.down")}
+            </button>
+          ))}
+        </div>
+        <button type="button" onClick={() => refetch()} disabled={isFetching} className="btn btn-outline btn-sm">
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} aria-hidden /> {t("status.refresh")}
+        </button>
+      </div>
+
+      <div className="tile mt-4 overflow-x-auto p-0">
+        <table className="w-full text-[13px]">
+          <caption className="sr-only">Channel uptime results</caption>
+          <thead className="rule-b text-left">
+            <tr>
+              <th scope="col" className="kicker px-3 py-2.5">Channel</th>
+              <th scope="col" className="kicker px-3 py-2.5">State</th>
+              <th scope="col" className="kicker px-3 py-2.5">{t("status.response")}</th>
+              <th scope="col" className="kicker px-3 py-2.5">{t("status.last_check")}</th>
+              <th scope="col" className="kicker px-3 py-2.5">{t("status.reason")}</th>
+              <th scope="col" className="kicker px-3 py-2.5 text-right">Report</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">Loading...</td>
+              </tr>
+            ) : rows.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">No channels match.</td>
+              </tr>
+            ) : (
+              rows.map((r) => (
+                <tr key={r.slug} className="rule-b">
+                  <td className="px-3 py-2.5 font-medium" dir="auto">{r.name}</td>
+                  <td className="px-3 py-2.5">
+                    {r.ok ? <span className="badge badge-live">Online</span> : r.checkedAt === 0 ? <span className="badge badge-soon">Unstable</span> : <span className="badge badge-ft">Offline</span>}
+                  </td>
+                  <td className="mono px-3 py-2.5 text-muted-foreground">{r.ms} ms</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{relativeTime(r.checkedAt)}</td>
+                  <td className="px-3 py-2.5 text-muted-foreground">{r.reason ?? "-"}</td>
+                  <td className="px-3 py-2.5 text-right">
+                    <Link to="/contact" search={{ subject: `Channel not working: ${r.name}` }} className="kicker text-primary hover:underline">
+                      Report
+                    </Link>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </PageShell>
   );
 }
 
 function Stat({ label, value, tone }: { label: string; value: number; tone?: "ok" | "bad" }) {
-  const c = tone === "ok" ? "text-emerald-300" : tone === "bad" ? "text-red-300" : "text-foreground";
+  const c = tone === "ok" ? "text-live" : tone === "bad" ? "text-primary" : "text-foreground";
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-      <div className="text-[11px] uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={`mt-1 font-display text-3xl font-bold ${c}`}>{value}</div>
+    <div className="bg-background p-4">
+      <div className="kicker">{label}</div>
+      <div className={`mt-1 font-display text-[2rem] leading-none ${c}`}>{value}</div>
     </div>
   );
 }
