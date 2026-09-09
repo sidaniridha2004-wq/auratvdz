@@ -1,35 +1,26 @@
 /**
- * TV Navigation — D-pad focus management for Android TV.
+ * D-pad focus management for Android TV and the Capacitor shell.
  *
- * Provides arrow-key (D-pad) navigation, Enter-to-click, and Back-to-navigate
- * for Android TV remotes. Also detects TV environment and applies focus
- * management to all interactive elements.
+ * Arrow keys move focus spatially, Enter clicks, and the Back key is left to
+ * the native handler. Nothing here runs on an ordinary desktop browser.
  */
 
-// ---------------------------------------------------------------------------
-// Platform detection
-// ---------------------------------------------------------------------------
+interface OrientationLock {
+  lock?: (orientation: "landscape") => Promise<void>;
+  unlock?: () => void;
+}
 
-/** Detect Android TV via user agent or lack of touch + large screen. */
 export function isAndroidTV(): boolean {
   if (typeof window === "undefined") return false;
   const ua = navigator.userAgent.toLowerCase();
-  // Android TV user agents contain "TV" or "AFT" (Amazon Fire TV)
   if (ua.includes("android") && (ua.includes(" tv") || ua.includes("aft"))) return true;
-  // Fallback: no fine pointer + large viewport (likely TV or set-top box)
-  if (window.matchMedia("(pointer: none)").matches && window.innerWidth >= 960) return true;
-  return false;
+  return window.matchMedia("(pointer: none)").matches && window.innerWidth >= 960;
 }
 
-/** Detect if running inside Capacitor WebView. */
 export function isCapacitor(): boolean {
   if (typeof window === "undefined") return false;
-  return !!(window as any).Capacitor;
+  return Boolean((window as Window & { Capacitor?: unknown }).Capacitor);
 }
-
-// ---------------------------------------------------------------------------
-// Focusable element helpers
-// ---------------------------------------------------------------------------
 
 const FOCUSABLE_SELECTOR = [
   "a[href]",
@@ -46,93 +37,54 @@ function getFocusableElements(): HTMLElement[] {
   );
 }
 
-function getRect(el: HTMLElement): DOMRect {
-  return el.getBoundingClientRect();
-}
-
-// ---------------------------------------------------------------------------
-// Spatial navigation — find the closest focusable element in a direction
-// ---------------------------------------------------------------------------
-
 type Direction = "up" | "down" | "left" | "right";
 
 function findNextFocusable(current: HTMLElement, direction: Direction): HTMLElement | null {
-  const allFocusable = getFocusableElements();
-  const currentRect = getRect(current);
+  const currentRect = current.getBoundingClientRect();
   const cx = currentRect.left + currentRect.width / 2;
   const cy = currentRect.top + currentRect.height / 2;
 
-  let bestCandidate: HTMLElement | null = null;
+  let best: HTMLElement | null = null;
   let bestDistance = Infinity;
 
-  for (const el of allFocusable) {
+  for (const el of getFocusableElements()) {
     if (el === current) continue;
-    const rect = getRect(el);
+    const rect = el.getBoundingClientRect();
     const ex = rect.left + rect.width / 2;
     const ey = rect.top + rect.height / 2;
 
-    // Check if the element is in the correct direction
-    let inDirection = false;
-    switch (direction) {
-      case "up":
-        inDirection = ey < cy - 5;
-        break;
-      case "down":
-        inDirection = ey > cy + 5;
-        break;
-      case "left":
-        inDirection = ex < cx - 5;
-        break;
-      case "right":
-        inDirection = ex > cx + 5;
-        break;
-    }
-
+    const inDirection =
+      direction === "up" ? ey < cy - 5 : direction === "down" ? ey > cy + 5 : direction === "left" ? ex < cx - 5 : ex > cx + 5;
     if (!inDirection) continue;
 
-    // Calculate weighted distance (prefer elements more aligned in the axis of movement)
-    let dx = ex - cx;
-    let dy = ey - cy;
-
-    let distance: number;
-    if (direction === "up" || direction === "down") {
-      // Vertical movement — weight horizontal offset more heavily
-      distance = Math.abs(dy) + Math.abs(dx) * 2.5;
-    } else {
-      // Horizontal movement — weight vertical offset more heavily
-      distance = Math.abs(dx) + Math.abs(dy) * 2.5;
-    }
+    const dx = ex - cx;
+    const dy = ey - cy;
+    const distance =
+      direction === "up" || direction === "down" ? Math.abs(dy) + Math.abs(dx) * 2.5 : Math.abs(dx) + Math.abs(dy) * 2.5;
 
     if (distance < bestDistance) {
       bestDistance = distance;
-      bestCandidate = el;
+      best = el;
     }
   }
-
-  return bestCandidate;
+  return best;
 }
 
-// ---------------------------------------------------------------------------
-// Focus management
-// ---------------------------------------------------------------------------
-
-function scrollIntoViewSmooth(el: HTMLElement) {
+function reveal(el: HTMLElement) {
   el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
 }
 
+const DIRECTIONS: Record<string, Direction> = {
+  ArrowUp: "up",
+  ArrowDown: "down",
+  ArrowLeft: "left",
+  ArrowRight: "right",
+};
+
 function handleDpadNavigation(e: KeyboardEvent) {
-  const directionMap: Record<string, Direction> = {
-    ArrowUp: "up",
-    ArrowDown: "down",
-    ArrowLeft: "left",
-    ArrowRight: "right",
-  };
+  const focused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
 
-  const direction = directionMap[e.key];
-
-  // Handle Enter key — simulate click on focused element
   if (e.key === "Enter" || e.key === " ") {
-    const focused = document.activeElement as HTMLElement;
     if (focused && focused !== document.body) {
       e.preventDefault();
       focused.click();
@@ -140,22 +92,15 @@ function handleDpadNavigation(e: KeyboardEvent) {
     return;
   }
 
-  // Handle Back button (mapped to Escape or Backspace on some devices)
-  if (e.key === "Escape" || (e.key === "Backspace" && document.activeElement === document.body)) {
-    // Let the Capacitor back button handler deal with this
-    return;
-  }
-
+  const direction = DIRECTIONS[e.key];
   if (!direction) return;
 
-  const focused = document.activeElement as HTMLElement;
   if (!focused || focused === document.body) {
-    // No element focused — focus the first focusable element
     const first = getFocusableElements()[0];
     if (first) {
       e.preventDefault();
       first.focus();
-      scrollIntoViewSmooth(first);
+      reveal(first);
     }
     return;
   }
@@ -164,110 +109,72 @@ function handleDpadNavigation(e: KeyboardEvent) {
   if (next) {
     e.preventDefault();
     next.focus();
-    scrollIntoViewSmooth(next);
+    reveal(next);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Initialization
-// ---------------------------------------------------------------------------
 
 let initialized = false;
+let observer: MutationObserver | null = null;
 
-/** Initialize TV navigation. Safe to call multiple times — only activates once. */
+/** Safe to call more than once; only the first call does anything. */
 export function initTvNavigation() {
-  if (initialized) return;
-  if (typeof window === "undefined") return;
+  if (initialized || typeof window === "undefined") return;
 
-  // Only activate on TV or when no fine pointer is available
-  const isTV = isAndroidTV();
-  const noTouch = window.matchMedia("(pointer: none)").matches || window.matchMedia("(pointer: coarse)").matches;
-
-  if (!isTV && !isCapacitor()) return;
+  const tv = isAndroidTV();
+  const capacitor = isCapacitor();
+  if (!tv && !capacitor) return;
 
   initialized = true;
+  if (tv) document.documentElement.classList.add("tv-mode");
+  if (capacitor) document.documentElement.classList.add("capacitor");
 
-  // Add TV mode class to body for CSS targeting
-  if (isTV) {
-    document.documentElement.classList.add("tv-mode");
-  }
-
-  // Add Capacitor class
-  if (isCapacitor()) {
-    document.documentElement.classList.add("capacitor");
-  }
-
-  // Listen for D-pad / keyboard navigation
   document.addEventListener("keydown", handleDpadNavigation, { passive: false });
 
-  // Ensure all interactive card elements have tabIndex for D-pad focus
-  const observer = new MutationObserver(() => {
-    if (!isTV) return;
-    // Auto-add tabIndex to cards and interactive elements that may be dynamically added
-    document.querySelectorAll<HTMLElement>('[class*="card-hover"], [role="button"]').forEach((el) => {
-      if (!el.hasAttribute("tabindex")) {
-        el.setAttribute("tabindex", "0");
-      }
+  if (tv) {
+    observer = new MutationObserver(() => {
+      document.querySelectorAll<HTMLElement>('.tile-hover, [role="button"]').forEach((el) => {
+        if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", "0");
+      });
     });
-  });
-
-  observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 }
 
-/** Clean up TV navigation listeners. */
 export function destroyTvNavigation() {
   if (!initialized) return;
   document.removeEventListener("keydown", handleDpadNavigation);
+  observer?.disconnect();
+  observer = null;
   initialized = false;
 }
 
-// ---------------------------------------------------------------------------
-// Immersive Mode (True Fullscreen + Landscape)
-// ---------------------------------------------------------------------------
-
 /**
- * Requests true HTML5 fullscreen and locks orientation to landscape.
- * MUST be called directly inside a user interaction event handler (like onClick).
+ * Full-screen plus landscape lock for phones and TVs. Must be called from a
+ * user gesture handler or the browser will refuse.
  */
 export async function requestImmersiveMode() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
-  
-  // Only apply to mobile devices and TVs
   if (window.innerWidth >= 1024 && !isAndroidTV()) return;
 
   try {
     if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
       await document.documentElement.requestFullscreen();
     }
-    
-    try {
-      if (screen.orientation && (screen.orientation as any).lock) {
-        await (screen.orientation as any).lock("landscape");
-      }
-    } catch (e) {}
-  } catch (e) {
-    console.warn("Immersive mode request failed (likely missing user gesture):", e);
+    const orientation = screen.orientation as unknown as OrientationLock | undefined;
+    if (orientation?.lock) await orientation.lock("landscape").catch(() => undefined);
+  } catch {
+    // Not permitted (no gesture, iOS Safari, or unsupported). The player still
+    // works inline, so there is nothing to report.
   }
 }
 
-/**
- * Exits fullscreen and unlocks orientation.
- * Can be called on component unmount.
- */
 export async function exitImmersiveMode() {
   if (typeof window === "undefined" || typeof document === "undefined") return;
-
   try {
-    if (document.fullscreenElement && document.exitFullscreen) {
-      await document.exitFullscreen();
-    }
-
-    try {
-      if (screen.orientation && (screen.orientation as any).unlock) {
-        (screen.orientation as any).unlock();
-      }
-    } catch (e) {}
-  } catch (e) {
-    console.warn("Exit immersive mode failed:", e);
+    if (document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+    const orientation = screen.orientation as unknown as OrientationLock | undefined;
+    orientation?.unlock?.();
+  } catch {
+    // Already exited or unsupported.
   }
 }
