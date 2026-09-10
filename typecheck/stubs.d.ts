@@ -138,12 +138,16 @@ declare module "lucide-react" {
   export const AlertTriangle: any;
   export const ArrowLeft: any;
   export const CalendarDays: any;
+  export const Captions: any;
   export const Check: any;
   export const ChevronRight: any;
   export const Download: any;
   export const Eye: any;
   export const EyeOff: any;
+  export const Gauge: any;
   export const Home: any;
+  export const Info: any;
+  export const Languages: any;
   export const Loader2: any;
   export const Mail: any;
   export const MapPin: any;
@@ -160,6 +164,7 @@ declare module "lucide-react" {
   export const RefreshCw: any;
   export const Search: any;
   export const Send: any;
+  export const Server: any;
   export const Settings: any;
   export const Smartphone: any;
   export const Star: any;
