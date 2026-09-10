@@ -791,6 +791,9 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             allowFullScreen
             referrerPolicy="origin"
+            // No allow-popups / allow-top-navigation: third-party players
+            // cannot open ad tabs or hijack the page. Playback still works.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
           />
         ) : (
           <div className="absolute inset-0 grid place-items-center p-6 text-center text-white/80">No server can play this title right now.</div>
