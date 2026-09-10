@@ -32,7 +32,7 @@ type LoaderData =
   | { kind: "movie"; movie: MovieDetail; available: boolean; servers: ServerId[] }
   | { kind: "tv"; show: ShowDetail; season: SeasonDetail | null; available: boolean; servers: ServerId[] };
 
-const SERVER_NAMES: Record<ServerId, string> = { vixsrc: "Server 1", vidapi: "Server 2" };
+const SERVER_NAMES: Record<ServerId, string> = { vixsrc: "Server 1", vidapi: "Server 2", multiembed: "Server 3", vidfast: "Server 4" };
 
 function titleOf(data: LoaderData): string {
   return data.kind === "movie" ? data.movie.title : data.show.title;
@@ -453,7 +453,7 @@ function TitlePage() {
                 )}
                 {item.trailer && (
                   <a
-                    href={`https://www.youtube.com/watch?v=${item.trailer}`}
+                    href={`{{https://www.youtube.com/watch?v=${item.trailer}}}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="glass inline-flex h-12 items-center gap-2 rounded-full px-5 text-[15px] font-semibold text-white hover:bg-white/15"
@@ -463,7 +463,7 @@ function TitlePage() {
                 )}
                 {item.imdbId && (
                   <a
-                    href={`https://www.imdb.com/title/${item.imdbId}/`}
+                    href={`{{https://www.imdb.com/title/${item.imdbId}}}/`}
                     target="_blank"
                     rel="noopener noreferrer nofollow"
                     className="inline-flex items-center gap-1 font-mono text-[12px] text-white/60 hover:text-white hover:underline"
