@@ -36,9 +36,10 @@ import { clearProgress, formatClock, readProgress, resumePoint, saveProgress } f
 // files (Arabic first) are attached as <track>s and switched on by default.
 //
 // If the direct stream cannot be played, produces sound but no picture, or the
-// viewer asks for it, the player switches to another server. Server 2 (VidAPI)
-// and the VixSrc embed are iframes; we keep a slim bar over them with back,
-// title and a "Change server" menu so the viewer is never stuck.
+// viewer asks for it, the player switches to another server. Servers 2-4
+// (VidAPI, MultiEmbed, VidFast) and the VixSrc embed are iframes; we keep a
+// slim bar over them with back, title and a "Change server" menu so the
+// viewer is never stuck.
 
 export interface VodPlayerProps {
   stream: StreamResolution;
@@ -105,7 +106,7 @@ function recall(key: string): string | null {
 }
 
 function isServerId(v: unknown): v is ServerId {
-  return v === "vixsrc" || v === "vidapi";
+  return v === "vixsrc" || v === "vidapi" || v === "multiembed" || v === "vidfast";
 }
 
 function trackLabel(t: { name?: string; lang?: string }, fallback: string): string {
@@ -143,9 +144,10 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
   // Which server do we start on?
   const [mode, setMode] = useState<Mode>(() => {
     const wanted = preferredServer ?? (isServerId(recall(SERVER_PREF)) ? (recall(SERVER_PREF) as ServerId) : null);
-    if (wanted === "vidapi" && hasServer("vidapi")) return { kind: "embed", server: "vidapi", why: null };
+    if (wanted && wanted !== "vixsrc" && hasServer(wanted)) return { kind: "embed", server: wanted, why: null };
     if (direct.ok) return { kind: "direct" };
-    if (hasServer("vidapi")) return { kind: "embed", server: "vidapi", why: direct.ok ? null : direct.reason };
+    const firstEmbed = servers.find((s) => s.kind === "embed");
+    if (firstEmbed) return { kind: "embed", server: firstEmbed.id, why: direct.ok ? null : direct.reason };
     return { kind: "embed", server: "vixsrc", why: direct.ok ? null : direct.reason };
   });
 
@@ -209,7 +211,7 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
         const u = new URL(opt.embed);
         const v = videoRef.current;
         const at = v && Number.isFinite(v.currentTime) && v.currentTime > 5 ? v.currentTime : resumeAt();
-        if (at > 0) u.searchParams.set(id === "vidapi" ? "resumeAt" : "startAt", String(Math.floor(at)));
+        if (at > 0 && id !== "multiembed") u.searchParams.set(id === "vidapi" ? "resumeAt" : "startAt", String(Math.floor(at)));
         return u.toString();
       } catch {
         return opt.embed;
@@ -235,14 +237,14 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
     [announce, direct.ok, hasServer, servers],
   );
 
-  /** The direct stream is unusable: move to the best alternative. */
+  /** The direct stream is unusable: move to the first embed server. */
   const giveUp = useCallback(
     (why: string) => {
       directFailed.current = true;
-      const alt: ServerId = hasServer("vidapi") ? "vidapi" : "vixsrc";
+      const alt = servers.find((s) => s.kind === "embed")?.id ?? "vixsrc";
       switchServer(alt, { manual: false, why });
     },
-    [hasServer, switchServer],
+    [servers, switchServer],
   );
 
   const clearPictureTimers = () => {
@@ -649,13 +651,6 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
   // Keyboard shortcuts.
   useEffect(() => {
     if (mode.kind !== "direct") return;
-    const defaultSubChoiceOrFirst = (): SubChoice => {
-      const d = defaultSubChoice(hlsSubs);
-      if (d !== "off") return d;
-      if (external.length) return "ext-0";
-      if (hlsSubs.length) return `hls-${hlsSubs[0].id}`;
-      return "off";
-    };
     const onKey = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
       if (target && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName)) return;
@@ -701,6 +696,13 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
         default:
           return;
       }
+    };
+    const defaultSubChoiceOrFirst = (): SubChoice => {
+      const d = defaultSubChoice(hlsSubs);
+      if (d !== "off") return d;
+      if (external.length) return "ext-0";
+      if (hlsSubs.length) return `hls-${hlsSubs[0].id}`;
+      return "off";
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -831,9 +833,7 @@ export function VodPlayer({ stream, preferredServer, poster, title, subtitle, ba
             )}
           </div>
         </div>
-        {(notice || mode.why) && (
-          <Notice icon={<AlertTriangle className="h-3.5 w-3.5 text-accent" aria-hidden />}>{notice ?? `Switched server · ${mode.why}`}</Notice>
-        )}
+        {notice && <Notice icon={<AlertTriangle className="h-3.5 w-3.5 text-accent" aria-hidden />}>{notice}</Notice>}
       </div>
     );
   }
