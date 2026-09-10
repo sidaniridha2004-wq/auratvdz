@@ -86,6 +86,8 @@ function handleDpadNavigation(e: KeyboardEvent) {
 
   if (e.key === "Enter" || e.key === " ") {
     if (focused && focused !== document.body) {
+      // Never steal keys from text entry — space must type a space.
+      if (/^(INPUT|TEXTAREA|SELECT)$/.test(focused.tagName) || focused.isContentEditable) return;
       e.preventDefault();
       focused.click();
     }
