@@ -79,12 +79,16 @@ export function encodeTarget(t: ProxyTarget): string {
   return b64url(new TextEncoder().encode(JSON.stringify(compact)));
 }
 
-/** Build a signed, root-relative proxy URL that expires after `ttlSeconds`. */
-export async function signedProxyUrl(t: ProxyTarget, ttlSeconds = DEFAULT_TTL_SECONDS): Promise<string> {
+/**
+ * Build a signed, root-relative proxy URL that expires after `ttlSeconds`.
+ * `path` selects the consuming route: the HLS/segment proxy by default, or
+ * the subtitle converter.
+ */
+export async function signedProxyUrl(t: ProxyTarget, ttlSeconds = DEFAULT_TTL_SECONDS, path: "/api/public/stream" | "/api/public/subtitle" = "/api/public/stream"): Promise<string> {
   const exp = t.exp ?? Math.floor(Date.now() / 1000) + ttlSeconds;
   const payload = encodeTarget({ ...t, exp });
   const sig = await sign(payload);
-  return `/api/public/stream?u=${payload}&s=${sig}`;
+  return `${path}?u=${payload}&s=${sig}`;
 }
 
 /** Verify a `u`/`s` pair. Returns the decoded target or null. */
