@@ -13,7 +13,7 @@ const paramsSchema = z.object({
 
 const searchSchema = z.object({
   t: z.coerce.number().int().min(0).max(360_000).optional().catch(undefined),
-  s: z.enum(["vixsrc", "vidapi"]).optional().catch(undefined),
+  s: z.enum(["vixsrc", "vidapi", "multiembed", "vidfast"]).optional().catch(undefined),
 });
 
 type LoaderData = {

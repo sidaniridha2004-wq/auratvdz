@@ -9,7 +9,7 @@ const searchSchema = z.object({
   /** Start position in seconds; 0 forces "start over". */
   t: z.coerce.number().int().min(0).max(360_000).optional().catch(undefined),
   /** Server to start on. */
-  s: z.enum(["vixsrc", "vidapi"]).optional().catch(undefined),
+  s: z.enum(["vixsrc", "vidapi", "multiembed", "vidfast"]).optional().catch(undefined),
 });
 
 type LoaderData = { movie: MovieDetail; stream: StreamResolution };

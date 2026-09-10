@@ -4,10 +4,12 @@ import type { MediaKind, MovieDetail, SeasonDetail, ShowDetail, TitleSummary } f
 import type { ServerId } from "./sources.server";
 import type { SubtitleTrack } from "./subtitles.server";
 
-// Movies & TV: TMDB supplies the metadata; two stream servers supply the
+// Movies & TV: TMDB supplies the metadata; four stream servers supply the
 // video (Server 1 = VixSrc, direct HLS through our signed proxy; Server 2 =
-// VidAPI, an embedded player). Their catalogues are merged and deduplicated.
-// The browser only ever sees TMDB-derived JSON and signed proxy links.
+// VidAPI, Server 3 = MultiEmbed, Server 4 = VidFast, embedded players). The
+// listed catalogues are merged and deduplicated; embed-only fallbacks are
+// always offered. The browser only ever sees TMDB-derived JSON and signed
+// proxy links.
 
 export type { CastMember, Episode, Genre, MediaKind, MovieDetail, SeasonDetail, SeasonSummary, ShowDetail, TitleSummary } from "./tmdb.server";
 export type { ServerId } from "./sources.server";
@@ -239,7 +241,8 @@ export const resolveStream = createServerFn({ method: "GET" })
     const subs = await import("./subtitles.server");
     const { SITE } = await import("./site");
     const { signedProxyUrl } = await import("./stream-sign.server");
-    const { getMergedCatalogue, sourcesFor, SERVER_LABELS, SERVER_ORDER } = await import("./sources.server");
+    const { getMergedCatalogue, sourcesFor, SERVER_LABELS } = await import("./sources.server");
+    const extra = await import("./extra-servers.server");
 
     if (data.kind === "tv" && (data.season === undefined || data.episode === undefined)) {
       return { servers: [], subtitles: [], direct: { ok: false, reason: "Season and episode are required." } };
@@ -259,10 +262,12 @@ export const resolveStream = createServerFn({ method: "GET" })
 
     let carriers = sourcesFor(merged, data.kind, data.id);
     // A title missing from both lists may still play (lists lag by a day), so
-    // fall back to offering every server rather than a dead end.
-    if (!carriers.length) carriers = [...SERVER_ORDER];
+    // fall back to offering the listed servers rather than a dead end.
+    if (!carriers.length) carriers = ["vixsrc", "vidapi"];
     // If Server 1 extraction succeeded, it is definitely playable there.
     if (extracted.stream && !carriers.includes("vixsrc")) carriers.unshift("vixsrc");
+    // Embed-only fallbacks publish no availability lists — always offer them.
+    carriers.push("multiembed", "vidfast");
 
     const servers: ServerOption[] = carriers.map((id) => ({
       id,
@@ -271,16 +276,20 @@ export const resolveStream = createServerFn({ method: "GET" })
       embed:
         id === "vixsrc"
           ? vix.embedUrl(data.kind, data.id, data.season, data.episode, data.startAt)
-          : vid.vidEmbedUrl(data.kind, data.id, {
-              season: data.season,
-              episode: data.episode,
-              startAt: data.startAt,
-              title: data.title,
-              poster: data.poster,
-              subUrl: arabic?.absolute,
-              subLang: "ar",
-              subLabel: "Arabic",
-            }),
+          : id === "vidapi"
+            ? vid.vidEmbedUrl(data.kind, data.id, {
+                season: data.season,
+                episode: data.episode,
+                startAt: data.startAt,
+                title: data.title,
+                poster: data.poster,
+                subUrl: arabic?.absolute,
+                subLang: "ar",
+                subLabel: "Arabic",
+              })
+            : id === "multiembed"
+              ? extra.multiembedUrl(data.kind, data.id, data.season, data.episode)
+              : extra.vidfastUrl(data.kind, data.id, { season: data.season, episode: data.episode, startAt: data.startAt }),
     }));
 
     if (!extracted.stream) {
