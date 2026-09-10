@@ -12,12 +12,21 @@ const CONCURRENCY = 8;
 
 export type ImageSize = "w185" | "w342" | "w500" | "w780" | "w1280" | "original";
 
+/** Accept a few common names so a misnamed variable still works. */
+function readKey(): string {
+  for (const name of ["TMDB_API_KEY", "TMDB_KEY", "TMDB_TOKEN", "TMDB_API_TOKEN"]) {
+    const v = process.env[name]?.trim();
+    if (v) return v;
+  }
+  return "";
+}
+
 export function tmdbConfigured(): boolean {
-  return Boolean(process.env.TMDB_API_KEY?.trim());
+  return Boolean(readKey());
 }
 
 function apiKey(): string {
-  const key = process.env.TMDB_API_KEY?.trim();
+  const key = readKey();
   if (!key) throw new TmdbError("TMDB_API_KEY is not configured", 503);
   return key;
 }

@@ -34,6 +34,22 @@ export interface Merged {
 
 let cached: { key: string; value: Merged } | null = null;
 
+/** Hard cap so a slow upstream can never stall page rendering. */
+const LOAD_BUDGET_MS = 9_000;
+/** After a failed/slow load, do not block requests again for this long. The
+ *  upstream fetch keeps running in the background and fills the cache. */
+const RETRY_AFTER_MS = 5 * 60_000;
+let failedAt = 0;
+
+const EMPTY: Merged = {
+  movies: [],
+  shows: [],
+  movieSources: new Map(),
+  showSources: new Map(),
+  counts: { movies: 0, shows: 0, perServer: { vixsrc: { movies: 0, shows: 0 }, vidapi: { movies: 0, shows: 0 } } },
+  ready: false,
+};
+
 function merge(vix: VixCatalogue | null, vid: VidCatalogue | null): Merged {
   const movieSources = new Map<number, ServerId[]>();
   const showSources = new Map<number, ServerId[]>();
@@ -74,9 +90,27 @@ function merge(vix: VixCatalogue | null, vid: VidCatalogue | null): Merged {
 
 /** Union of all server catalogues. Recomputed only when a source list changes. */
 export async function getMergedCatalogue(): Promise<Merged> {
-  const [vix, vid] = await Promise.all([getVixCatalogue().catch(() => null), getVidCatalogue().catch(() => null)]);
+  if (cached) return cached.value;
+  if (failedAt && Date.now() - failedAt < RETRY_AFTER_MS) return EMPTY;
+
+  // Race the upstream lists against a budget: if they do not answer quickly
+  // the page renders anyway (unfiltered) and the background fetch populates
+  // the cache for the next request.
+  const load = Promise.all([getVixCatalogue().catch(() => null), getVidCatalogue().catch(() => null)]);
+  const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), LOAD_BUDGET_MS));
+  const result = await Promise.race([load, timeout]);
+  if (result === null || (!result[0] && !result[1])) {
+    failedAt = Date.now();
+    void load.then(([vix, vid]) => {
+      if (!vix && !vid) return;
+      const key = `${vix?.fetchedAt ?? 0}:${vid?.fetchedAt ?? 0}`;
+      cached = { key, value: merge(vix, vid) };
+      failedAt = 0;
+    });
+    return EMPTY;
+  }
+  const [vix, vid] = result;
   const key = `${vix?.fetchedAt ?? 0}:${vid?.fetchedAt ?? 0}`;
-  if (cached && cached.key === key) return cached.value;
   const value = merge(vix, vid);
   cached = { key, value };
   return value;
