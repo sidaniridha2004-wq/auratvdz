@@ -8,13 +8,15 @@ import type { MediaKind } from "./tmdb.server";
 import { getCatalogue as getVixCatalogue, type Catalogue as VixCatalogue } from "./vixsrc.server";
 import { getVidCatalogue, type VidCatalogue } from "./vidapi.server";
 
-export type ServerId = "vixsrc" | "vidapi";
+export type ServerId = "vixsrc" | "vidapi" | "multiembed" | "vidfast";
 
-export const SERVER_ORDER: ServerId[] = ["vixsrc", "vidapi"];
+export const SERVER_ORDER: ServerId[] = ["vixsrc", "vidapi", "multiembed", "vidfast"];
 
 export const SERVER_LABELS: Record<ServerId, { name: string; short: string; kind: "direct" | "embed" }> = {
   vixsrc: { name: "Server 1 · Vix", short: "S1", kind: "direct" },
   vidapi: { name: "Server 2 · Vid", short: "S2", kind: "embed" },
+  multiembed: { name: "Server 3 · Multi", short: "S3", kind: "embed" },
+  vidfast: { name: "Server 4 · Fast", short: "S4", kind: "embed" },
 };
 
 export interface Merged {
@@ -48,7 +50,7 @@ const EMPTY: Merged = {
   shows: [],
   movieSources: new Map(),
   showSources: new Map(),
-  counts: { movies: 0, shows: 0, perServer: { vixsrc: { movies: 0, shows: 0 }, vidapi: { movies: 0, shows: 0 } } },
+  counts: { movies: 0, shows: 0, perServer: { vixsrc: { movies: 0, shows: 0 }, vidapi: { movies: 0, shows: 0 }, multiembed: { movies: 0, shows: 0 }, vidfast: { movies: 0, shows: 0 } } },
   ready: false,
 };
 
@@ -84,6 +86,9 @@ function merge(vix: VixCatalogue | null, vid: VidCatalogue | null): Merged {
       perServer: {
         vixsrc: { movies: vix?.movies.length ?? 0, shows: vix?.shows.length ?? 0 },
         vidapi: { movies: vid?.movies.length ?? 0, shows: vid?.shows.length ?? 0 },
+        // Embed-only fallbacks publish no lists; counts stay zero.
+        multiembed: { movies: 0, shows: 0 },
+        vidfast: { movies: 0, shows: 0 },
       },
     },
     ready: Boolean(vix || vid),

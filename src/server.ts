@@ -54,7 +54,7 @@ function csp(): string {
       .filter(Boolean)
       .join(" "),
     "worker-src 'self' blob:",
-    "frame-src https://www.openstreetmap.org https://vixsrc.to https://*.vixsrc.to https://vaplayer.ru https://*.vaplayer.ru",
+    "frame-src https://www.openstreetmap.org https://vixsrc.to https://*.vixsrc.to https://vaplayer.ru https://*.vaplayer.ru https://multiembed.cc https://*.multiembed.cc https://vidfast.vc https://*.vidfast.vc",
     "manifest-src 'self'",
     "upgrade-insecure-requests",
   ].join("; ");
