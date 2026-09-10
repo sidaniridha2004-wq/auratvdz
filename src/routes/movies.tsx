@@ -25,6 +25,12 @@ const CRUMBS = [
 ];
 
 const HERO_EVERY_MS = 7_000;
+/** Never let a slow upstream kill the page render: cap the loader. */
+const LOADER_BUDGET_MS = 12_000;
+
+function withBudget<T>(p: Promise<T>, fallback: T): Promise<T> {
+  return Promise.race([p, new Promise<T>((resolve) => setTimeout(() => resolve(fallback), LOADER_BUDGET_MS))]).catch(() => fallback);
+}
 
 const searchSchema = z.object({
   q: z.string().trim().max(120).optional().catch(undefined),
@@ -44,15 +50,18 @@ export const Route = createFileRoute("/movies")({
   loaderDeps: ({ search }) => ({ q: search.q, tab: search.tab ?? "movie", page: search.page ?? 1 }),
   loader: async ({ deps }): Promise<LoaderData> => {
     if (deps.q) {
-      const search = await searchMedia({ data: { q: deps.q, page: 1 } });
+      const search = await withBudget(searchMedia({ data: { q: deps.q, page: 1 } }), null);
       return { home: null, catalogue: null, search, catalogueError: null };
     }
-    const [home, catalogue] = await Promise.allSettled([getMediaHome(), getCatalogue({ data: { kind: deps.tab, page: deps.page } })]);
+    const [home, catalogue] = await Promise.all([
+      withBudget(getMediaHome(), null),
+      withBudget(getCatalogue({ data: { kind: deps.tab, page: deps.page } }), null),
+    ]);
     return {
-      home: home.status === "fulfilled" ? home.value : null,
-      catalogue: catalogue.status === "fulfilled" ? catalogue.value : null,
+      home,
+      catalogue,
       search: null,
-      catalogueError: catalogue.status === "rejected" ? (catalogue.reason instanceof Error ? catalogue.reason.message : "Unavailable") : null,
+      catalogueError: catalogue === null ? "The catalogue is still loading — refresh in a few seconds." : null,
     };
   },
   head: ({ match }) => {
