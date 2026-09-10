@@ -13,6 +13,7 @@ const paramsSchema = z.object({
 
 const searchSchema = z.object({
   t: z.coerce.number().int().min(0).max(360_000).optional().catch(undefined),
+  s: z.enum(["vixsrc", "vidapi"]).optional().catch(undefined),
 });
 
 type LoaderData = {
@@ -42,18 +43,27 @@ function nextOf(show: ShowDetail, season: SeasonDetail | null, current: { season
 
 export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
   validateSearch: searchSchema,
-  loader: async ({ params }): Promise<LoaderData> => {
+  loaderDeps: ({ search }) => ({ t: search.t }),
+  loader: async ({ params, deps }): Promise<LoaderData> => {
     const parsed = paramsSchema.safeParse(params);
     if (!parsed.success) throw notFound();
     const { id, season, episode } = parsed.data;
-    const [detail, stream] = await Promise.all([
-      getShow({ data: { id, season } }).catch((error: unknown) => {
-        if (error instanceof Error && /not found/i.test(error.message)) throw notFound();
-        throw error;
-      }),
-      resolveStream({ data: { kind: "tv", id, season, episode } }),
-    ]);
+    const detail = await getShow({ data: { id, season } }).catch((error: unknown) => {
+      if (error instanceof Error && /not found/i.test(error.message)) throw notFound();
+      throw error;
+    });
     const ep = detail.season?.episodes.find((e) => e.number === episode) ?? null;
+    const stream = await resolveStream({
+      data: {
+        kind: "tv",
+        id,
+        season,
+        episode,
+        title: `${detail.show.title} S${season} E${episode}`,
+        poster: ep?.still ?? detail.show.backdrop ?? detail.show.poster ?? undefined,
+        startAt: deps.t,
+      },
+    });
     return {
       show: detail.show,
       season: detail.season,
@@ -112,16 +122,15 @@ export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
 function PlayEpisode() {
   const { show, episode, next, stream } = Route.useLoaderData();
   const params = Route.useParams();
-  const { t } = Route.useSearch();
+  const { t, s } = Route.useSearch();
   const season = Number(params.season);
   const number = Number(params.episode);
   return (
     <div className="fixed inset-0 bg-black">
       <VodPlayer
         key={`${show.id}-${season}-${number}`}
-        src={stream.ok ? stream.src : null}
-        embedSrc={stream.embed}
-        reason={stream.ok ? null : stream.reason}
+        stream={stream}
+        preferredServer={s}
         poster={episode?.still ?? show.backdrop ?? show.poster}
         title={show.title}
         subtitle={`S${season} E${number}${episode?.name ? ` · ${episode.name}` : ""}`}
