@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Captions, ChevronLeft, ChevronRight, Info, Play, Search, Server, Star, X } from "lucide-react";
 import { z } from "zod";
@@ -70,7 +70,7 @@ export const Route = createFileRoute("/movies")({
     return pageHead({
       title: q ? `Search results for “${q}”` : deps.tab === "tv" ? "TV series on demand" : "Movies and TV series on demand",
       description:
-        "Over a hundred thousand films and series from two streaming servers, merged without duplicates. Arabic subtitles load automatically, and you can switch server or quality mid-film.",
+        "Over a hundred thousand films and series from four streaming servers, merged without duplicates. Arabic subtitles load automatically, and you can switch server or quality mid-film.",
       path: "/movies",
       noindex: Boolean(q) || (deps.page ?? 1) > 1,
       jsonLd: breadcrumbJsonLd(CRUMBS),
@@ -206,7 +206,7 @@ function Hero({ items, home }: { items: TitleSummary[]; home: MediaHome | null }
               </span>
             )}
             <span className="inline-flex items-center gap-1.5">
-              <Server className="h-3.5 w-3.5" aria-hidden /> 2 servers, automatic switch
+              <Server className="h-3.5 w-3.5" aria-hidden /> 4 servers, automatic switch
             </span>
             <span className="inline-flex items-center gap-1.5">
               <Captions className="h-3.5 w-3.5" aria-hidden /> Arabic subtitles on by default
@@ -242,6 +242,29 @@ function Hero({ items, home }: { items: TitleSummary[]; home: MediaHome | null }
   );
 }
 
+function SkeletonGrid({ n = 12 }: { n?: number }) {
+  return (
+    <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6" aria-hidden>
+      {Array.from({ length: n }, (_, i) => (
+        <div key={i} className="skeleton aspect-[2/3] rounded-xl" />
+      ))}
+    </div>
+  );
+}
+
+function SkeletonRow() {
+  return (
+    <div aria-hidden>
+      <div className="skeleton mb-3 h-5 w-44 rounded" />
+      <div className="flex gap-3 overflow-hidden sm:gap-4">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="skeleton aspect-[2/3] w-[150px] shrink-0 rounded-xl sm:w-[176px]" />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Pager({ page, totalPages, tab }: { page: number; totalPages: number; tab: "movie" | "tv" }) {
   if (totalPages <= 1) return null;
   const link = (p: number, label: string, disabled: boolean) =>
@@ -270,8 +293,17 @@ function Pager({ page, totalPages, tab }: { page: number; totalPages: number; ta
 function MoviesPage() {
   const { home, catalogue, search, catalogueError } = Route.useLoaderData();
   const { q, tab = "movie" } = Route.useSearch();
+  const router = useRouter();
   const configured = search ? search.configured : home ? home.configured : true;
   const showHero = !search && configured && Boolean(home?.featured.length);
+  const warming = !search && configured && (!home || !catalogue);
+
+  // While the server warms its caches, re-poll so the page fills in live.
+  useEffect(() => {
+    if (!warming) return;
+    const t = window.setInterval(() => router.invalidate(), 4_000);
+    return () => window.clearInterval(t);
+  }, [warming, router]);
 
   return (
     <div className="min-h-screen">
@@ -326,6 +358,12 @@ function MoviesPage() {
         {!search && configured && (
           <>
             {home?.error && !home.rows.length && <p className="mt-8 text-[15px] text-destructive">{home.error}</p>}
+            {!home && (
+              <div className="mt-8 space-y-10">
+                <SkeletonRow />
+                <SkeletonRow />
+              </div>
+            )}
             <div className="mt-8 space-y-10">
               {home?.rows.map((row, i) => (
                 <MediaRow
@@ -345,7 +383,7 @@ function MoviesPage() {
                   <div className="kicker text-primary">Library</div>
                   <h2 className="text-[1.6rem] sm:text-[2rem]">Everything available</h2>
                   <p className="mt-1 text-[13px] text-muted-foreground">
-                    Both servers merged, duplicates removed · newest first · {CATALOGUE_PAGE_SIZE} per page
+                    All servers merged, duplicates removed · newest first · {CATALOGUE_PAGE_SIZE} per page
                   </p>
                 </div>
                 <div role="tablist" aria-label="Catalogue type" className="glass inline-flex rounded-full p-1">
@@ -376,7 +414,13 @@ function MoviesPage() {
                   <Pager page={catalogue.page} totalPages={catalogue.totalPages} tab={tab} />
                 </>
               ) : (
-                <p className="text-[15px] text-destructive">{catalogueError ?? "The catalogue could not be loaded."}</p>
+                <div>
+                  <SkeletonGrid />
+                  <p className="mt-4 inline-flex items-center gap-2 text-[14px] text-muted-foreground" role="status">
+                    <span className="live-dot" style={{ background: "var(--accent)" }} aria-hidden />
+                    {catalogueError ?? "Loading the library…"}
+                  </p>
+                </div>
               )}
             </section>
           </>
