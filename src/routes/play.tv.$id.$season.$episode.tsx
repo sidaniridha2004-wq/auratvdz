@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-rout
 import { z } from "zod";
 import { VodPlayer } from "@/components/VodPlayer";
 import { getShow, resolveStream, type Episode, type SeasonDetail, type ShowDetail, type StreamResolution } from "@/lib/media.functions";
+import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame.client";
 import { episodeKey, showKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
 
@@ -120,6 +121,7 @@ export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
 });
 
 function PlayEpisode() {
+  ensureUnsandboxedPlayerFrames();
   const { show, episode, next, stream } = Route.useLoaderData();
   const params = Route.useParams();
   const { t, s } = Route.useSearch();

@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-rout
 import { z } from "zod";
 import { VodPlayer } from "@/components/VodPlayer";
 import { getMovie, resolveStream, type MovieDetail, type StreamResolution } from "@/lib/media.functions";
+import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame.client";
 import { movieKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
 
@@ -81,6 +82,7 @@ export const Route = createFileRoute("/play/movie/$id")({
 });
 
 function PlayMovie() {
+  ensureUnsandboxedPlayerFrames();
   const { movie, stream } = Route.useLoaderData();
   const { t, s } = Route.useSearch();
   return (
