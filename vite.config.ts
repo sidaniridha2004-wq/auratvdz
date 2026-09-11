@@ -16,12 +16,30 @@ const manualChunks = (id: string) => {
   return "vendor";
 };
 
+// The external providers reject every sandboxed iframe. Strip the old player
+// restriction from the source before React compiles it, ensuring the deployed
+// iframe is created without a sandbox attribute at all.
+const playerSandboxBlock = `            // No allow-popups / allow-top-navigation: third-party players
+            // cannot open ad tabs or hijack the page. Playback still works.
+            sandbox="allow-scripts allow-same-origin allow-forms allow-presentation allow-pointer-lock"
+`;
+
+const stripPlayerSandbox = {
+  name: "strip-player-sandbox",
+  enforce: "pre" as const,
+  transform(code: string, id: string) {
+    if (!id.replaceAll("\\", "/").endsWith("/src/components/VodPlayer.tsx")) return null;
+    return { code: code.replace(playerSandboxBlock, ""), map: null };
+  },
+};
+
 export default defineConfig({
   tanstackStart: {
     // src/server.ts wraps the SSR handler with security headers and error capture.
     server: { entry: "server" },
   },
   vite: {
+    plugins: [stripPlayerSandbox],
     build: {
       // Never ship source maps to production; they expose the full source tree.
       sourcemap: false,
