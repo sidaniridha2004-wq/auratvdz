@@ -1,6 +1,6 @@
-// Some third-party video providers refuse to load when an iframe has any
-// sandbox attribute. Install this before the player renders so current and
-// newly switched provider frames are reloaded without that restriction.
+// These video providers refuse to run with any iframe sandbox attribute.
+// Install this before the player renders and prevent React hydration or later
+// server switches from applying that attribute again.
 
 const PROVIDER_HOSTS = ["vixsrc.to", "vaplayer.ru", "multiembed.cc", "vidfast.vc"];
 let installed = false;
@@ -20,7 +20,8 @@ function unlock(frame: HTMLIFrameElement): void {
   if (!frame.hasAttribute("sandbox") || !isProviderFrame(frame)) return;
   const src = frame.getAttribute("src");
   frame.removeAttribute("sandbox");
-  // Reload because sandbox permissions are fixed when navigation begins.
+  // A sandbox policy is fixed when navigation starts, so restart that
+  // navigation after removing the attribute.
   if (src) {
     frame.src = "about:blank";
     queueMicrotask(() => {
@@ -36,14 +37,33 @@ export function ensureUnsandboxedPlayerFrames(): void {
     return;
   }
   installed = true;
+
+  // React can restore a mismatched SSR attribute while hydrating. Prevent that
+  // write for our known player providers so the iframe is unsandboxed from the
+  // beginning of every client-side navigation.
+  const nativeSetAttribute = Element.prototype.setAttribute;
+  Element.prototype.setAttribute = function setAttributeWithoutPlayerSandbox(name: string, value: string): void {
+    if (name.toLowerCase() === "sandbox" && this instanceof HTMLIFrameElement && isProviderFrame(this)) return;
+    nativeSetAttribute.call(this, name, value);
+  };
+
   document.querySelectorAll<HTMLIFrameElement>("iframe[sandbox]").forEach(unlock);
   new MutationObserver((records) => {
     for (const record of records) {
+      if (record.type === "attributes" && record.target instanceof HTMLIFrameElement) {
+        unlock(record.target);
+        continue;
+      }
       for (const node of record.addedNodes) {
         if (!(node instanceof Element)) continue;
         if (node instanceof HTMLIFrameElement) unlock(node);
         node.querySelectorAll<HTMLIFrameElement>("iframe[sandbox]").forEach(unlock);
       }
     }
-  }).observe(document.body, { childList: true, subtree: true });
+  }).observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ["sandbox"],
+  });
 }
