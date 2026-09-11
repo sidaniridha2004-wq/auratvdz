@@ -14,6 +14,7 @@ import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StatusRouteImport } from './routes/status'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OgImageDotpngRouteImport } from './routes/og-image[.]png'
+import { Route as MoviesRouteImport } from './routes/movies'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as Icon512DotpngRouteImport } from './routes/icon-512[.]png'
 import { Route as Icon192DotpngRouteImport } from './routes/icon-192[.]png'
@@ -29,11 +30,15 @@ import { Route as WatchChannelIdRouteImport } from './routes/watch.$channelId'
 import { Route as SettingsChannelsRouteImport } from './routes/settings.channels'
 import { Route as WatchTvKeyRouteImport } from './routes/watch.tv.$key'
 import { Route as WatchLiveSlugRouteImport } from './routes/watch.live.$slug'
+import { Route as TitleKindIdRouteImport } from './routes/title.$kind.$id'
+import { Route as PlayMovieIdRouteImport } from './routes/play.movie.$id'
+import { Route as ApiPublicSubtitleRouteImport } from './routes/api/public/subtitle'
 import { Route as ApiPublicStreamRouteImport } from './routes/api/public/stream'
 import { Route as ApiPublicProbeRouteImport } from './routes/api/public/probe'
 import { Route as ApiPublicMasterRouteImport } from './routes/api/public/master'
 import { Route as ApiPublicLegacyMasterRouteImport } from './routes/api/public/legacy-master'
 import { Route as ApiPublicAuratvMasterRouteImport } from './routes/api/public/auratv-master'
+import { Route as PlayTvIdSeasonEpisodeRouteImport } from './routes/play.tv.$id.$season.$episode'
 
 const ThankYouRoute = ThankYouRouteImport.update({
   id: '/thank-you',
@@ -58,6 +63,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const OgImageDotpngRoute = OgImageDotpngRouteImport.update({
   id: '/og-image.png',
   path: '/og-image.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoviesRoute = MoviesRouteImport.update({
+  id: '/movies',
+  path: '/movies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -135,6 +145,21 @@ const WatchLiveSlugRoute = WatchLiveSlugRouteImport.update({
   path: '/watch/live/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TitleKindIdRoute = TitleKindIdRouteImport.update({
+  id: '/title/$kind/$id',
+  path: '/title/$kind/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlayMovieIdRoute = PlayMovieIdRouteImport.update({
+  id: '/play/movie/$id',
+  path: '/play/movie/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicSubtitleRoute = ApiPublicSubtitleRouteImport.update({
+  id: '/api/public/subtitle',
+  path: '/api/public/subtitle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicStreamRoute = ApiPublicStreamRouteImport.update({
   id: '/api/public/stream',
   path: '/api/public/stream',
@@ -160,6 +185,11 @@ const ApiPublicAuratvMasterRoute = ApiPublicAuratvMasterRouteImport.update({
   path: '/api/public/auratv-master',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PlayTvIdSeasonEpisodeRoute = PlayTvIdSeasonEpisodeRouteImport.update({
+  id: '/play/tv/$id/$season/$episode',
+  path: '/play/tv/$id/$season/$episode',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -173,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
@@ -185,8 +216,12 @@ export interface FileRoutesByFullPath {
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
+  '/play/movie/$id': typeof PlayMovieIdRoute
+  '/title/$kind/$id': typeof TitleKindIdRoute
   '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
+  '/play/tv/$id/$season/$episode': typeof PlayTvIdSeasonEpisodeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -200,6 +235,7 @@ export interface FileRoutesByTo {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
@@ -212,8 +248,12 @@ export interface FileRoutesByTo {
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
+  '/play/movie/$id': typeof PlayMovieIdRoute
+  '/title/$kind/$id': typeof TitleKindIdRoute
   '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
+  '/play/tv/$id/$season/$episode': typeof PlayTvIdSeasonEpisodeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -228,6 +268,7 @@ export interface FileRoutesById {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
   '/status': typeof StatusRoute
@@ -240,8 +281,12 @@ export interface FileRoutesById {
   '/api/public/master': typeof ApiPublicMasterRoute
   '/api/public/probe': typeof ApiPublicProbeRoute
   '/api/public/stream': typeof ApiPublicStreamRoute
+  '/api/public/subtitle': typeof ApiPublicSubtitleRoute
+  '/play/movie/$id': typeof PlayMovieIdRoute
+  '/title/$kind/$id': typeof TitleKindIdRoute
   '/watch/live/$slug': typeof WatchLiveSlugRoute
   '/watch/tv/$key': typeof WatchTvKeyRoute
+  '/play/tv/$id/$season/$episode': typeof PlayTvIdSeasonEpisodeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -257,6 +302,7 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/movies'
     | '/og-image.png'
     | '/privacy'
     | '/status'
@@ -269,8 +315,12 @@ export interface FileRouteTypes {
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
+    | '/api/public/subtitle'
+    | '/play/movie/$id'
+    | '/title/$kind/$id'
     | '/watch/live/$slug'
     | '/watch/tv/$key'
+    | '/play/tv/$id/$season/$episode'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -284,6 +334,7 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/movies'
     | '/og-image.png'
     | '/privacy'
     | '/status'
@@ -296,8 +347,12 @@ export interface FileRouteTypes {
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
+    | '/api/public/subtitle'
+    | '/play/movie/$id'
+    | '/title/$kind/$id'
     | '/watch/live/$slug'
     | '/watch/tv/$key'
+    | '/play/tv/$id/$season/$episode'
   id:
     | '__root__'
     | '/'
@@ -311,6 +366,7 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/movies'
     | '/og-image.png'
     | '/privacy'
     | '/status'
@@ -323,8 +379,12 @@ export interface FileRouteTypes {
     | '/api/public/master'
     | '/api/public/probe'
     | '/api/public/stream'
+    | '/api/public/subtitle'
+    | '/play/movie/$id'
+    | '/title/$kind/$id'
     | '/watch/live/$slug'
     | '/watch/tv/$key'
+    | '/play/tv/$id/$season/$episode'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -339,6 +399,7 @@ export interface RootRouteChildren {
   Icon192DotpngRoute: typeof Icon192DotpngRoute
   Icon512DotpngRoute: typeof Icon512DotpngRoute
   LiveRoute: typeof LiveRoute
+  MoviesRoute: typeof MoviesRoute
   OgImageDotpngRoute: typeof OgImageDotpngRoute
   PrivacyRoute: typeof PrivacyRoute
   StatusRoute: typeof StatusRoute
@@ -351,8 +412,12 @@ export interface RootRouteChildren {
   ApiPublicMasterRoute: typeof ApiPublicMasterRoute
   ApiPublicProbeRoute: typeof ApiPublicProbeRoute
   ApiPublicStreamRoute: typeof ApiPublicStreamRoute
+  ApiPublicSubtitleRoute: typeof ApiPublicSubtitleRoute
+  PlayMovieIdRoute: typeof PlayMovieIdRoute
+  TitleKindIdRoute: typeof TitleKindIdRoute
   WatchLiveSlugRoute: typeof WatchLiveSlugRoute
   WatchTvKeyRoute: typeof WatchTvKeyRoute
+  PlayTvIdSeasonEpisodeRoute: typeof PlayTvIdSeasonEpisodeRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -390,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/og-image.png'
       fullPath: '/og-image.png'
       preLoaderRoute: typeof OgImageDotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/movies': {
+      id: '/movies'
+      path: '/movies'
+      fullPath: '/movies'
+      preLoaderRoute: typeof MoviesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -497,6 +569,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WatchLiveSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/title/$kind/$id': {
+      id: '/title/$kind/$id'
+      path: '/title/$kind/$id'
+      fullPath: '/title/$kind/$id'
+      preLoaderRoute: typeof TitleKindIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/play/movie/$id': {
+      id: '/play/movie/$id'
+      path: '/play/movie/$id'
+      fullPath: '/play/movie/$id'
+      preLoaderRoute: typeof PlayMovieIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/subtitle': {
+      id: '/api/public/subtitle'
+      path: '/api/public/subtitle'
+      fullPath: '/api/public/subtitle'
+      preLoaderRoute: typeof ApiPublicSubtitleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/stream': {
       id: '/api/public/stream'
       path: '/api/public/stream'
@@ -532,6 +625,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicAuratvMasterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/play/tv/$id/$season/$episode': {
+      id: '/play/tv/$id/$season/$episode'
+      path: '/play/tv/$id/$season/$episode'
+      fullPath: '/play/tv/$id/$season/$episode'
+      preLoaderRoute: typeof PlayTvIdSeasonEpisodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -547,6 +647,7 @@ const rootRouteChildren: RootRouteChildren = {
   Icon192DotpngRoute: Icon192DotpngRoute,
   Icon512DotpngRoute: Icon512DotpngRoute,
   LiveRoute: LiveRoute,
+  MoviesRoute: MoviesRoute,
   OgImageDotpngRoute: OgImageDotpngRoute,
   PrivacyRoute: PrivacyRoute,
   StatusRoute: StatusRoute,
@@ -559,8 +660,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicMasterRoute: ApiPublicMasterRoute,
   ApiPublicProbeRoute: ApiPublicProbeRoute,
   ApiPublicStreamRoute: ApiPublicStreamRoute,
+  ApiPublicSubtitleRoute: ApiPublicSubtitleRoute,
+  PlayMovieIdRoute: PlayMovieIdRoute,
+  TitleKindIdRoute: TitleKindIdRoute,
   WatchLiveSlugRoute: WatchLiveSlugRoute,
   WatchTvKeyRoute: WatchTvKeyRoute,
+  PlayTvIdSeasonEpisodeRoute: PlayTvIdSeasonEpisodeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
