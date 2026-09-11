@@ -2,7 +2,7 @@ import { createFileRoute, Link, notFound, useRouter } from "@tanstack/react-rout
 import { z } from "zod";
 import { VodPlayer } from "@/components/VodPlayer";
 import { getMovie, resolveStream, type MovieDetail, type StreamResolution } from "@/lib/media.functions";
-import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame.client";
+import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame-guard";
 import { movieKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
 
