@@ -16,7 +16,7 @@ export const SERVER_LABELS: Record<ServerId, { name: string; short: string; kind
   vixsrc: { name: "Server 2 · Vix", short: "S2", kind: "direct" },
   vidapi: { name: "Server 1 · Link", short: "S1", kind: "embed" },
   multiembed: { name: "Server 3 · Grid", short: "S3", kind: "embed" },
-  vidfast: { name: "Server 4 · NHD", short: "S4", kind: "embed" },
+  vidfast: { name: "Server 4 · VF", short: "S4", kind: "embed" },
 };
 
 export interface Merged {
