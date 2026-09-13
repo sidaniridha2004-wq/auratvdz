@@ -2,7 +2,7 @@
 // Install this before the player renders and prevent React hydration or later
 // server switches from applying that attribute again.
 
-const PROVIDER_HOSTS = ["vixsrc.to", "vaplayer.ru", "multiembed.cc", "vidfast.vc"];
+const PROVIDER_HOSTS = ["vixsrc.to", "vaplayer.ru", "vidlink.pro", "multiembed.cc", "vidfast.vc"];
 let installed = false;
 
 function isProviderFrame(frame: HTMLIFrameElement): boolean {
@@ -20,8 +20,6 @@ function unlock(frame: HTMLIFrameElement): void {
   if (!frame.hasAttribute("sandbox") || !isProviderFrame(frame)) return;
   const src = frame.getAttribute("src");
   frame.removeAttribute("sandbox");
-  // A sandbox policy is fixed when navigation starts, so restart that
-  // navigation after removing the attribute.
   if (src) {
     frame.src = "about:blank";
     queueMicrotask(() => {
@@ -38,9 +36,6 @@ export function ensureUnsandboxedPlayerFrames(): void {
   }
   installed = true;
 
-  // React can restore a mismatched SSR attribute while hydrating. Prevent that
-  // write for our known player providers so the iframe is unsandboxed from the
-  // beginning of every client-side navigation.
   const nativeSetAttribute = Element.prototype.setAttribute;
   Element.prototype.setAttribute = function setAttributeWithoutPlayerSandbox(name: string, value: string): void {
     if (name.toLowerCase() === "sandbox" && this instanceof HTMLIFrameElement && isProviderFrame(this)) return;

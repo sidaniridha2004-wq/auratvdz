@@ -1,7 +1,8 @@
-// VidAPI (vaplayer.ru) integration — second stream server (server only).
+// Server 2 integration (server only).
 //
-// VidAPI is embed-only: there is no documented direct-stream endpoint, so
-// playback goes through their iframe player. What we do get from them:
+// VidAPI still supplies the large daily availability lists, while playback
+// uses VidLink because VidAPI's iframe now requires per-domain whitelisting.
+// What we get from the two services:
 //  - daily ID lists of every movie / show they can play, used to widen the
 //    catalogue and to mark which servers a title is available on;
 //  - a player that auto-searches OpenSubtitles (ds_lang) and accepts an
@@ -11,7 +12,7 @@
 import type { MediaKind } from "./tmdb.server";
 
 const LIST_BASE = "https://vidapi.ru";
-const PLAYER_BASE = "https://vaplayer.ru";
+const PLAYER_BASE = "https://vidlink.pro";
 export const VIDAPI_PLAYER_ORIGIN = PLAYER_BASE;
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -118,21 +119,23 @@ export interface VidEmbedOptions {
   subLabel?: string;
 }
 
-/** Build the vaplayer.ru iframe URL. Arabic subtitles are requested by default. */
+/** Build the Server 2 VidLink iframe URL. */
 export function vidEmbedUrl(kind: MediaKind, id: number, opts: VidEmbedOptions = {}): string {
-  const path = kind === "movie" ? `/embed/movie/${id}` : `/embed/tv/${id}/${opts.season ?? 1}/${opts.episode ?? 1}`;
+  const path = kind === "movie" ? `/movie/${id}` : `/tv/${id}/${opts.season ?? 1}/${opts.episode ?? 1}`;
   const url = new URL(PLAYER_BASE + path);
-  url.searchParams.set("primaryColor", "#d9272f");
-  url.searchParams.set("autoplay", "1");
-  url.searchParams.set("ds_lang", opts.subLang ?? "ar");
-  if (opts.title) url.searchParams.set("title", opts.title.slice(0, 120));
-  if (opts.poster && /^https:\/\//i.test(opts.poster)) url.searchParams.set("poster", opts.poster);
-  if (opts.startAt && opts.startAt > 0) url.searchParams.set("resumeAt", String(Math.floor(opts.startAt)));
+  url.searchParams.set("primaryColor", "d9272f");
+  url.searchParams.set("secondaryColor", "170000");
+  url.searchParams.set("iconColor", "ffffff");
+  url.searchParams.set("icons", "default");
+  url.searchParams.set("player", "default");
+  url.searchParams.set("title", "true");
+  url.searchParams.set("poster", "true");
+  url.searchParams.set("autoplay", "true");
+  url.searchParams.set("nextbutton", "false");
+  if (opts.startAt && opts.startAt > 0) url.searchParams.set("startAt", String(Math.floor(opts.startAt)));
   if (opts.subUrl && /^https?:\/\//i.test(opts.subUrl)) {
-    url.searchParams.set("sub_url", opts.subUrl);
-    url.searchParams.set("sub_lang", opts.subLang ?? "ar");
+    url.searchParams.set("sub_file", opts.subUrl);
     url.searchParams.set("sub_label", opts.subLabel ?? "Arabic");
-    url.searchParams.set("sub_default", "true");
   }
   return url.toString();
 }

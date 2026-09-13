@@ -14,7 +14,7 @@ export const SERVER_ORDER: ServerId[] = ["vixsrc", "vidapi", "multiembed", "vidf
 
 export const SERVER_LABELS: Record<ServerId, { name: string; short: string; kind: "direct" | "embed" }> = {
   vixsrc: { name: "Server 1 · Vix", short: "S1", kind: "direct" },
-  vidapi: { name: "Server 2 · Vid", short: "S2", kind: "embed" },
+  vidapi: { name: "Server 2 · Link", short: "S2", kind: "embed" },
   multiembed: { name: "Server 3 · Multi", short: "S3", kind: "embed" },
   vidfast: { name: "Server 4 · Fast", short: "S4", kind: "embed" },
 };
