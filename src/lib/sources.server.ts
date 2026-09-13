@@ -10,11 +10,11 @@ import { getVidCatalogue, type VidCatalogue } from "./vidapi.server";
 
 export type ServerId = "vixsrc" | "vidapi" | "multiembed" | "vidfast";
 
-export const SERVER_ORDER: ServerId[] = ["vixsrc", "vidapi", "multiembed", "vidfast"];
+export const SERVER_ORDER: ServerId[] = ["vidapi", "vixsrc", "multiembed", "vidfast"];
 
 export const SERVER_LABELS: Record<ServerId, { name: string; short: string; kind: "direct" | "embed" }> = {
-  vixsrc: { name: "Server 1 · Vix", short: "S1", kind: "direct" },
-  vidapi: { name: "Server 2 · Link", short: "S2", kind: "embed" },
+  vixsrc: { name: "Server 2 · Vix", short: "S2", kind: "direct" },
+  vidapi: { name: "Server 1 · Link", short: "S1", kind: "embed" },
   multiembed: { name: "Server 3 · Multi", short: "S3", kind: "embed" },
   vidfast: { name: "Server 4 · Fast", short: "S4", kind: "embed" },
 };
@@ -138,7 +138,10 @@ export async function getMergedCatalogue(): Promise<Merged> {
  * every server is offered and the player sorts it out at play time.
  */
 export function sourcesFor(m: Merged, kind: MediaKind, id: number): ServerId[] {
-  if (!m.ready) return [...SERVER_ORDER];
-  const list = (kind === "movie" ? m.movieSources : m.showSources).get(id);
-  return list ? SERVER_ORDER.filter((s) => list.includes(s)) : [];
+  // VidLink is the primary broad-coverage player and does not publish an ID
+  // list, so it is always offered first. Vix remains available when its
+  // catalogue explicitly carries the title.
+  if (!m.ready) return ["vidapi", "vixsrc"];
+  const listed = (kind === "movie" ? m.movieSources : m.showSources).get(id) ?? [];
+  return listed.includes("vixsrc") ? ["vidapi", "vixsrc"] : ["vidapi"];
 }

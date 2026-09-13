@@ -132,7 +132,7 @@ function PlayEpisode() {
       <VodPlayer
         key={`${show.id}-${season}-${number}`}
         stream={stream}
-        preferredServer={s}
+        preferredServer={s ?? "vidapi"}
         poster={episode?.still ?? show.backdrop ?? show.poster}
         title={show.title}
         subtitle={`S${season} E${number}${episode?.name ? ` · ${episode.name}` : ""}`}
