@@ -2,7 +2,7 @@
 // Install this before the player renders and prevent React hydration or later
 // server switches from applying that attribute again.
 
-const PROVIDER_HOSTS = ["vixsrc.to", "vaplayer.ru", "vidlink.pro", "multiembed.cc", "vidfast.vc"];
+const PROVIDER_HOSTS = ["vixsrc.to", "vaplayer.ru", "vidlink.pro", "multiembed.cc", "vidfast.vc", "yapgrid.com", "nhdapi.com"];
 let installed = false;
 
 function isProviderFrame(frame: HTMLIFrameElement): boolean {
