@@ -98,7 +98,15 @@ function StatusPage() {
         <label className="relative min-w-[220px] flex-1">
           <span className="sr-only">Search channel</span>
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search channel" type="search" className="field pl-9" />
+          <input
+            id="status-search"
+            aria-label="Search channel status"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search channel"
+            type="search"
+            className="field pl-9"
+          />
         </label>
         <div role="tablist" aria-label="Filter" className="rule-b flex">
           {(["all", "up", "down"] as const).map((f) => (

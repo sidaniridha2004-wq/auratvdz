@@ -22,6 +22,7 @@ function initials(name: string): string {
  * CSS instead of the old 2 MB placeholder PNG.
  */
 export function ChannelLogo({ src, name, group, className = "", size = 48 }: Props) {
+  const accessibleName = name.trim() || group?.trim() || "Channel";
   const [broken, setBroken] = useState(!src);
   useEffect(() => setBroken(!src), [src]);
   const style = { width: size, height: size };
@@ -30,7 +31,7 @@ export function ChannelLogo({ src, name, group, className = "", size = 48 }: Pro
     return (
       <div
         role="img"
-        aria-label={`${name} logo`}
+        aria-label={`${accessibleName} logo`}
         className={`flex items-center justify-center rounded-sm font-display font-semibold text-white ${className}`}
         style={{ ...style, background: categoryColorForGroup(group ?? ""), fontSize: Math.max(11, size * 0.34) }}
       >
@@ -42,7 +43,7 @@ export function ChannelLogo({ src, name, group, className = "", size = 48 }: Pro
   return (
     <img
       src={src}
-      alt={`${name} logo`}
+      alt={`${accessibleName} logo`}
       loading="lazy"
       decoding="async"
       width={size}

@@ -6,4 +6,13 @@ Disallow: /api/
 Disallow: /thank-you
 Disallow: /play/
 
+User-agent: GPTBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
 Sitemap: https://auratvdz.lovable.app/sitemap.xml

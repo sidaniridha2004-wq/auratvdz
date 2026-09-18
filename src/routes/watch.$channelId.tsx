@@ -73,7 +73,7 @@ function Watch() {
   // only tells it which rung to list first and the player which one to pin.
   const masterUrl = q ? `/api/public/master?channelId=${id}&q=${q}` : `/api/public/master?channelId=${id}`;
   const preferredHeight = q;
-  const title = name ?? `Channel ${id}`;
+  const title = name?.trim() || `Channel ${id}`;
 
   useEffect(() => () => {
     void exitImmersiveMode();

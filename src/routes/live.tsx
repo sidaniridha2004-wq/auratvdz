@@ -195,7 +195,15 @@ function LivePage() {
           <label className="relative block w-full sm:max-w-xs">
             <span className="sr-only">Search directory</span>
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Channel or category" type="search" className="field pl-9" />
+            <input
+              id="directory-search"
+              aria-label="Search channel directory"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Channel or category"
+              type="search"
+              className="field pl-9"
+            />
           </label>
         </div>
         {directoryError ? (
