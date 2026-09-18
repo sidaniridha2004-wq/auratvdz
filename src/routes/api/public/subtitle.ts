@@ -94,11 +94,11 @@ export const Route = createFileRoute("/api/public/subtitle")({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
         try {
-          const upstream = await fetch(parsed.toString(), {
-            headers: { "user-agent": target.ua ?? UA, accept: "text/plain,text/vtt,application/x-subrip,*/*", ...(target.referer ? { referer: target.referer } : {}) },
-            redirect: "follow",
-            signal: controller.signal,
-          });
+          const upstream = await fetchFollowingRedirects(
+            parsed,
+            { "user-agent": target.ua ?? UA, accept: "text/plain,text/vtt,application/x-subrip,*/*", ...(target.referer ? { referer: target.referer } : {}) },
+            controller.signal,
+          );
           if (!upstream.ok) return plain(502, `upstream ${upstream.status}`);
           const length = Number(upstream.headers.get("content-length"));
           if (Number.isFinite(length) && length > MAX_BYTES) return plain(502, "subtitle too large");
