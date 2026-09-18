@@ -59,7 +59,9 @@ function WatchLive() {
   const { slug } = Route.useParams();
   const { bySlug, isLoading } = useChannels();
 
-  useEffect(() => () => exitImmersiveMode(), []);
+  useEffect(() => () => {
+    void exitImmersiveMode();
+  }, []);
 
   // Channels from the live API use `yacine-<id>` slugs; send them to the
   // dedicated player route so there is one code path per source.

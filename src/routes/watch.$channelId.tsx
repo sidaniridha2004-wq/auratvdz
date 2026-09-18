@@ -75,7 +75,9 @@ function Watch() {
   const preferredHeight = q;
   const title = name ?? `Channel ${id}`;
 
-  useEffect(() => () => exitImmersiveMode(), []);
+  useEffect(() => () => {
+    void exitImmersiveMode();
+  }, []);
 
   return (
     <div className="min-h-screen">
