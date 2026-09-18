@@ -8,7 +8,22 @@ import { verifyProxyParams } from "@/lib/stream-sign.server";
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const TIMEOUT_MS = 12_000;
+const MAX_REDIRECTS = 5;
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+/** Follow redirects manually, re-validating every hop against the SSRF guard. */
+async function fetchFollowingRedirects(start: URL, headers: Record<string, string>, signal: AbortSignal): Promise<Response> {
+  let current = start;
+  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+    const response = await fetch(current.toString(), { headers, redirect: "manual", signal });
+    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+    const location = response.headers.get("location");
+    if (!location) return response;
+    current = await assertSafeUrlResolved(new URL(location, current).toString());
+  }
+  throw new Error("Too many redirects");
+}
+
 
 function plain(status: number, body: string) {
   return new Response(body, {
@@ -79,11 +94,11 @@ export const Route = createFileRoute("/api/public/subtitle")({
         const controller = new AbortController();
         const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
         try {
-          const upstream = await fetch(parsed.toString(), {
-            headers: { "user-agent": target.ua ?? UA, accept: "text/plain,text/vtt,application/x-subrip,*/*", ...(target.referer ? { referer: target.referer } : {}) },
-            redirect: "follow",
-            signal: controller.signal,
-          });
+          const upstream = await fetchFollowingRedirects(
+            parsed,
+            { "user-agent": target.ua ?? UA, accept: "text/plain,text/vtt,application/x-subrip,*/*", ...(target.referer ? { referer: target.referer } : {}) },
+            controller.signal,
+          );
           if (!upstream.ok) return plain(502, `upstream ${upstream.status}`);
           const length = Number(upstream.headers.get("content-length"));
           if (Number.isFinite(length) && length > MAX_BYTES) return plain(502, "subtitle too large");
