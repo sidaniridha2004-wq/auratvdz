@@ -1,11 +1,12 @@
 import { heightFromLabel } from "./quality";
 import { normaliseChannelName } from "./match-channel";
+import { getYacineConfig } from "./yacine-config.server";
 
 // Upstream host and decrypt key can be rotated from the environment without
 // touching the code. Both fall back to the values the Android app ships with.
 // Read per request: on edge runtimes env is only bound while handling a request.
-const baseUrl = () => (process.env.YACINE_API_URL || "https://def.yacinelive.com").replace(/\/+$/, "");
-const keyBase = () => process.env.YACINE_DECRYPT_KEY || "c!xZj+N9&G@Ev@vw";
+const baseUrl = () => getYacineConfig().apiUrl;
+const keyBase = () => getYacineConfig().decryptKey;
 
 export type YacineTeam = { id: number; name: string; logo: string };
 export type YacineEvent = {
