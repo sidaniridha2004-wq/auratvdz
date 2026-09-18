@@ -115,7 +115,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      admin_password_matches: { Args: { _password: string }; Returns: boolean }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
