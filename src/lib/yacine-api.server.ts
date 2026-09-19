@@ -85,8 +85,9 @@ async function request(path: string): Promise<unknown> {
   try {
     const response = await fetch(`${baseUrl()}${path}`, {
       headers: {
-        Accept: "text/plain, application/json;q=0.9, */*;q=0.8",
-        "User-Agent": "AuraTV/1.0 (+https://auratvdz.lovable.app)",
+        // Match the working Android client’s default OkHttp identity.
+        Accept: "*/*",
+        "User-Agent": "okhttp/4.9.0",
       },
       cache: "no-store",
       signal: controller.signal,
