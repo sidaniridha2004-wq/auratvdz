@@ -1,11 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { serverSupabase } from "@/lib/admin-auth.server";
 import { signedProxyUrl, type ProxyTarget } from "@/lib/stream-sign.server";
+import { findChannelBySlug } from "@/lib/m3u-channels";
 
-// Redirects to a signed proxy URL for a channel from the admin-managed
-// `channels` table. The row's stream_url may carry IPTV pipe headers
-// (`url|User-Agent=..|Referer=..`); those are parsed here, server-side, so
-// the browser never gets to choose upstream headers.
+// Redirects to a signed proxy URL. Database-managed channels are preferred;
+// the bundled catalogue is used when the database has no row for a fallback
+// channel, so the site still has playable entries during an API outage.
 
 function parsePipeUrl(raw: string): ProxyTarget | null {
   const parts = raw.split("|");
@@ -33,17 +33,23 @@ export const Route = createFileRoute("/api/public/legacy-master")({
         const slug = (url.searchParams.get("slug") ?? "").trim();
         if (!/^[a-z0-9-]{1,80}$/.test(slug)) return new Response("bad slug", { status: 400 });
 
-        const supabase = serverSupabase();
-        const { data, error } = await supabase
-          .from("channels")
-          .select("stream_url,is_active")
-          .eq("slug", slug)
-          .maybeSingle();
-        if (error) return new Response("upstream error", { status: 502 });
-        if (!data || !data.is_active || !data.stream_url) return new Response("not found", { status: 404 });
+        // Use a static entry as the immediate fallback, then prefer an active
+        // admin-managed row when Supabase is configured and contains one.
+        let streamUrl = findChannelBySlug(slug)?.url ?? "";
+        try {
+          const supabase = serverSupabase();
+          const { data } = await supabase
+            .from("channels")
+            .select("stream_url,is_active")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (data?.is_active && data.stream_url) streamUrl = String(data.stream_url);
+        } catch {
+          // Static catalogue remains available when Supabase is not configured.
+        }
 
-        const target = parsePipeUrl(String(data.stream_url));
-        if (!target) return new Response("invalid stream", { status: 404 });
+        const target = parsePipeUrl(streamUrl);
+        if (!target) return new Response("not found", { status: 404 });
 
         return new Response(null, {
           status: 302,
