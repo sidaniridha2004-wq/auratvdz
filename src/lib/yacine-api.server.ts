@@ -187,46 +187,57 @@ const category = (item: Json, parentId?: string): YacineCategory => ({
 
 export async function fetchYacineDirectory(): Promise<YacineDirectory> {
   return cached("directory", 10 * 60_000, async () => {
-    const queue = rows<Json>(await request("/api/categories")).map((item) =>
-      category(item),
-    );
+    const queue = rows<Json>(await request("/api/categories")).map((item) => category(item));
     const categories: YacineCategory[] = [];
     const channels: YacineChannel[] = [];
     const warnings: string[] = [];
     const visited = new Set<string>();
+    const CONCURRENCY = 8;
+
+    // The old implementation fetched every category and its channels one by
+    // one. Yacine has many categories, so that made the first page wait for a
+    // long serial chain of requests. Load a small batch in parallel instead.
+    const loadCategory = async (current: YacineCategory) => {
+      const [childrenResult, channelsResult] = await Promise.allSettled([
+        current.childCount > 0 ? request(`/api/categories/${current.id}`) : Promise.resolve([]),
+        request(`/api/categories/${current.id}/channels`),
+      ]);
+      const childCategories =
+        childrenResult.status === "fulfilled"
+          ? rows<Json>(childrenResult.value).map((item) => category(item, current.id))
+          : [];
+      const categoryChannels =
+        channelsResult.status === "fulfilled"
+          ? rows<Json>(channelsResult.value).map((item) => ({
+              id: identifier(item.id),
+              name: text(item.name) || "Unnamed channel",
+              logo: url(item.image) || url(item.logo),
+              categoryId: current.id,
+              categoryName: current.name,
+            }))
+          : [];
+      if (childrenResult.status === "rejected") {
+        warnings.push(`${current.name}: ${childrenResult.reason instanceof Error && childrenResult.reason.name === "AbortError" ? "timed out" : "unavailable"}`);
+      }
+      if (channelsResult.status === "rejected") {
+        warnings.push(`${current.name}: ${channelsResult.reason instanceof Error && channelsResult.reason.name === "AbortError" ? "timed out" : "unavailable"}`);
+      }
+      return { childCategories, categoryChannels };
+    };
 
     while (queue.length && visited.size < 250) {
-      const current = queue.shift();
-      if (!current || current.id === "" || visited.has(current.id)) continue;
-      visited.add(current.id);
-      categories.push(current);
-
-      if (current.childCount > 0) {
-        try {
-          queue.push(
-            ...rows<Json>(await request(`/api/categories/${current.id}`)).map(
-              (item) => category(item, current.id),
-            ),
-          );
-        } catch (error) {
-          warnings.push(`${current.name}: ${error instanceof Error && error.name === "AbortError" ? "timed out" : "unavailable"}`);
-        }
+      const batch: YacineCategory[] = [];
+      while (queue.length && batch.length < CONCURRENCY) {
+        const current = queue.shift();
+        if (!current || current.id === "" || visited.has(current.id)) continue;
+        visited.add(current.id);
+        categories.push(current);
+        batch.push(current);
       }
-
-      try {
-        channels.push(
-          ...rows<Json>(
-            await request(`/api/categories/${current.id}/channels`),
-          ).map((item) => ({
-            id: identifier(item.id),
-            name: text(item.name) || "Unnamed channel",
-            logo: url(item.image) || url(item.logo),
-            categoryId: current.id,
-            categoryName: current.name,
-          })),
-        );
-      } catch (error) {
-        warnings.push(`${current.name}: ${error instanceof Error && error.name === "AbortError" ? "timed out" : "unavailable"}`);
+      const loaded = await Promise.all(batch.map(loadCategory));
+      for (const result of loaded) {
+        queue.push(...result.childCategories);
+        channels.push(...result.categoryChannels);
       }
     }
 
