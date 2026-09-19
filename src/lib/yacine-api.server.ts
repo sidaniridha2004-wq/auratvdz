@@ -62,6 +62,20 @@ const url = (value: unknown) => {
   }
 };
 
+// The Android app’s Firebase config also publishes a separate host for
+// relative TV stream URLs. Fully-qualified URLs from the API are preserved.
+const streamUrl = (value: unknown) => {
+  const candidate = text(value);
+  if (!candidate) return "";
+  try {
+    const base = getYacineConfig().streamUrl;
+    const parsed = new URL(candidate, `${base}/`);
+    return ["http:", "https:"].includes(parsed.protocol) ? parsed.toString() : "";
+  } catch {
+    return "";
+  }
+};
+
 function decode<T>(encoded: string, timestamp: string): T {
   const input = Buffer.from(encoded.trim(), "base64");
   const key = Buffer.from(`${keyBase()}${timestamp}`, "utf8");
@@ -223,7 +237,7 @@ export async function fetchYacineChannelStreams(channelId: number): Promise<Yaci
     rows<Json>(await request(`/api/channel/${channelId}`))
       .map((item) => ({
         name: text(item.name).slice(0, 40),
-        url: url(item.url),
+        url: streamUrl(item.url),
         referer: url(item.referer),
         userAgent: text(item.user_agent).slice(0, 256),
       }))
