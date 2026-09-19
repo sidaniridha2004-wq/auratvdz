@@ -25,7 +25,7 @@ async function req<T = unknown>(path: string): Promise<T> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 8000);
     try {
-      const r = await fetch(url, { signal: controller.signal, headers: { "user-agent": "okhttp/4.9.0" } });
+      const r = await fetch(url, { signal: controller.signal, headers: { "user-agent": "okhttp/4.12.0" } });
       const timestamp = r.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
       const body = await r.text();
       if (!r.ok) throw new Error(`upstream ${r.status}`);
@@ -44,14 +44,14 @@ async function req<T = unknown>(path: string): Promise<T> {
 }
 
 export interface Category {
-  id: number;
+  id: string;
   name: string;
   logo: string;
   child_count: number;
 }
 
 export interface Channel {
-  id: number;
+  id: string;
   name: string;
   logo: string;
   is_hide: number;
@@ -72,14 +72,14 @@ export const getCategories = createServerFn({ method: "GET" }).handler(async () 
 });
 
 export const getCategoryChannels = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ categoryId: z.number().int().min(0).max(99_999_999) }))
+  .inputValidator(z.object({ categoryId: z.string().regex(/^\d{1,30}$/) }))
   .handler(async ({ data }) => {
     const res = await req<{ data: Channel[] }>(`/api/categories/${data.categoryId}/channels`);
     return res.data ?? [];
   });
 
 export const getSubCategories = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ categoryId: z.number().int().min(0).max(99_999_999) }))
+  .inputValidator(z.object({ categoryId: z.string().regex(/^\d{1,30}$/) }))
   .handler(async ({ data }) => {
     const res = await req<{ data: Category[] }>(`/api/categories/${data.categoryId}`);
     return res.data ?? [];
@@ -87,7 +87,7 @@ export const getSubCategories = createServerFn({ method: "GET" })
 
 /** Quality labels only — used for the UI. URLs stay server-side. */
 export const getChannelQualities = createServerFn({ method: "GET" })
-  .inputValidator(z.object({ channelId: z.number().int().min(0).max(99_999_999) }))
+  .inputValidator(z.object({ channelId: z.string().regex(/^\d{1,30}$/) }))
   .handler(async ({ data }) => {
     const res = await req<{ data: Array<{ name: string }> }>(`/api/channel/${data.channelId}`);
     return (res.data ?? []).map((s) => s.name);
@@ -106,8 +106,7 @@ export const getYacineDirectory = createServerFn({ method: "GET" }).handler(asyn
     return await fetchYacineDirectory();
   } catch {
     // A Cloudflare 403 must not turn the whole SSR page into a blank runtime
-    // error. The client switches to the bundled catalogue below and the live
-    // API can be retried later without taking down the site.
+    // error. The UI can show a retry state while the live API is unavailable.
     return {
       categories: [],
       channels: [],

@@ -8,9 +8,9 @@ import { getYacineConfig } from "./yacine-config.server";
 const baseUrl = () => getYacineConfig().apiUrl;
 const keyBase = () => getYacineConfig().decryptKey;
 
-export type YacineTeam = { id: number; name: string; logo: string };
+export type YacineTeam = { id: string; name: string; logo: string };
 export type YacineEvent = {
-  id: number;
+  id: string;
   competition: string;
   channel: string;
   commentary: string;
@@ -20,17 +20,17 @@ export type YacineEvent = {
   away: YacineTeam;
 };
 export type YacineCategory = {
-  id: number;
+  id: string;
   name: string;
   logo: string;
   childCount: number;
-  parentId?: number;
+  parentId?: string;
 };
 export type YacineChannel = {
-  id: number;
+  id: string;
   name: string;
   logo: string;
-  categoryId: number;
+  categoryId: string;
   categoryName: string;
 };
 export type YacineDirectory = {
@@ -47,6 +47,10 @@ const inflight = new Map<string, Promise<unknown>>();
 
 const text = (value: unknown) =>
   typeof value === "string" ? value.trim() : "";
+const identifier = (value: unknown) => {
+  const candidate = String(value ?? "").trim();
+  return /^\d{1,30}$/.test(candidate) ? candidate : "";
+};
 const number = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -101,7 +105,7 @@ async function request(path: string): Promise<unknown> {
       headers: {
         // Match the working Android client’s default OkHttp identity.
         Accept: "*/*",
-        "User-Agent": "okhttp/4.9.0",
+        "User-Agent": "okhttp/4.12.0",
       },
       cache: "no-store",
       signal: controller.signal,
@@ -134,7 +138,7 @@ async function cached<T>(key: string, ttl: number, load: () => Promise<T>): Prom
 const team = (value: unknown): YacineTeam => {
   const item = (value ?? {}) as Json;
   return {
-    id: number(item.id),
+    id: identifier(item.id),
     name: text(item.name) || "Unknown team",
     logo: url(item.logo),
   };
@@ -144,7 +148,7 @@ export async function fetchYacineEvents(): Promise<YacineEvent[]> {
   return cached("events", 60_000, async () =>
     rows<Json>(await request("/api/events"))
       .map((item) => ({
-        id: number(item.id),
+        id: identifier(item.id),
         competition: text(item.champions) || "Live sports",
         channel: text(item.channel),
         commentary: text(item.commentary),
@@ -153,13 +157,13 @@ export async function fetchYacineEvents(): Promise<YacineEvent[]> {
         home: team(item.team_1),
         away: team(item.team_2),
       }))
-      .filter((event) => event.id > 0 && event.startTime > 0)
+      .filter((event) => event.id !== "" && event.startTime > 0)
       .sort((a, b) => a.startTime - b.startTime),
   );
 }
 
-const category = (item: Json, parentId?: number): YacineCategory => ({
-  id: number(item.id),
+const category = (item: Json, parentId?: string): YacineCategory => ({
+  id: identifier(item.id),
   name: text(item.name) || "Other",
   logo: url(item.logo) || url(item.image),
   childCount: number(item.child_count),
@@ -174,11 +178,11 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
     const categories: YacineCategory[] = [];
     const channels: YacineChannel[] = [];
     const warnings: string[] = [];
-    const visited = new Set<number>();
+    const visited = new Set<string>();
 
     while (queue.length && visited.size < 250) {
       const current = queue.shift();
-      if (!current || current.id <= 0 || visited.has(current.id)) continue;
+      if (!current || current.id === "" || visited.has(current.id)) continue;
       visited.add(current.id);
       categories.push(current);
 
@@ -199,7 +203,7 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
           ...rows<Json>(
             await request(`/api/categories/${current.id}/channels`),
           ).map((item) => ({
-            id: number(item.id),
+            id: identifier(item.id),
             name: text(item.name) || "Unnamed channel",
             logo: url(item.image) || url(item.logo),
             categoryId: current.id,
@@ -213,7 +217,7 @@ export async function fetchYacineDirectory(): Promise<YacineDirectory> {
 
     return {
       categories,
-      channels: channels.filter((item) => item.id > 0),
+      channels: channels.filter((item) => item.id !== ""),
       warnings,
       updatedAt: new Date().toISOString(),
     };
@@ -231,8 +235,8 @@ export type YacineStream = {
  * Playable variants for one channel. Cached briefly: the upstream rotates
  * tokens in these URLs, so a long cache would hand out dead links.
  */
-export async function fetchYacineChannelStreams(channelId: number): Promise<YacineStream[]> {
-  if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) return [];
+export async function fetchYacineChannelStreams(channelId: string): Promise<YacineStream[]> {
+  if (!/^\d{1,30}$/.test(channelId)) return [];
   return cached(`channel:${channelId}`, 20_000, async () =>
     rows<Json>(await request(`/api/channel/${channelId}`))
       .map((item) => ({
@@ -249,7 +253,7 @@ export type YacineVariant = YacineStream & {
   /** Resolution rung, resolved from the stream label, channel or category name. */
   height: number;
   /** Directory channel the feed came from (the requested one or a sibling). */
-  channelId: number;
+  channelId: string;
 };
 
 const MAX_SIBLINGS = 8;
@@ -266,8 +270,8 @@ const DEFAULT_HEIGHT = 720;
  * found by normalised name and their feeds are merged. Heights come from the
  * stream label first, then the channel name, then the category name.
  */
-export async function fetchYacineChannelVariants(channelId: number, fallbackHeight = 0): Promise<YacineVariant[]> {
-  if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) return [];
+export async function fetchYacineChannelVariants(channelId: string, fallbackHeight = 0): Promise<YacineVariant[]> {
+  if (!/^\d{1,30}$/.test(channelId)) return [];
 
   // Never let a cold directory build stall playback: wait briefly, then
   // continue with the requested channel alone while the build finishes.
@@ -277,7 +281,7 @@ export async function fetchYacineChannelVariants(channelId: number, fallbackHeig
   ]);
 
   const self = directory?.channels.find((channel) => channel.id === channelId);
-  const members: Array<{ id: number; hint: number }> = [
+  const members: Array<{ id: string; hint: number }> = [
     {
       id: channelId,
       hint: (self && (heightFromLabel(self.name) || heightFromLabel(self.categoryName))) || fallbackHeight,
@@ -286,7 +290,7 @@ export async function fetchYacineChannelVariants(channelId: number, fallbackHeig
 
   if (directory && self) {
     const base = normaliseChannelName(self.name);
-    const seen = new Set<number>([channelId]);
+    const seen = new Set<string>([channelId]);
     if (base) {
       for (const channel of directory.channels) {
         if (seen.has(channel.id) || normaliseChannelName(channel.name) !== base) continue;

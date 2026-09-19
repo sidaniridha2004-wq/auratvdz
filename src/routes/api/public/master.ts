@@ -28,8 +28,8 @@ export const Route = createFileRoute("/api/public/master")({
       OPTIONS: async () => new Response(null, { status: 204, headers: CORS }),
       GET: async ({ request }) => {
         const url = new URL(request.url);
-        const channelId = Number(url.searchParams.get("channelId"));
-        if (!Number.isInteger(channelId) || channelId <= 0 || channelId > 99_999_999) return plain(400, "missing channelId");
+        const channelId = url.searchParams.get("channelId")?.trim() ?? "";
+        if (!/^\d{1,30}$/.test(channelId)) return plain(400, "missing channelId");
         const wanted = heightFromLabel(url.searchParams.get("q"));
 
         let variants: Awaited<ReturnType<typeof fetchYacineChannelVariants>>;

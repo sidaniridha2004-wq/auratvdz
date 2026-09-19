@@ -66,12 +66,12 @@ export const Route = createFileRoute("/watch/$channelId")({
 function Watch() {
   const { channelId } = Route.useParams();
   const { name, logo, q } = Route.useSearch();
-  const id = Number(channelId);
-  if (!Number.isInteger(id) || id <= 0) throw notFound();
+  const id = channelId.trim();
+  if (!/^\d{1,30}$/.test(id)) throw notFound();
 
   // The master always carries the full quality ladder for this channel; `q`
   // only tells it which rung to list first and the player which one to pin.
-  const masterUrl = q ? `/api/public/master?channelId=${id}&q=${q}` : `/api/public/master?channelId=${id}`;
+  const masterUrl = q ? `/api/public/master?channelId=${encodeURIComponent(id)}&q=${q}` : `/api/public/master?channelId=${encodeURIComponent(id)}`;
   const preferredHeight = q;
   const title = name?.trim() || `Channel ${id}`;
 
