@@ -7,6 +7,11 @@ import { getYacineConfig } from "./yacine-config.server";
 // Read per request: on edge runtimes env is only bound while handling a request.
 const baseUrl = () => getYacineConfig().apiUrl;
 const keyBase = () => getYacineConfig().decryptKey;
+const API_FALLBACKS = [
+  "https://def.ycnapi.com",
+  "https://def11.ycnapi.com",
+  "https://deft.yacinelive.com",
+];
 
 export type YacineTeam = { id: string; name: string; logo: string };
 export type YacineEvent = {
@@ -101,19 +106,29 @@ async function request(path: string): Promise<unknown> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
-    const response = await fetch(`${baseUrl()}${path}`, {
-      headers: {
-        // Match the working Android client’s default OkHttp identity.
-        Accept: "*/*",
-        "User-Agent": "okhttp/4.12.0",
-      },
-      cache: "no-store",
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`Yacine API returned ${response.status}`);
-    const timestamp =
-      response.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
-    return decode(await response.text(), timestamp);
+    const hosts = Array.from(new Set([baseUrl(), ...API_FALLBACKS]));
+    let lastError: unknown = new Error("Yacine API unavailable");
+    for (const host of hosts) {
+      try {
+        const response = await fetch(`${host}${path}`, {
+          headers: {
+            // Match the working Android client’s default OkHttp identity.
+            Accept: "*/*",
+            "User-Agent": "okhttp/4.12.0",
+          },
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error(`Yacine API returned ${response.status}`);
+        const timestamp =
+          response.headers.get("t") ?? String(Math.floor(Date.now() / 1000));
+        return decode(await response.text(), timestamp);
+      } catch (error) {
+        lastError = error;
+        if (error instanceof Error && error.name === "AbortError") break;
+      }
+    }
+    throw lastError;
   } finally {
     clearTimeout(timeout);
   }
