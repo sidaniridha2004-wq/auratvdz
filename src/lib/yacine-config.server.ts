@@ -1,7 +1,9 @@
 import process from "node:process";
 
-const CURRENT_API_URL = "https://deft.yacinelive.com";
-const RETIRED_HOSTS = new Set(["def.yacinelive.com", "ver3.yacinelive.com"]);
+// Firebase Remote Config in the working Android APK currently points the API
+// at this host. Keep it server-side so the host can be rotated later.
+const CURRENT_API_URL = "https://def11.ycnapi.com";
+const RETIRED_HOSTS = new Set(["def.yacinelive.com", "ver3.yacinelive.com", "deft.yacinelive.com"]);
 
 // The upstream uses a fixed XOR key to obfuscate API responses. It is not a
 // private credential. Keep configuration server-side and automatically ignore
