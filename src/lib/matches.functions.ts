@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { fetchYacineEvents } from "./yacine-api.server";
+import { discoverYacineConfig } from "./yacine-discovery.server";
 
 export interface Match {
   id: string;
@@ -45,8 +46,50 @@ const statusLabelFor = (status: Match["status"]) => {
   return "";
 };
 
-// Only http(s) logos from the upstream API are passed to the browser.
+// Only http(s) logos from upstream feeds are passed to the browser.
 const safeLogo = (raw: unknown): string => (typeof raw === "string" && /^https:\/\//i.test(raw) ? raw : "");
+
+async function fallbackMatches(day: Day): Promise<Match[]> {
+  const wanted = targetDateKey(day === "home" ? "today" : day);
+  const response = await fetch(`https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${wanted}&s=Soccer`, {
+    headers: { accept: "application/json" },
+    signal: AbortSignal.timeout(8_000),
+  });
+  if (!response.ok) throw new Error(`schedule fallback ${response.status}`);
+  const body = (await response.json()) as { events?: Array<Record<string, unknown>> };
+  const now = Date.now();
+
+  return (body.events ?? []).flatMap((event): Match[] => {
+    const kickoffRaw = typeof event.strTimestamp === "string" && event.strTimestamp ? event.strTimestamp : `${event.dateEvent ?? wanted}T${event.strTime ?? "00:00:00"}Z`;
+    const kickoff = new Date(kickoffRaw);
+    if (!Number.isFinite(kickoff.getTime())) return [];
+    const home = String(event.strHomeTeam ?? "").trim();
+    const away = String(event.strAwayTeam ?? "").trim();
+    if (!home || !away) return [];
+    const statusText = String(event.strStatus ?? event.strProgress ?? "").toLowerCase();
+    const finished = /finish|cancel|postpon|abandon/.test(statusText);
+    const live = !finished && kickoff.getTime() <= now && kickoff.getTime() + 3_600_000 >= now;
+    const status: Match["status"] = finished || kickoff.getTime() + 3_600_000 < now ? "finished" : live ? "live" : "soon";
+    const homeScore = event.intHomeScore == null ? "" : String(event.intHomeScore);
+    const awayScore = event.intAwayScore == null ? "" : String(event.intAwayScore);
+    return [{
+      id: `sportsdb-${String(event.idEvent ?? `${home}-${away}-${kickoff.toISOString()}`)}`,
+      homeTeam: home,
+      homeLogo: safeLogo(event.strHomeTeamBadge),
+      awayTeam: away,
+      awayLogo: safeLogo(event.strAwayTeamBadge),
+      time: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(kickoff),
+      kickoffIso: kickoff.toISOString(),
+      score: homeScore || awayScore ? `${homeScore} – ${awayScore}` : "",
+      status,
+      statusLabel: statusLabelFor(status),
+      channel: "",
+      commentator: "",
+      competition: String(event.strLeague ?? "Football"),
+      url: "",
+    }];
+  }).sort((a, b) => (a.kickoffIso ?? "").localeCompare(b.kickoffIso ?? ""));
+}
 
 export const getMatches = createServerFn({ method: "GET" })
   .inputValidator(
@@ -56,10 +99,10 @@ export const getMatches = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }) => {
     try {
+      await discoverYacineConfig();
       const events = await fetchYacineEvents();
       const wanted = targetDateKey(data.day === "home" ? "today" : data.day);
-
-      return events
+      const matches = events
         .filter((event) => dateKey(event.startTime * 1000) === wanted)
         .map((event): Match => {
           const status = statusFor(event.startTime, event.endTime);
@@ -69,9 +112,7 @@ export const getMatches = createServerFn({ method: "GET" })
             homeLogo: safeLogo(event.home.logo),
             awayTeam: event.away.name,
             awayLogo: safeLogo(event.away.logo),
-            time: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(
-              new Date(event.startTime * 1000),
-            ),
+            time: new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(event.startTime * 1000)),
             kickoffIso: new Date(event.startTime * 1000).toISOString(),
             score: "",
             status,
@@ -82,9 +123,12 @@ export const getMatches = createServerFn({ method: "GET" })
             url: "",
           };
         });
+      return matches.length > 0 ? matches : await fallbackMatches(data.day);
     } catch {
-      // Upstream outage: the page renders an empty schedule rather than a
-      // server error. The status page surfaces provider health separately.
-      return [] as Match[];
+      try {
+        return await fallbackMatches(data.day);
+      } catch {
+        return [] as Match[];
+      }
     }
   });

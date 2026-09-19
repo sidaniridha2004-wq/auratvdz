@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { getYacineConfig } from "./yacine-config.server";
+import { discoverYacineConfig } from "./yacine-discovery.server";
 import type { YacineDirectory, YacineEvent } from "./yacine-api.server";
 
 // Server functions for the Yacine directory. Raw stream URLs / headers are
@@ -17,6 +18,7 @@ function decrypt(enc: string, key: string): string {
 }
 
 async function req<T = unknown>(path: string): Promise<T> {
+  await discoverYacineConfig();
   const { apiUrl, decryptKey } = getYacineConfig();
   const url = apiUrl + path;
   const attempt = async (n: number): Promise<T> => {
@@ -92,11 +94,13 @@ export const getChannelQualities = createServerFn({ method: "GET" })
   });
 
 export const getYacineEvents = createServerFn({ method: "GET" }).handler(async (): Promise<YacineEvent[]> => {
+  await discoverYacineConfig();
   const { fetchYacineEvents } = await import("./yacine-api.server");
   return fetchYacineEvents();
 });
 
 export const getYacineDirectory = createServerFn({ method: "GET" }).handler(async (): Promise<YacineDirectory> => {
+  await discoverYacineConfig();
   const { fetchYacineDirectory } = await import("./yacine-api.server");
   try {
     return await fetchYacineDirectory();

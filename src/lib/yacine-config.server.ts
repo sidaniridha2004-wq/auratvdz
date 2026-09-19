@@ -6,6 +6,9 @@ const CURRENT_API_URL = "https://def.ycnapi.com";
 const CURRENT_STREAM_URL = "https://tv.variety-buy.store";
 const RETIRED_HOSTS = new Set(["def.yacinelive.com", "ver3.yacinelive.com"]);
 
+let discoveredApiUrl: string | null = null;
+let discoveredStreamUrl: string | null = null;
+
 function safeUrl(value: string | undefined): string | null {
   if (!value) return null;
   try {
@@ -18,13 +21,19 @@ function safeUrl(value: string | undefined): string | null {
   }
 }
 
+/** Called by the server-only Firebase discovery routine after a successful fetch. */
+export function setDiscoveredYacineConfig(apiUrl?: string, streamUrl?: string): void {
+  discoveredApiUrl = safeUrl(apiUrl) ?? discoveredApiUrl;
+  discoveredStreamUrl = safeUrl(streamUrl) ?? discoveredStreamUrl;
+}
+
 export function getYacineConfig() {
-  const apiUrl = safeUrl(process.env.YACINE_API_URL?.trim()) ?? CURRENT_API_URL;
-  const streamUrl = safeUrl(process.env.YACINE_STREAM_URL?.trim()) ?? CURRENT_STREAM_URL;
+  const configuredApiUrl = safeUrl(process.env.YACINE_API_URL?.trim());
+  const configuredStreamUrl = safeUrl(process.env.YACINE_STREAM_URL?.trim());
 
   return {
-    apiUrl,
-    streamUrl,
+    apiUrl: configuredApiUrl ?? discoveredApiUrl ?? CURRENT_API_URL,
+    streamUrl: configuredStreamUrl ?? discoveredStreamUrl ?? CURRENT_STREAM_URL,
     decryptKey:
       process.env.YACINE_DECRYPT_KEY?.trim() || "c!xZj+N9&G@Ev@vw",
   };
