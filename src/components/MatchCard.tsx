@@ -7,7 +7,7 @@ import { useChannelsBySlug } from "@/lib/channels-client";
 import { findChannelForMatch, yacineIdFromSlug } from "@/lib/match-channel";
 import { ChannelLogo } from "./ChannelLogo";
 
-type Resolved = { kind: "yacine"; id: number; label: string; logo?: string } | null;
+type Resolved = { kind: "yacine"; id: string; label: string; logo?: string } | null;
 
 /** Maps the fixture's channel name onto a playable directory channel id. */
 function resolveChannel(match: Match, bySlug: Map<string, M3uChannel>): Resolved {

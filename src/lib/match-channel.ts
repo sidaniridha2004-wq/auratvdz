@@ -81,8 +81,7 @@ export function findChannelForMatch(
   return best?.channel ?? null;
 }
 
-/** Numeric Yacine id behind a `yacine-<id>` slug, when present. */
-export function yacineIdFromSlug(slug: string): number | null {
-  const id = /^yacine-(\d+)$/.exec(slug)?.[1];
-  return id ? Number(id) : null;
+/** String Yacine id behind a `yacine-<id>` slug, preserving 18-digit IDs. */
+export function yacineIdFromSlug(slug: string): string | null {
+  return /^yacine-(\d+)$/.exec(slug)?.[1] ?? null;
 }
