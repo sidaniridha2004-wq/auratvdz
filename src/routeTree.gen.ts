@@ -12,9 +12,12 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as ThankYouRouteImport } from './routes/thank-you'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as StatusRouteImport } from './routes/status'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as OgImageDotpngRouteImport } from './routes/og-image[.]png'
 import { Route as MoviesRouteImport } from './routes/movies'
+import { Route as LlmsDottxtRouteImport } from './routes/llms[.]txt'
 import { Route as LiveRouteImport } from './routes/live'
 import { Route as Icon512DotpngRouteImport } from './routes/icon-512[.]png'
 import { Route as Icon192DotpngRouteImport } from './routes/icon-192[.]png'
@@ -55,6 +58,16 @@ const StatusRoute = StatusRouteImport.update({
   path: '/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PrivacyRoute = PrivacyRouteImport.update({
   id: '/privacy',
   path: '/privacy',
@@ -68,6 +81,11 @@ const OgImageDotpngRoute = OgImageDotpngRouteImport.update({
 const MoviesRoute = MoviesRouteImport.update({
   id: '/movies',
   path: '/movies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LlmsDottxtRoute = LlmsDottxtRouteImport.update({
+  id: '/llms.txt',
+  path: '/llms.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LiveRoute = LiveRouteImport.update({
@@ -203,9 +221,12 @@ export interface FileRoutesByFullPath {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/thank-you': typeof ThankYouRoute
@@ -235,9 +256,12 @@ export interface FileRoutesByTo {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/thank-you': typeof ThankYouRoute
@@ -268,9 +292,12 @@ export interface FileRoutesById {
   '/icon-192.png': typeof Icon192DotpngRoute
   '/icon-512.png': typeof Icon512DotpngRoute
   '/live': typeof LiveRoute
+  '/llms.txt': typeof LlmsDottxtRoute
   '/movies': typeof MoviesRoute
   '/og-image.png': typeof OgImageDotpngRoute
   '/privacy': typeof PrivacyRoute
+  '/robots.txt': typeof RobotsDottxtRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/status': typeof StatusRoute
   '/terms': typeof TermsRoute
   '/thank-you': typeof ThankYouRoute
@@ -302,9 +329,12 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/llms.txt'
     | '/movies'
     | '/og-image.png'
     | '/privacy'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/status'
     | '/terms'
     | '/thank-you'
@@ -334,9 +364,12 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/llms.txt'
     | '/movies'
     | '/og-image.png'
     | '/privacy'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/status'
     | '/terms'
     | '/thank-you'
@@ -366,9 +399,12 @@ export interface FileRouteTypes {
     | '/icon-192.png'
     | '/icon-512.png'
     | '/live'
+    | '/llms.txt'
     | '/movies'
     | '/og-image.png'
     | '/privacy'
+    | '/robots.txt'
+    | '/sitemap.xml'
     | '/status'
     | '/terms'
     | '/thank-you'
@@ -399,9 +435,12 @@ export interface RootRouteChildren {
   Icon192DotpngRoute: typeof Icon192DotpngRoute
   Icon512DotpngRoute: typeof Icon512DotpngRoute
   LiveRoute: typeof LiveRoute
+  LlmsDottxtRoute: typeof LlmsDottxtRoute
   MoviesRoute: typeof MoviesRoute
   OgImageDotpngRoute: typeof OgImageDotpngRoute
   PrivacyRoute: typeof PrivacyRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   StatusRoute: typeof StatusRoute
   TermsRoute: typeof TermsRoute
   ThankYouRoute: typeof ThankYouRoute
@@ -443,6 +482,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/privacy': {
       id: '/privacy'
       path: '/privacy'
@@ -462,6 +515,13 @@ declare module '@tanstack/react-router' {
       path: '/movies'
       fullPath: '/movies'
       preLoaderRoute: typeof MoviesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/llms.txt': {
+      id: '/llms.txt'
+      path: '/llms.txt'
+      fullPath: '/llms.txt'
+      preLoaderRoute: typeof LlmsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/live': {
@@ -647,9 +707,12 @@ const rootRouteChildren: RootRouteChildren = {
   Icon192DotpngRoute: Icon192DotpngRoute,
   Icon512DotpngRoute: Icon512DotpngRoute,
   LiveRoute: LiveRoute,
+  LlmsDottxtRoute: LlmsDottxtRoute,
   MoviesRoute: MoviesRoute,
   OgImageDotpngRoute: OgImageDotpngRoute,
   PrivacyRoute: PrivacyRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   StatusRoute: StatusRoute,
   TermsRoute: TermsRoute,
   ThankYouRoute: ThankYouRoute,
