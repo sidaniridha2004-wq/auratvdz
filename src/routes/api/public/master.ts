@@ -1,11 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { fetchYacineChannelVariants, type YacineVariant } from "@/lib/yacine-api.server";
-import { fetchYacineChannelFallback } from "@/lib/yacine-channel-fallback.server";
+import {
+  fetchYacineChannelFallback,
+  rememberYacineChannelStreams,
+} from "@/lib/yacine-channel-fallback.server";
 import { discoverYacineConfig } from "@/lib/yacine-discovery.server";
 import { signedProxyUrl } from "@/lib/stream-sign.server";
 import { bandwidthForHeight, heightFromLabel } from "@/lib/quality";
 
-// HLS master playlist for a live-API channel.
 const CORS = {
   "access-control-allow-origin": "*",
   "access-control-allow-methods": "GET, OPTIONS",
@@ -37,7 +39,12 @@ export const Route = createFileRoute("/api/public/master")({
         try {
           await discoverYacineConfig();
           variants = await fetchYacineChannelVariants(channelId, wanted);
-          if (!variants.length) {
+          if (variants.length) {
+            rememberYacineChannelStreams(
+              channelId,
+              variants.map(({ name, url, referer, userAgent }) => ({ name, url, referer, userAgent })),
+            );
+          } else {
             const fallback = await fetchYacineChannelFallback(channelId);
             variants = fallback.map((stream) => ({
               ...stream,
@@ -47,7 +54,7 @@ export const Route = createFileRoute("/api/public/master")({
           }
         } catch (error) {
           const message = error instanceof Error ? error.message : String(error);
-          console.warn("[auratv] Yacine master failed:", message.slice(0, 300));
+          console.error("[auratv] Yacine master failed:", message.slice(0, 300));
           return plain(502, "upstream error");
         }
         if (!variants.length) return plain(404, "no streams");

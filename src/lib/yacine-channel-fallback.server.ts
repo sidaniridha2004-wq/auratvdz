@@ -8,12 +8,15 @@ export type FallbackYacineStream = {
 };
 
 type Json = Record<string, unknown>;
+type GoodEntry = { streams: FallbackYacineStream[]; expiresAt: number };
 
 const API_FALLBACKS = [
   "https://def.ycnapi.com",
   "https://def11.ycnapi.com",
   "https://deft.yacinelive.com",
 ];
+const LAST_GOOD_TTL_MS = 10 * 60_000;
+const lastGood = new Map<string, GoodEntry>();
 
 const text = (value: unknown): string => (typeof value === "string" ? value.trim() : "");
 
@@ -42,6 +45,21 @@ function absoluteUrl(value: unknown, base?: string): string {
   }
 }
 
+export function rememberYacineChannelStreams(channelId: string, streams: FallbackYacineStream[]): void {
+  if (!streams.length) return;
+  lastGood.set(channelId, { streams, expiresAt: Date.now() + LAST_GOOD_TTL_MS });
+}
+
+function remembered(channelId: string): FallbackYacineStream[] {
+  const hit = lastGood.get(channelId);
+  if (!hit) return [];
+  if (hit.expiresAt <= Date.now()) {
+    lastGood.delete(channelId);
+    return [];
+  }
+  return hit.streams;
+}
+
 /**
  * A channel id can be listed by one Yacine API host while its playable feed is
  * present on another. Try every known host and accept the first non-empty
@@ -49,6 +67,9 @@ function absoluteUrl(value: unknown, base?: string): string {
  */
 export async function fetchYacineChannelFallback(channelId: string): Promise<FallbackYacineStream[]> {
   if (!/^\d{1,30}$/.test(channelId)) return [];
+
+  const cached = remembered(channelId);
+  if (cached.length) return cached;
 
   const config = getYacineConfig();
   const hosts = Array.from(new Set([config.apiUrl, ...API_FALLBACKS]));
@@ -80,7 +101,10 @@ export async function fetchYacineChannelFallback(channelId: string): Promise<Fal
         .filter((stream) => stream.url !== "");
 
       outcomes.push(new URL(host).host + ":" + rawRows.length + "-rows/" + streams.length + "-streams");
-      if (streams.length) return streams;
+      if (streams.length) {
+        rememberYacineChannelStreams(channelId, streams);
+        return streams;
+      }
     } catch (error) {
       const reason = error instanceof Error ? error.name : "error";
       outcomes.push(new URL(host).host + ":" + reason);
@@ -89,6 +113,6 @@ export async function fetchYacineChannelFallback(channelId: string): Promise<Fal
     }
   }
 
-  console.warn("[auratv] No Yacine streams for channel", channelId, outcomes.join(", "));
-  return [];
+  console.error("[auratv] No Yacine streams for channel", channelId, outcomes.join(", "));
+  return remembered(channelId);
 }
