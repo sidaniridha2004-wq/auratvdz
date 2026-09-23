@@ -8,6 +8,7 @@ const FIREBASE_PROJECT_NUMBER = "692330584196";
 const FIREBASE_APP_ID = "1:692330584196:android:68ea9f0c920aa17904cad1";
 const ANDROID_PACKAGE = "ver3.ycntivi.ofg";
 const DISCOVERY_TTL = 6 * 60 * 60_000;
+const FAILURE_RETRY_MS = 30_000;
 
 let expiresAt = 0;
 let pending: Promise<void> | null = null;
@@ -79,12 +80,18 @@ export async function discoverYacineConfig(): Promise<void> {
   if (Date.now() < expiresAt) return;
   if (!pending) {
     pending = discoverOnce()
+      .then(() => {
+        // Cache only a successful discovery for the full TTL.
+        expiresAt = Date.now() + DISCOVERY_TTL;
+      })
       .catch((error: unknown) => {
         const message = error instanceof Error ? error.message : String(error);
         console.warn("[auratv] Yacine config discovery failed:", message.slice(0, 300));
+        // A transient Firebase/Vercel failure must not pin stale fallback hosts
+        // for six hours. Retry shortly on the next request instead.
+        expiresAt = Date.now() + FAILURE_RETRY_MS;
       })
       .finally(() => {
-        expiresAt = Date.now() + DISCOVERY_TTL;
         pending = null;
       });
   }
