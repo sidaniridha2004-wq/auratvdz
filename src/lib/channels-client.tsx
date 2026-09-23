@@ -5,8 +5,6 @@ import type { ChannelRow } from "./channels.functions";
 import { getYacineDirectory } from "./yacine.functions";
 import type { M3uChannel } from "./m3u-channels";
 
-// The homepage refresh button already invalidates this key. It represents the
-// live API directory; the legacy Supabase catalogue is no longer shown.
 export const CHANNELS_QUERY_KEY = ["channels"] as const;
 
 export function rowToChannel(row: ChannelRow): M3uChannel {
@@ -32,13 +30,19 @@ function directoryToChannels(directory: Directory | undefined): M3uChannel[] {
   }));
 }
 
-/** One shared query for every consumer, so the directory is fetched once per page. */
+/**
+ * Yacine rotates channel IDs, so keeping a directory for ten minutes can leave
+ * cards pointing at ids that already return 404. Refresh it regularly and on
+ * window focus; the master route also resolves a rotated id by channel name.
+ */
 function useDirectoryQuery() {
   const fetchDirectory = useServerFn(getYacineDirectory);
   return useQuery({
     queryKey: CHANNELS_QUERY_KEY,
     queryFn: () => fetchDirectory(),
-    staleTime: 10 * 60_000,
+    staleTime: 20_000,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
     retry: 2,
   });
 }
@@ -53,8 +57,6 @@ export function useChannels() {
     return map;
   }, [channels]);
 
-  // Kept for the settings/admin views that still expect database rows; the
-  // public UI never shows them.
   const rows: ChannelRow[] = [];
 
   return {
