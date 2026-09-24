@@ -65,10 +65,6 @@ export const Route = createFileRoute("/api/public/master")({
             );
           }
 
-          // Yacine rotates its large channel IDs. A page opened before a
-          // rotation can therefore hold an id whose /api/channel route now
-          // returns 404. Resolve the current ids by the stable channel name and
-          // rebuild the quality ladder from those entries.
           if (!variants.length && requestedName) {
             const wantedName = normaliseChannelName(requestedName);
             const directory = await fetchYacineDirectory();
@@ -118,6 +114,25 @@ export const Route = createFileRoute("/api/public/master")({
         if (wanted) {
           const preferred = variants.filter((v) => v.height === wanted);
           if (preferred.length) variants = [...preferred, ...variants.filter((v) => v.height !== wanted)];
+        }
+
+        // Some event channels (including ALKASS) publish one URL which is
+        // itself an adaptive master playlist. Wrapping that master inside a
+        // synthetic EXT-X-STREAM-INF creates a nested master; the Android app
+        // accepts it, but hls.js expects a media playlist at that level and
+        // never starts. Redirect a single source to the signed proxy so hls.js
+        // can parse the upstream master and its real rendition ladder directly.
+        if (variants.length === 1) {
+          const only = variants[0];
+          const location = await signedProxyUrl({
+            url: only.url,
+            referer: only.referer || undefined,
+            ua: only.userAgent || undefined,
+          });
+          return new Response(null, {
+            status: 302,
+            headers: { ...CORS, location, "cache-control": "no-store" },
+          });
         }
 
         const lines: string[] = ["#EXTM3U", "#EXT-X-VERSION:3"];
