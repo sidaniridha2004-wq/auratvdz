@@ -5,7 +5,6 @@ import { getMovie, resolveStream, type MovieDetail, type StreamResolution } from
 import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame-guard";
 import { movieKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
-import { resolveFreshVixDirect } from "@/lib/vix-direct.functions";
 import { withVixEmbedRoute } from "@/lib/vix-embed-route";
 
 const searchSchema = z.object({
@@ -25,19 +24,16 @@ export const Route = createFileRoute("/play/movie/$id")({
       if (error instanceof Error && /not found/i.test(error.message)) throw notFound();
       throw error;
     });
-    const input = {
-      kind: "movie" as const,
-      id,
-      title: detail.movie.title,
-      poster: detail.movie.backdrop ?? detail.movie.poster ?? undefined,
-      startAt: deps.t,
-    };
-    const [resolved, freshVix] = await Promise.all([
-      resolveStream({ data: input }),
-      resolveFreshVixDirect({ data: { kind: "movie", id } }),
-    ]);
-    const repaired = freshVix.ok ? { ...resolved, direct: freshVix } : resolved;
-    const stream = withVixEmbedRoute(repaired, { kind: "movie", id });
+    const resolved = await resolveStream({
+      data: {
+        kind: "movie",
+        id,
+        title: detail.movie.title,
+        poster: detail.movie.backdrop ?? detail.movie.poster ?? undefined,
+        startAt: deps.t,
+      },
+    });
+    const stream = withVixEmbedRoute(resolved, { kind: "movie", id });
     return { movie: detail.movie, stream };
   },
   head: ({ loaderData }) =>
