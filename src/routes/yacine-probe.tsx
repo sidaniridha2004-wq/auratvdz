@@ -1,8 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { probeYacineEvents } from "@/lib/yacine-probe.functions";
+import { getYacineDirectory } from "@/lib/yacine.functions";
 
 export const Route = createFileRoute("/yacine-probe")({
-  loader: () => probeYacineEvents(),
+  loader: async () => {
+    const [probe, directory] = await Promise.all([probeYacineEvents(), getYacineDirectory().catch(() => null)]);
+    const candidates = (directory?.channels ?? []).filter((item) => /alkass|al\s*kass|kass|الكاس|الكأس/i.test(`${item.name} ${item.categoryName}`));
+    return { ...probe, directoryCount: directory?.channels.length ?? 0, candidates };
+  },
   component: ProbePage,
 });
 
