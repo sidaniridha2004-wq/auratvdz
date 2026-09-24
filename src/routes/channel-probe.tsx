@@ -1,8 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { probeYacineStream } from "@/lib/yacine-stream-probe.functions";
+import { probeAuraProxy } from "@/lib/proxy-probe.functions";
 
 export const Route = createFileRoute("/channel-probe")({
-  loader: () => probeYacineStream({ data: { name: "Alkass 1" } }),
+  loader: async () => {
+    const [upstream, proxy] = await Promise.all([probeYacineStream({ data: { name: "Alkass 1" } }), probeAuraProxy()]);
+    return { upstream, proxy };
+  },
   component: Probe,
 });
 function Probe() {
