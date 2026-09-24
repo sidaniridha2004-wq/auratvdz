@@ -16,12 +16,6 @@ async function getServerEntry(): Promise<ServerEntry> {
   return serverEntryPromise;
 }
 
-// ---------------------------------------------------------------------------
-// Security headers
-// ---------------------------------------------------------------------------
-
-// Env is only guaranteed to be bound while a request is in flight on edge
-// runtimes, so the policy is built lazily on the first request and memoised.
 function supabaseOrigin(): string {
   const raw = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
   try {
@@ -42,9 +36,6 @@ function csp(): string {
     "object-src 'none'",
     "frame-ancestors 'none'",
     "form-action 'self' mailto:",
-    // TanStack Start injects a small inline bootstrap script and GA needs its
-    // own inline config line; 'unsafe-inline' for scripts is the price of that
-    // without a nonce pipeline. Styles are inline via Tailwind's SSR path.
     "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com",
     "style-src 'self' 'unsafe-inline' https://api.fontshare.com",
     "font-src 'self' https://cdn.fontshare.com data:",
@@ -54,7 +45,7 @@ function csp(): string {
       .filter(Boolean)
       .join(" "),
     "worker-src 'self' blob:",
-    "frame-src https://www.openstreetmap.org https://vixsrc.to https://*.vixsrc.to https://vaplayer.ru https://*.vaplayer.ru https://vidlink.pro https://*.vidlink.pro https://multiembed.cc https://*.multiembed.cc https://vidfast.vc https://*.vidfast.vc https://yapgrid.com https://*.yapgrid.com https://vidzy.org https://*.vidzy.org",
+    "frame-src 'self' https://www.openstreetmap.org https://vixsrc.to https://*.vixsrc.to https://vaplayer.ru https://*.vaplayer.ru https://vidlink.pro https://*.vidlink.pro https://multiembed.cc https://*.multiembed.cc https://vidfast.vc https://*.vidfast.vc https://yapgrid.com https://*.yapgrid.com https://vidzy.org https://*.vidzy.org",
     "manifest-src 'self'",
     "upgrade-insecure-requests",
   ].join("; ");
@@ -72,35 +63,24 @@ const SECURITY_HEADERS: Record<string, string> = {
 };
 
 function withSecurityHeaders(response: Response, pathname: string): Response {
-  // Streams and playlists are consumed by the media pipeline; a CSP on them is
-  // pointless and the relay already sets its own cache/CORS headers.
   const isStream = pathname.startsWith("/api/public/stream") || pathname.endsWith(".m3u8") || pathname.endsWith(".ts");
   const headers = new Headers(response.headers);
   for (const [k, v] of Object.entries(SECURITY_HEADERS)) {
     if (!headers.has(k)) headers.set(k, v);
   }
   if (!isStream && !headers.has("content-security-policy")) headers.set("content-security-policy", csp());
-  // Never leak framework fingerprints.
   headers.delete("x-powered-by");
   headers.delete("server");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
-// ---------------------------------------------------------------------------
-// Error normalisation
-// ---------------------------------------------------------------------------
-
 const ERROR_HEADERS = { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" };
 
 function recordServerError(error: unknown): void {
-  // Keep a one-line, stack-free record so that hosting logs are useful but
-  // never echo request data back to the client.
   const message = error instanceof Error ? error.message : String(error);
   process.stderr.write(`[auratv] ${new Date().toISOString()} ${message.slice(0, 500)}\n`);
 }
 
-// h3 swallows in-handler throws into a normal 500 Response with body
-// {"unhandled":true,"message":"HTTPError"}; try/catch alone never fires for those.
 async function normalizeCatastrophicSsrResponse(response: Response): Promise<Response> {
   if (response.status < 500) return response;
   const contentType = response.headers.get("content-type") ?? "";
