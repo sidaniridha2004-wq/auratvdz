@@ -2,12 +2,6 @@
 //
 // VidAPI still supplies the large daily availability lists, while playback
 // uses VidLink because VidAPI's iframe now requires per-domain whitelisting.
-// What we get from the two services:
-//  - daily ID lists of every movie / show they can play, used to widen the
-//    catalogue and to mark which servers a title is available on;
-//  - a player that auto-searches OpenSubtitles (ds_lang) and accepts an
-//    explicit subtitle file (sub_url), which we use for Arabic subtitles;
-//  - postMessage PLAYER_EVENT updates for progress / completion.
 
 import type { MediaKind } from "./tmdb.server";
 
@@ -17,7 +11,7 @@ export const VIDAPI_PLAYER_ORIGIN = PLAYER_BASE;
 
 const UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 const LIST_TIMEOUT_MS = 60_000;
-const LIST_TTL_MS = 6 * 60 * 60_000; // lists are regenerated daily upstream
+const LIST_TTL_MS = 6 * 60 * 60_000;
 const LIST_STALE_MS = 48 * 60 * 60_000;
 const MAX_LIST_BYTES = 12 * 1024 * 1024;
 
@@ -51,7 +45,6 @@ async function fetchText(url: string, timeoutMs: number): Promise<{ status: numb
   }
 }
 
-/** Parse a one-id-per-line list; tolerates CRLF, blanks and stray `tt` ids. */
 export function parseIdList(text: string): number[] {
   const out = new Set<number>();
   for (const raw of text.split(/\r?\n/)) {
@@ -80,7 +73,6 @@ async function refresh(): Promise<VidCatalogue> {
   return { movies, shows, movieSet: new Set(movies), showSet: new Set(shows), fetchedAt: Date.now() };
 }
 
-/** Cached VidAPI id lists; stale-while-revalidate, null when never loaded. */
 export async function getVidCatalogue(): Promise<VidCatalogue | null> {
   const age = catalogue ? Date.now() - catalogue.fetchedAt : Infinity;
   if (catalogue && age < LIST_TTL_MS) return catalogue;
@@ -113,13 +105,13 @@ export interface VidEmbedOptions {
   startAt?: number;
   title?: string;
   poster?: string | null;
-  /** Absolute URL of a subtitle file (.srt/.vtt) to preload as the default track. */
   subUrl?: string;
   subLang?: string;
   subLabel?: string;
 }
 
-/** Build the Server 2 VidLink iframe URL. */
+/** Build the primary Link iframe URL. Autoplay stays off so iOS and Android
+ * browsers get a real user gesture instead of blocking the embedded player. */
 export function vidEmbedUrl(kind: MediaKind, id: number, opts: VidEmbedOptions = {}): string {
   const path = kind === "movie" ? `/movie/${id}` : `/tv/${id}/${opts.season ?? 1}/${opts.episode ?? 1}`;
   const url = new URL(PLAYER_BASE + path);
@@ -130,7 +122,7 @@ export function vidEmbedUrl(kind: MediaKind, id: number, opts: VidEmbedOptions =
   url.searchParams.set("player", "default");
   url.searchParams.set("title", "true");
   url.searchParams.set("poster", "true");
-  url.searchParams.set("autoplay", "true");
+  url.searchParams.set("autoplay", "false");
   url.searchParams.set("nextbutton", "false");
   if (opts.startAt && opts.startAt > 0) url.searchParams.set("startAt", String(Math.floor(opts.startAt)));
   if (opts.subUrl && /^https?:\/\//i.test(opts.subUrl)) {
