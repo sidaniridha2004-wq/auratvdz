@@ -12,9 +12,6 @@ import { pageHead } from "@/lib/seo";
 const watchSearchSchema = z.object({
   name: z.string().max(120).optional(),
   logo: z.string().url().max(500).optional().catch(undefined),
-  // Resolution-specific categories (e.g. "beIN SPORTS 1080") open the player
-  // pinned to that rung; the quality menu still lists every other one.
-  // Matches open without it, so playback starts in auto.
   q: z.coerce.number().int().min(100).max(4320).optional().catch(undefined),
 });
 
@@ -69,11 +66,14 @@ function Watch() {
   const id = channelId.trim();
   if (!/^\d{1,30}$/.test(id)) throw notFound();
 
-  // The master always carries the full quality ladder for this channel; `q`
-  // only tells it which rung to list first and the player which one to pin.
-  const masterUrl = q ? `/api/public/master?channelId=${encodeURIComponent(id)}&q=${q}` : `/api/public/master?channelId=${encodeURIComponent(id)}`;
-  const preferredHeight = q;
   const title = name?.trim() || `Channel ${id}`;
+  // Send the stable name explicitly. Depending on browser referrer policy is
+  // unreliable and prevented recovery when Yacine rotated an event channel's
+  // large numeric id between the fixture request and playback request.
+  const masterParams = new URLSearchParams({ channelId: id, name: title });
+  if (q) masterParams.set("q", String(q));
+  const masterUrl = `/api/public/master?${masterParams.toString()}`;
+  const preferredHeight = q;
 
   useEffect(() => () => {
     void exitImmersiveMode();
