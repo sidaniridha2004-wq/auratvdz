@@ -9,8 +9,16 @@ import { ChannelLogo } from "./ChannelLogo";
 
 type Resolved = { kind: "yacine"; id: string; label: string; logo?: string } | null;
 
-/** Maps the fixture's channel name onto a playable directory channel id. */
+/** Uses the fresh server-side match mapping, with the client directory as fallback. */
 function resolveChannel(match: Match, bySlug: Map<string, M3uChannel>): Resolved {
+  if (match.channelId) {
+    return {
+      kind: "yacine",
+      id: match.channelId,
+      label: match.channel || `Channel ${match.channelId}`,
+      logo: match.channelLogo || undefined,
+    };
+  }
   if (!match.channel) return null;
   const found = findChannelForMatch(match.channel, bySlug.values());
   if (!found) return null;
