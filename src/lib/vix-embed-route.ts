@@ -1,6 +1,6 @@
 import type { StreamResolution } from "./media.functions";
 
-/** Replace VixSrc's public title page with a fresh tokenized embed redirect. */
+/** Keep Vix available without moving it ahead of the primary Link server. */
 export function withVixEmbedRoute(
   stream: StreamResolution,
   input: { kind: "movie" | "tv"; id: number; season?: number; episode?: number },
@@ -11,16 +11,15 @@ export function withVixEmbedRoute(
     params.set("episode", String(input.episode ?? 1));
   }
   const embed = "/api/public/vix-embed?" + params.toString();
+  const vixKind = stream.direct.ok ? "direct" as const : "embed" as const;
   const servers = stream.servers.map((server) =>
-    server.id === "vixsrc" ? { ...server, kind: "embed" as const, embed } : server,
+    server.id === "vixsrc" ? { ...server, kind: vixKind, embed } : server,
   );
 
-  // Upstream catalogue lists can lag behind VixSrc's live JSON API. The API
-  // may have a working player even when sourcesFor() did not include Vix, so
-  // inject the tokenized route instead of silently falling back to VidLink.
   if (!servers.some((server) => server.id === "vixsrc")) {
-    servers.unshift({ id: "vixsrc", name: "Server 2 · Vix", kind: "embed", embed });
+    const vix = { id: "vixsrc" as const, name: "Server 2 · Vix", kind: vixKind, embed };
+    const linkIndex = servers.findIndex((server) => server.id === "vidapi");
+    servers.splice(linkIndex >= 0 ? linkIndex + 1 : 0, 0, vix);
   }
-  servers.sort((a, b) => (a.id === "vixsrc" ? -1 : b.id === "vixsrc" ? 1 : 0));
   return { ...stream, servers };
 }
