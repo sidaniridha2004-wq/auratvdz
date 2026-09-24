@@ -5,6 +5,7 @@ import { getShow, resolveStream, type Episode, type SeasonDetail, type ShowDetai
 import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame-guard";
 import { episodeKey, showKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
+import { withVixEmbedRoute } from "@/lib/vix-embed-route";
 
 const paramsSchema = z.object({
   id: z.coerce.number().int().min(1),
@@ -54,7 +55,7 @@ export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
       throw error;
     });
     const ep = detail.season?.episodes.find((e) => e.number === episode) ?? null;
-    const stream = await resolveStream({
+    const resolved = await resolveStream({
       data: {
         kind: "tv",
         id,
@@ -65,6 +66,7 @@ export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
         startAt: deps.t,
       },
     });
+    const stream = withVixEmbedRoute(resolved, { kind: "tv", id, season, episode });
     return {
       show: detail.show,
       season: detail.season,
@@ -132,7 +134,7 @@ function PlayEpisode() {
       <VodPlayer
         key={`${show.id}-${season}-${number}`}
         stream={stream}
-        preferredServer={s ?? "vidapi"}
+        preferredServer={s ?? "vixsrc"}
         poster={episode?.still ?? show.backdrop ?? show.poster}
         title={show.title}
         subtitle={`S${season} E${number}${episode?.name ? ` · ${episode.name}` : ""}`}
