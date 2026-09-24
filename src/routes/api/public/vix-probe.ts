@@ -10,17 +10,25 @@ const HEADERS = {
   origin: BASE,
 };
 
+function html(status: number, data: unknown): Response {
+  const body = JSON.stringify(data, null, 2).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c] ?? c);
+  return new Response(`<!doctype html><title>Vix probe</title><pre>${body}</pre>`, {
+    status,
+    headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" },
+  });
+}
+
 export const Route = createFileRoute("/api/public/vix-probe")({
   server: {
     handlers: {
       GET: async ({ request }) => {
         const input = new URL(request.url);
         const id = Number(input.searchParams.get("id"));
-        if (!Number.isInteger(id) || id <= 0) return Response.json({ error: "invalid id" }, { status: 400 });
+        if (!Number.isInteger(id) || id <= 0) return html(400, { error: "invalid id" });
         try {
           const api = await fetch(`${BASE}/api/movie/${id}`, { headers: HEADERS, cache: "no-store" });
           const payload = (await api.json()) as { src?: unknown };
-          if (typeof payload.src !== "string") return Response.json({ apiStatus: api.status, hasSrc: false });
+          if (typeof payload.src !== "string") return html(200, { apiStatus: api.status, hasSrc: false });
           const target = new URL(payload.src, BASE);
           const page = `${BASE}/movie/${id}`;
           const embed = await fetch(target, {
@@ -28,8 +36,8 @@ export const Route = createFileRoute("/api/public/vix-probe")({
             cache: "no-store",
             redirect: "follow",
           });
-          const html = await embed.text();
-          return Response.json({
+          const text = await embed.text();
+          return html(200, {
             apiStatus: api.status,
             embedStatus: embed.status,
             embedHost: new URL(embed.url).hostname,
@@ -37,20 +45,20 @@ export const Route = createFileRoute("/api/public/vix-probe")({
             contentType: embed.headers.get("content-type"),
             xFrameOptions: embed.headers.get("x-frame-options"),
             frameAncestors: embed.headers.get("content-security-policy")?.match(/frame-ancestors[^;]*/i)?.[0] ?? null,
-            htmlBytes: html.length,
+            htmlBytes: text.length,
             markers: {
-              masterPlaylist: html.includes("masterPlaylist"),
-              playlist: /playlist/i.test(html),
-              token: /["']?token["']?\s*[:=]/i.test(html),
-              expires: /["']?expires["']?\s*[:=]/i.test(html),
-              absoluteUrl: /https?:\\?\/\\?\//i.test(html),
-              m3u8: /m3u8/i.test(html),
-              blocked: /blocked|forbidden|access denied/i.test(html),
+              masterPlaylist: text.includes("masterPlaylist"),
+              playlist: /playlist/i.test(text),
+              token: /["']?token["']?\s*[:=]/i.test(text),
+              expires: /["']?expires["']?\s*[:=]/i.test(text),
+              absoluteUrl: /https?:\\?\/\\?\//i.test(text),
+              m3u8: /m3u8/i.test(text),
+              blocked: /blocked|forbidden|access denied/i.test(text),
             },
-            scriptSrcs: [...html.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].slice(0, 12).map((m) => m[1]),
-          }, { headers: { "cache-control": "no-store" } });
+            scriptSrcs: [...text.matchAll(/<script[^>]+src=["']([^"']+)["']/gi)].slice(0, 12).map((m) => m[1]),
+          });
         } catch (error) {
-          return Response.json({ error: error instanceof Error ? error.message : "probe failed" }, { status: 502 });
+          return html(502, { error: error instanceof Error ? error.message : "probe failed" });
         }
       },
     },
