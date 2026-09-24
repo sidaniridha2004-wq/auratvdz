@@ -26,7 +26,6 @@ type LoaderData = {
   stream: StreamResolution;
 };
 
-/** Next episode in this season, else the first of the following season. */
 function nextOf(show: ShowDetail, season: SeasonDetail | null, current: { season: number; episode: number }): LoaderData["next"] {
   const inSeason = season?.episodes.find((e) => e.number === current.episode + 1);
   if (inSeason) {
@@ -134,7 +133,7 @@ function PlayEpisode() {
       <VodPlayer
         key={`${show.id}-${season}-${number}`}
         stream={stream}
-        preferredServer={s ?? "vixsrc"}
+        preferredServer={s ?? "vidapi"}
         poster={episode?.still ?? show.backdrop ?? show.poster}
         title={show.title}
         subtitle={`S${season} E${number}${episode?.name ? ` · ${episode.name}` : ""}`}
