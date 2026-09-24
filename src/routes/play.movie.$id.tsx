@@ -78,7 +78,7 @@ function PlayMovie() {
       <VodPlayer
         key={movie.id}
         stream={stream}
-        preferredServer={s ?? "vixsrc"}
+        preferredServer={s ?? "vidapi"}
         poster={movie.backdrop ?? movie.poster}
         title={movie.title}
         subtitle={[movie.year, movie.runtime ? `${movie.runtime} min` : null].filter(Boolean).join(" · ")}
