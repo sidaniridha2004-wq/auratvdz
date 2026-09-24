@@ -5,6 +5,7 @@ import { getShow, resolveStream, type Episode, type SeasonDetail, type ShowDetai
 import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame-guard";
 import { episodeKey, showKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
+import { resolveFreshVixDirect } from "@/lib/vix-direct.functions";
 import { withVixEmbedRoute } from "@/lib/vix-embed-route";
 
 const paramsSchema = z.object({
@@ -54,18 +55,21 @@ export const Route = createFileRoute("/play/tv/$id/$season/$episode")({
       throw error;
     });
     const ep = detail.season?.episodes.find((e) => e.number === episode) ?? null;
-    const resolved = await resolveStream({
-      data: {
-        kind: "tv",
-        id,
-        season,
-        episode,
-        title: `${detail.show.title} S${season} E${episode}`,
-        poster: ep?.still ?? detail.show.backdrop ?? detail.show.poster ?? undefined,
-        startAt: deps.t,
-      },
-    });
-    const stream = withVixEmbedRoute(resolved, { kind: "tv", id, season, episode });
+    const input = {
+      kind: "tv" as const,
+      id,
+      season,
+      episode,
+      title: `${detail.show.title} S${season} E${episode}`,
+      poster: ep?.still ?? detail.show.backdrop ?? detail.show.poster ?? undefined,
+      startAt: deps.t,
+    };
+    const [resolved, freshVix] = await Promise.all([
+      resolveStream({ data: input }),
+      resolveFreshVixDirect({ data: { kind: "tv", id, season, episode } }),
+    ]);
+    const repaired = freshVix.ok ? { ...resolved, direct: freshVix } : resolved;
+    const stream = withVixEmbedRoute(repaired, { kind: "tv", id, season, episode });
     return {
       show: detail.show,
       season: detail.season,
