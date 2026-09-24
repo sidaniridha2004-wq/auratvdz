@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { fetchYacineEvents } from "./yacine-api.server";
+import { fetchYacineDirectory, fetchYacineEvents } from "./yacine-api.server";
 import { discoverYacineConfig } from "./yacine-discovery.server";
+import { normaliseChannelName } from "./match-channel";
 
 export interface Match {
   id: string;
@@ -15,6 +16,9 @@ export interface Match {
   status: "live" | "soon" | "finished" | "unknown";
   statusLabel: string;
   channel: string;
+  /** Current rotating Yacine channel id, resolved alongside the event feed. */
+  channelId?: string;
+  channelLogo?: string;
   commentator: string;
   competition: string;
   url: string;
@@ -46,7 +50,6 @@ const statusLabelFor = (status: Match["status"]) => {
   return "";
 };
 
-// Only http(s) logos from the upstream API are passed to the browser.
 const safeLogo = (raw: unknown): string => (typeof raw === "string" && /^https:\/\//i.test(raw) ? raw : "");
 
 export const getMatches = createServerFn({ method: "GET" })
@@ -58,13 +61,26 @@ export const getMatches = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     try {
       await discoverYacineConfig();
-      const events = await fetchYacineEvents();
+      // Resolve the schedule and directory in the same request. The previous
+      // client-side join could use a different host/cache generation, leaving
+      // event-only groups such as ALKASS marked "No stream" even though the
+      // current directory already contained a playable rotating channel id.
+      const [events, directory] = await Promise.all([
+        fetchYacineEvents(),
+        fetchYacineDirectory().catch(() => null),
+      ]);
       const wanted = targetDateKey(data.day === "home" ? "today" : data.day);
+      const channelByName = new Map<string, { id: string; logo: string }>();
+      for (const channel of directory?.channels ?? []) {
+        const key = normaliseChannelName(channel.name);
+        if (key && !channelByName.has(key)) channelByName.set(key, { id: channel.id, logo: channel.logo });
+      }
 
       return events
         .filter((event) => dateKey(event.startTime * 1000) === wanted)
         .map((event): Match => {
           const status = statusFor(event.startTime, event.endTime);
+          const resolved = channelByName.get(normaliseChannelName(event.channel));
           return {
             id: `yacine-event-${event.id}`,
             homeTeam: event.home.name,
@@ -79,14 +95,14 @@ export const getMatches = createServerFn({ method: "GET" })
             status,
             statusLabel: statusLabelFor(status),
             channel: event.channel,
+            channelId: resolved?.id,
+            channelLogo: safeLogo(resolved?.logo),
             commentator: event.commentary,
             competition: event.competition,
             url: "",
           };
         });
     } catch {
-      // Upstream outage: the page renders an empty schedule rather than a
-      // server error. The status page surfaces provider health separately.
       return [] as Match[];
     }
   });
