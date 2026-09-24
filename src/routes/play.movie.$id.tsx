@@ -5,11 +5,10 @@ import { getMovie, resolveStream, type MovieDetail, type StreamResolution } from
 import { ensureUnsandboxedPlayerFrames } from "@/lib/player-frame-guard";
 import { movieKey } from "@/lib/resume";
 import { pageHead } from "@/lib/seo";
+import { withVixEmbedRoute } from "@/lib/vix-embed-route";
 
 const searchSchema = z.object({
-  /** Start position in seconds; 0 forces "start over". */
   t: z.coerce.number().int().min(0).max(360_000).optional().catch(undefined),
-  /** Server to start on. */
   s: z.enum(["vixsrc", "vidapi", "multiembed", "vidfast"]).optional().catch(undefined),
 });
 
@@ -25,7 +24,7 @@ export const Route = createFileRoute("/play/movie/$id")({
       if (error instanceof Error && /not found/i.test(error.message)) throw notFound();
       throw error;
     });
-    const stream = await resolveStream({
+    const resolved = await resolveStream({
       data: {
         kind: "movie",
         id,
@@ -34,6 +33,7 @@ export const Route = createFileRoute("/play/movie/$id")({
         startAt: deps.t,
       },
     });
+    const stream = withVixEmbedRoute(resolved, { kind: "movie", id });
     return { movie: detail.movie, stream };
   },
   head: ({ loaderData }) =>
@@ -51,19 +51,10 @@ export const Route = createFileRoute("/play/movie/$id")({
         <div>
           <p className="text-white/80">{error.message}</p>
           <div className="mt-4 flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => {
-                router.invalidate();
-                reset();
-              }}
-              className="btn btn-primary"
-            >
+            <button type="button" onClick={() => { router.invalidate(); reset(); }} className="btn btn-primary">
               Retry
             </button>
-            <Link to="/movies" className="btn btn-ghost text-white">
-              Back to browse
-            </Link>
+            <Link to="/movies" className="btn btn-ghost text-white">Back to browse</Link>
           </div>
         </div>
       </div>
@@ -72,10 +63,7 @@ export const Route = createFileRoute("/play/movie/$id")({
   notFoundComponent: () => (
     <div className="grid min-h-screen place-items-center bg-black p-6 text-center text-white/80">
       <p>
-        That film is not in the catalogue.{" "}
-        <Link to="/movies" className="underline">
-          Browse movies
-        </Link>
+        That film is not in the catalogue. <Link to="/movies" className="underline">Browse movies</Link>
       </p>
     </div>
   ),
@@ -90,7 +78,7 @@ function PlayMovie() {
       <VodPlayer
         key={movie.id}
         stream={stream}
-        preferredServer={s ?? "vidapi"}
+        preferredServer={s ?? "vixsrc"}
         poster={movie.backdrop ?? movie.poster}
         title={movie.title}
         subtitle={[movie.year, movie.runtime ? `${movie.runtime} min` : null].filter(Boolean).join(" · ")}
